@@ -1,0 +1,45 @@
+name: gestion_deportiva
+description: "Sistema de Gestion Deportiva - Flutter Clean Architecture"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI
+  cupertino_icons: ^1.0.8
+
+  # Backend - Supabase
+  supabase_flutter: ^2.3.0
+
+  # State Management - Bloc
+  flutter_bloc: ^8.1.3
+
+  # Utilities
+  equatable: ^2.0.5
+  dartz: ^0.10.1
+  intl: ^0.18.0
+
+  # Dependency Injection
+  get_it: ^7.6.4
+
+  # Navigation
+  go_router: ^12.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Linting
+  flutter_lints: ^5.0.0
+
+  # Testing
+  bloc_test: ^9.1.5
+  mocktail: ^1.0.1
+
+flutter:
+  uses-material-design: true
