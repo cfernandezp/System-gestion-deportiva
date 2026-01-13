@@ -1,0 +1,10 @@
+# Configuracion referencial - NO se usa para desarrollo local
+[project]
+project_id = "tvvubzkqbksxvcjvivij"
+
+[api]
+enabled = true
+
+[db]
+# La BD esta en Cloud, no local
+# Timezone usuario: America/Lima (Peru)
