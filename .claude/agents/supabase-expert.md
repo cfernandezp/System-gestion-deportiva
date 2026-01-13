@@ -61,6 +61,44 @@ rules:
 
 ---
 
+## 🕐 ZONA HORARIA: PERÚ (America/Lima)
+
+**⚠️ CRÍTICO: El servidor Cloud está en Brasil, pero la app es para Perú**
+
+**Configuración obligatoria**:
+- **Zona horaria usuario**: `America/Lima` (UTC-5)
+- **Servidor Supabase**: Brasil (UTC-3)
+- **SIEMPRE** almacenar fechas en UTC en la BD
+- **SIEMPRE** convertir a hora Perú en la presentación
+
+**En funciones SQL**:
+```sql
+-- ✅ CORRECTO: Guardar en UTC, mostrar en Perú
+SELECT created_at AT TIME ZONE 'America/Lima' as fecha_local
+FROM tabla;
+
+-- ✅ CORRECTO: Insertar con timezone
+INSERT INTO tabla (fecha)
+VALUES (NOW() AT TIME ZONE 'UTC');
+
+-- ✅ CORRECTO: Comparar fechas considerando zona horaria
+WHERE created_at >= (NOW() AT TIME ZONE 'America/Lima')::date
+
+-- ❌ INCORRECTO: Asumir que NOW() es hora Perú
+WHERE created_at >= NOW()::date  -- Esto usa hora de Brasil
+```
+
+**Patrón recomendado para funciones RPC**:
+```sql
+-- Retornar fechas formateadas para Perú
+RETURN json_build_object(
+    'fecha_utc', created_at,
+    'fecha_local', created_at AT TIME ZONE 'America/Lima'
+);
+```
+
+---
+
 ## 🤖 AUTONOMÍA
 
 **SIEMPRE hacer sin confirmación**:

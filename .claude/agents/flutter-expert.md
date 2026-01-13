@@ -35,6 +35,69 @@ Implementa → Compila → Corrige errores → Compila → Reporta
 
 ---
 
+## 🕐 ZONA HORARIA: PERÚ (America/Lima)
+
+**⚠️ CRÍTICO: El servidor Cloud está en Brasil, pero la app es para Perú**
+
+**Configuración obligatoria**:
+- **Zona horaria usuario**: `America/Lima` (UTC-5)
+- **Servidor Supabase**: Brasil (UTC-3)
+- **BD almacena en UTC** → Flutter convierte a hora Perú para mostrar
+
+**En código Dart**:
+```dart
+// ✅ CORRECTO: Convertir UTC a hora Perú para mostrar
+import 'package:intl/intl.dart';
+
+// Configurar locale Perú
+final formatoFecha = DateFormat('dd/MM/yyyy HH:mm', 'es_PE');
+
+// Convertir de UTC (BD) a hora local Perú
+DateTime fechaUtc = DateTime.parse(json['created_at']);
+DateTime fechaPeru = fechaUtc.toLocal(); // Usa timezone del dispositivo
+String fechaFormateada = formatoFecha.format(fechaPeru);
+
+// ✅ CORRECTO: Enviar fecha a BD en UTC
+DateTime ahora = DateTime.now().toUtc();
+Map<String, dynamic> params = {
+  'p_fecha': ahora.toIso8601String(),
+};
+
+// ❌ INCORRECTO: Enviar hora local sin convertir
+Map<String, dynamic> params = {
+  'p_fecha': DateTime.now().toIso8601String(), // Envía hora local, no UTC
+};
+```
+
+**En Models (fromJson/toJson)**:
+```dart
+class PartidoModel {
+  final DateTime fechaHora;
+
+  factory PartidoModel.fromJson(Map<String, dynamic> json) {
+    return PartidoModel(
+      // Parsear como UTC y dejar que Flutter convierta a local
+      fechaHora: DateTime.parse(json['fecha_hora']).toLocal(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      // Enviar siempre en UTC
+      'fecha_hora': fechaHora.toUtc().toIso8601String(),
+    };
+  }
+}
+```
+
+**Dependencia requerida** (pubspec.yaml):
+```yaml
+dependencies:
+  intl: ^0.18.0
+```
+
+---
+
 ## 📋 FLUJO (8 Pasos)
 
 ### 1. Leer HU + SECCIÓN BACKEND (OBLIGATORIO)
