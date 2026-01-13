@@ -1,0 +1,39 @@
+{
+  "commands": {
+    "implementar": {
+      "description": "Comando para coordinar la implementación de Historias de Usuario",
+      "file": "implementar.md",
+      "enabled": true
+    },
+    "orquestar": {
+      "description": "Comando para orquestar la implementación de HUs coordinando todos los agentes",
+      "file": "orquestar.md",
+      "enabled": true
+    }
+  },
+  "agents": {
+    "default_agent": "web-architect-expert",
+    "available_agents": [
+      "web-architect-expert",
+      "negocio-deportivo-expert",
+      "supabase-expert",
+      "flutter-expert",
+      "ux-ui-expert",
+      "qa-testing-expert",
+      "po-user-stories-template"
+    ]
+  },
+  "project": {
+    "name": "Sistema Gestión Deportiva",
+    "type": "flutter-web-mobile-supabase",
+    "platform": "web, mobile",
+    "target": "web_and_mobile_application",
+    "documentation_path": "docs/"
+  },
+  "permissions": {
+    "allow": ["*"],
+    "deny": [],
+    "ask": [],
+    "defaultMode": "bypassPermissions"
+  }
+}
