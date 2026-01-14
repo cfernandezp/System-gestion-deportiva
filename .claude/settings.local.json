@@ -63,7 +63,8 @@
       "Bash(Select-String -Pattern \"error\" -CaseSensitive)",
       "Bash(grep:*)",
       "Bash(flutter test:*)",
-      "Bash(del \"c:\\\\Cristian\\\\Proyectos\\\\system-gestion-deportiva\\\\.claude\\\\agents\\\\negocio-medias-expert.md\")"
+      "Bash(del \"c:\\\\Cristian\\\\Proyectos\\\\system-gestion-deportiva\\\\.claude\\\\agents\\\\negocio-medias-expert.md\")",
+      "Bash(flutter create:*)"
     ],
     "deny": [],
     "ask": [],

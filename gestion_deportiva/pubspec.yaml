@@ -39,7 +39,7 @@ dev_dependencies:
 
   # Testing
   bloc_test: ^9.1.5
-  mocktail: ^1.0.1
+  mocktail: ^1.0.4
 
 flutter:
   uses-material-design: true

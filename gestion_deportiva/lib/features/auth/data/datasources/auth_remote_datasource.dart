@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/errors/exceptions.dart';
+import '../models/login_response_model.dart';
 import '../models/registro_response_model.dart';
 import '../models/validacion_password_model.dart';
 import '../models/verificar_estado_model.dart';
@@ -25,6 +26,21 @@ abstract class AuthRemoteDataSource {
   /// RPC: verificar_estado_usuario(p_auth_user_id)
   Future<VerificarEstadoModel> verificarEstadoUsuario({
     required String authUserId,
+  });
+
+  /// Inicia sesion de usuario
+  /// RPC: iniciar_sesion(p_email, p_password)
+  /// HU-002: CA-002, CA-003, RN-002, RN-003, RN-004, RN-005, RN-007
+  Future<LoginResponseModel> iniciarSesion({
+    required String email,
+    required String password,
+  });
+
+  /// Verifica si un email esta bloqueado por intentos fallidos
+  /// RPC: verificar_bloqueo_login(p_email)
+  /// HU-002: RN-007
+  Future<VerificarBloqueoModel> verificarBloqueoLogin({
+    required String email,
   });
 }
 
@@ -122,6 +138,74 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     } catch (e) {
       throw ServerException(
         message: 'Error al verificar estado: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
+  Future<LoginResponseModel> iniciarSesion({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await supabase.rpc(
+        'iniciar_sesion',
+        params: {
+          'p_email': email,
+          'p_password': password,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return LoginResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al iniciar sesion',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al iniciar sesion: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
+  Future<VerificarBloqueoModel> verificarBloqueoLogin({
+    required String email,
+  }) async {
+    try {
+      final response = await supabase.rpc(
+        'verificar_bloqueo_login',
+        params: {
+          'p_email': email,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return VerificarBloqueoModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al verificar bloqueo',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error al verificar bloqueo: ${e.toString()}',
       );
     }
   }

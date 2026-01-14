@@ -1,0 +1,1 @@
+cd gestion_deportiva && flutter run -d chrome --web-port 808
