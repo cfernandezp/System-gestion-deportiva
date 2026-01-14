@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/presentation/pages/registro_page.dart';
+
 /// Configuracion del router de la aplicacion
 /// Usa go_router para navegacion declarativa
 class AppRouter {
+  /// Rutas de la aplicacion
+  static const String home = '/';
+  static const String login = '/login';
+  static const String registro = '/registro';
+
   static final GoRouter router = GoRouter(
     initialLocation: '/',
     debugLogDiagnostics: true,
@@ -17,7 +24,13 @@ class AppRouter {
           ),
         ),
       ),
-      // TODO: Agregar rutas por feature
+      // Ruta de registro de usuario (HU-001)
+      GoRoute(
+        path: '/registro',
+        name: 'registro',
+        builder: (context, state) => const RegistroPage(),
+      ),
+      // TODO: Agregar ruta de login
       // GoRoute(
       //   path: '/login',
       //   name: 'login',

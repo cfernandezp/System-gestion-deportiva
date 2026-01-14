@@ -3,6 +3,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../network/supabase_client.dart';
 
+// Auth Feature
+import '../../features/auth/data/datasources/auth_remote_datasource.dart';
+import '../../features/auth/data/repositories/auth_repository_impl.dart';
+import '../../features/auth/domain/repositories/auth_repository.dart';
+import '../../features/auth/presentation/bloc/registro/registro_bloc.dart';
+
 /// Service Locator global
 final sl = GetIt.instance;
 
@@ -16,9 +22,18 @@ Future<void> initializeDependencies() async {
 
   // ==================== Features ====================
 
-  // TODO: Registrar Blocs, Repositories, DataSources por feature
-  // Ejemplo:
-  // sl.registerFactory(() => AuthBloc(repository: sl()));
-  // sl.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl(dataSource: sl()));
-  // sl.registerLazySingleton<AuthRemoteDataSource>(() => AuthRemoteDataSourceImpl(supabase: sl()));
+  // -------------------- Auth --------------------
+
+  // Bloc
+  sl.registerFactory(() => RegistroBloc(repository: sl()));
+
+  // Repository
+  sl.registerLazySingleton<AuthRepository>(
+    () => AuthRepositoryImpl(remoteDataSource: sl()),
+  );
+
+  // DataSource
+  sl.registerLazySingleton<AuthRemoteDataSource>(
+    () => AuthRemoteDataSourceImpl(supabase: sl()),
+  );
 }
