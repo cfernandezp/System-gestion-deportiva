@@ -294,7 +294,7 @@ USING (auth_user_id = auth.uid());
 CREATE POLICY "No inserciones directas"
 ON sesiones_log FOR INSERT
 TO authenticated
-USING (false);
+WITH CHECK (false);
 
 -- Service role tiene acceso completo
 CREATE POLICY "Service role acceso completo"
