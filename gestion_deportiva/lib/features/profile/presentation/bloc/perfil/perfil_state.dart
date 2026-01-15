@@ -57,3 +57,48 @@ class PerfilRefreshing extends PerfilState {
   @override
   List<Object?> get props => [perfilActual];
 }
+
+/// E002-HU-002: Estado de guardado - actualizando perfil
+class PerfilSaving extends PerfilState {
+  final PerfilModel perfilActual;
+
+  const PerfilSaving({required this.perfilActual});
+
+  @override
+  List<Object?> get props => [perfilActual];
+}
+
+/// E002-HU-002: Estado de exito al actualizar - CA-004
+class PerfilUpdateSuccess extends PerfilState {
+  final PerfilModel perfil;
+  final String message;
+
+  const PerfilUpdateSuccess({
+    required this.perfil,
+    required this.message,
+  });
+
+  @override
+  List<Object?> get props => [perfil, message];
+}
+
+/// E002-HU-002: Estado de error al actualizar - CA-005
+class PerfilUpdateError extends PerfilState {
+  final PerfilModel perfilActual;
+  final String message;
+  final String? code;
+  final String? hint;
+
+  const PerfilUpdateError({
+    required this.perfilActual,
+    required this.message,
+    this.code,
+    this.hint,
+  });
+
+  /// Verifica si es error de apodo duplicado (CA-005)
+  bool get isApodoDuplicado => hint == 'apodo_duplicado';
+
+  @override
+  List<Object?> get props => [perfilActual, message, code, hint];
+}

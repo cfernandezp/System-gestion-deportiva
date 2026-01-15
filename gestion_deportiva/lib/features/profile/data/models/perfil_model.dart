@@ -118,6 +118,40 @@ class PerfilModel extends Equatable {
     }
   }
 
+  /// Crea una copia con campos modificados (para edicion - E002-HU-002)
+  PerfilModel copyWith({
+    String? usuarioId,
+    String? nombreCompleto,
+    String? apodo,
+    String? email,
+    String? telefono,
+    PosicionJugador? posicionPreferida,
+    String? fotoUrl,
+    DateTime? fechaIngreso,
+    String? fechaIngresoFormato,
+    String? antiguedad,
+    String? estado,
+    String? rol,
+    bool clearTelefono = false,
+    bool clearPosicion = false,
+    bool clearFoto = false,
+  }) {
+    return PerfilModel(
+      usuarioId: usuarioId ?? this.usuarioId,
+      nombreCompleto: nombreCompleto ?? this.nombreCompleto,
+      apodo: apodo ?? this.apodo,
+      email: email ?? this.email,
+      telefono: clearTelefono ? null : (telefono ?? this.telefono),
+      posicionPreferida: clearPosicion ? null : (posicionPreferida ?? this.posicionPreferida),
+      fotoUrl: clearFoto ? null : (fotoUrl ?? this.fotoUrl),
+      fechaIngreso: fechaIngreso ?? this.fechaIngreso,
+      fechaIngresoFormato: fechaIngresoFormato ?? this.fechaIngresoFormato,
+      antiguedad: antiguedad ?? this.antiguedad,
+      estado: estado ?? this.estado,
+      rol: rol ?? this.rol,
+    );
+  }
+
   @override
   List<Object?> get props => [
         usuarioId,

@@ -5,9 +5,11 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../data/models/perfil_model.dart';
 import '../bloc/perfil/perfil.dart';
 import '../widgets/widgets.dart';
+import 'editar_perfil_page.dart';
 
 /// Pagina de perfil del usuario
 /// E002-HU-001: Ver Perfil Propio
+/// E002-HU-002: Editar Perfil Propio
 /// CA-001: Acceso al perfil desde seccion "Mi Perfil"
 class PerfilPage extends StatelessWidget {
   const PerfilPage({super.key});
@@ -18,6 +20,22 @@ class PerfilPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Mi Perfil'),
         centerTitle: true,
+        // E002-HU-002 CA-001: Boton Editar en AppBar
+        actions: [
+          BlocBuilder<PerfilBloc, PerfilState>(
+            builder: (context, state) {
+              // Solo mostrar boton si hay perfil cargado
+              final perfil = _obtenerPerfil(state);
+              if (perfil == null) return const SizedBox.shrink();
+
+              return IconButton(
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'Editar perfil',
+                onPressed: () => _navegarAEdicion(context, perfil),
+              );
+            },
+          ),
+        ],
       ),
       body: BlocBuilder<PerfilBloc, PerfilState>(
         builder: (context, state) {
@@ -48,6 +66,28 @@ class PerfilPage extends StatelessWidget {
           // Estado inicial - cargar perfil
           return const _LoadingView();
         },
+      ),
+    );
+  }
+
+  /// E002-HU-002: Obtiene el perfil del estado actual
+  PerfilModel? _obtenerPerfil(PerfilState state) {
+    if (state is PerfilLoaded) return state.perfil;
+    if (state is PerfilRefreshing) return state.perfilActual;
+    if (state is PerfilSaving) return state.perfilActual;
+    if (state is PerfilUpdateSuccess) return state.perfil;
+    if (state is PerfilUpdateError) return state.perfilActual;
+    return null;
+  }
+
+  /// E002-HU-002 CA-001: Navegar a la pagina de edicion
+  void _navegarAEdicion(BuildContext context, PerfilModel perfil) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: context.read<PerfilBloc>(),
+          child: EditarPerfilPage(perfilInicial: perfil),
+        ),
       ),
     );
   }
