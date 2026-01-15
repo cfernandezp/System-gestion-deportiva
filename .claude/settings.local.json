@@ -64,7 +64,8 @@
       "Bash(grep:*)",
       "Bash(flutter test:*)",
       "Bash(del \"c:\\\\Cristian\\\\Proyectos\\\\system-gestion-deportiva\\\\.claude\\\\agents\\\\negocio-medias-expert.md\")",
-      "Bash(flutter create:*)"
+      "Bash(flutter create:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": [],

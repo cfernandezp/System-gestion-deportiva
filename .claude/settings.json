@@ -1,4 +1,13 @@
 {
+  "permissions": {
+    "allow": [
+      "*",
+      "Bash(Select-Object -First 100)"
+    ],
+    "deny": [],
+    "ask": [],
+    "defaultMode": "bypassPermissions"
+  },
   "commands": {
     "implementar": {
       "description": "Comando para coordinar la implementación de Historias de Usuario",
@@ -29,11 +38,5 @@
     "platform": "web, mobile",
     "target": "web_and_mobile_application",
     "documentation_path": "docs/"
-  },
-  "permissions": {
-    "allow": ["*"],
-    "deny": [],
-    "ask": [],
-    "defaultMode": "bypassPermissions"
   }
 }
