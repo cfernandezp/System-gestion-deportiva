@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../di/injection_container.dart';
@@ -9,6 +10,9 @@ import '../../features/auth/presentation/pages/registro_page.dart';
 import '../../features/auth/presentation/pages/solicitar_recuperacion_page.dart';
 import '../../features/auth/presentation/pages/restablecer_contrasena_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+// E002-HU-001: Ver Perfil Propio
+import '../../features/profile/presentation/bloc/perfil/perfil.dart';
+import '../../features/profile/presentation/pages/perfil_page.dart';
 
 /// Configuracion del router de la aplicacion
 /// Usa go_router para navegacion declarativa
@@ -26,6 +30,8 @@ class AppRouter {
   // HU-003: Recuperacion de contrasena
   static const String recuperarContrasena = '/recuperar-contrasena';
   static const String restablecerContrasena = '/restablecer-contrasena';
+  // E002-HU-001: Ver Perfil Propio
+  static const String perfil = '/perfil';
 
   /// Rutas publicas (no requieren autenticacion)
   static const List<String> _publicRoutes = [
@@ -131,6 +137,17 @@ class AppRouter {
           final token = state.pathParameters['token'] ?? '';
           return RestablecerContrasenaPage(token: token);
         },
+      ),
+
+      // E002-HU-001: Ver Perfil Propio
+      // CA-001: Acceso al perfil desde seccion "Mi Perfil"
+      GoRoute(
+        path: '/perfil',
+        name: 'perfil',
+        builder: (context, state) => BlocProvider(
+          create: (context) => sl<PerfilBloc>()..add(const CargarPerfilEvent()),
+          child: const PerfilPage(),
+        ),
       ),
     ],
 

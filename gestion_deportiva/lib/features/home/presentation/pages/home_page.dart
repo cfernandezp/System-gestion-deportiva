@@ -317,13 +317,14 @@ class _HomePageContent extends StatelessWidget {
 
   /// Obtiene accesos rapidos segun el rol del usuario
   List<_QuickAccessItem> _getAccesosPorRol(String rol) {
+    // E002-HU-001: Mi Perfil ahora habilitado
     final List<_QuickAccessItem> accesosComunes = [
       _QuickAccessItem(
         title: 'Mi Perfil',
         icon: Icons.person_outline,
         color: DesignTokens.primaryColor,
         route: '/perfil',
-        enabled: false, // Pendiente implementar
+        enabled: true, // E002-HU-001: Ver Perfil Propio
       ),
     ];
 

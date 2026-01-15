@@ -18,6 +18,12 @@ import '../../features/admin/data/repositories/admin_repository_impl.dart';
 import '../../features/admin/domain/repositories/admin_repository.dart';
 import '../../features/admin/presentation/bloc/usuarios/usuarios_bloc.dart';
 
+// Profile Feature (E002-HU-001: Ver Perfil Propio)
+import '../../features/profile/data/datasources/profile_remote_datasource.dart';
+import '../../features/profile/data/repositories/profile_repository_impl.dart';
+import '../../features/profile/domain/repositories/profile_repository.dart';
+import '../../features/profile/presentation/bloc/perfil/perfil_bloc.dart';
+
 /// Service Locator global
 final sl = GetIt.instance;
 
@@ -67,5 +73,20 @@ Future<void> initializeDependencies() async {
   // DataSource
   sl.registerLazySingleton<AdminRemoteDataSource>(
     () => AdminRemoteDataSourceImpl(supabase: sl()),
+  );
+
+  // -------------------- Profile (E002-HU-001) --------------------
+
+  // Blocs
+  sl.registerFactory(() => PerfilBloc(repository: sl()));
+
+  // Repository
+  sl.registerLazySingleton<ProfileRepository>(
+    () => ProfileRepositoryImpl(remoteDataSource: sl()),
+  );
+
+  // DataSource
+  sl.registerLazySingleton<ProfileRemoteDataSource>(
+    () => ProfileRemoteDataSourceImpl(supabase: sl()),
   );
 }
