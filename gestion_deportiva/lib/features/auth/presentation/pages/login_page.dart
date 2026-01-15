@@ -183,45 +183,14 @@ class _LoginViewState extends State<_LoginView> {
                               ),
                               const SizedBox(height: DesignTokens.spacingS),
 
-                              // CA-006: Link a recuperacion de contrasena
+                              // CA-006: Link a recuperacion de contrasena (HU-003)
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
                                   onPressed: isLoading
                                       ? null
                                       : () {
-                                          // TODO: Navegar a recuperacion de contrasena
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                              content: Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.info_outline,
-                                                    color: Colors.white,
-                                                  ),
-                                                  const SizedBox(
-                                                      width:
-                                                          DesignTokens.spacingS),
-                                                  const Expanded(
-                                                    child: Text(
-                                                        'Funcion de recuperacion de contrasena proximamente'),
-                                                  ),
-                                                ],
-                                              ),
-                                              backgroundColor:
-                                                  colorScheme.secondary,
-                                              behavior:
-                                                  SnackBarBehavior.floating,
-                                              margin: const EdgeInsets.all(
-                                                  DesignTokens.spacingM),
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                        DesignTokens.radiusS),
-                                              ),
-                                            ),
-                                          );
+                                          context.go('/recuperar-contrasena');
                                         },
                                   style: TextButton.styleFrom(
                                     padding: EdgeInsets.zero,
@@ -230,7 +199,7 @@ class _LoginViewState extends State<_LoginView> {
                                         MaterialTapTargetSize.shrinkWrap,
                                   ),
                                   child: Text(
-                                    '?Olvidaste tu contrasena?',
+                                    'Olvidaste tu contrasena?',
                                     style: theme.textTheme.bodySmall?.copyWith(
                                       color: colorScheme.primary,
                                     ),

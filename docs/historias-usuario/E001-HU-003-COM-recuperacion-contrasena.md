@@ -248,3 +248,221 @@ El frontend debe:
 7. Redirigir a login con mensaje de exito
 
 ---
+## FASE 4: Implementacion Frontend
+**Responsable**: flutter-expert
+**Status**: Completado
+**Fecha**: 2026-01-14
+
+### Estructura Clean Architecture
+
+**Models**: `lib/features/auth/data/models/`
+- `recuperacion_response_model.dart`
+  - `SolicitudRecuperacionModel`: Respuesta de solicitar_recuperacion_contrasena
+  - `ValidarTokenModel`: Respuesta de validar_token_recuperacion
+  - `RestablecerContrasenaModel`: Respuesta de restablecer_contrasena
+
+**DataSource**: `lib/features/auth/data/datasources/auth_remote_datasource.dart`
+- `solicitarRecuperacion(email)` -> RPC `solicitar_recuperacion_contrasena`
+- `validarTokenRecuperacion(token)` -> RPC `validar_token_recuperacion`
+- `restablecerContrasena(token, nuevaContrasena, confirmarContrasena)` -> RPC `restablecer_contrasena`
+
+**Repository**: `lib/features/auth/domain/repositories/auth_repository.dart`
+- Interface con Either pattern para manejo de errores
+
+**Repository Impl**: `lib/features/auth/data/repositories/auth_repository_impl.dart`
+- Implementacion con conversion ServerException -> ServerFailure
+
+**Bloc**: `lib/features/auth/presentation/bloc/recuperacion/`
+- `recuperacion_bloc.dart`: Logica de negocio
+- `recuperacion_event.dart`: Eventos (SolicitarRecuperacion, ValidarToken, RestablecerContrasena)
+- `recuperacion_state.dart`: Estados (Initial, Loading, EmailEnviado, TokenValido, TokenInvalido, ContrasenaActualizada, Error)
+
+### Integracion Backend
+
+UI -> Bloc -> Repository -> DataSource -> RPC -> Backend
+
+### Criterios de Aceptacion Frontend
+- [x] **CA-001**: Formulario email en SolicitarRecuperacionEvent
+- [x] **CA-002**: Estado RecuperacionEmailEnviado con mensaje
+- [x] **CA-003**: Mensaje generico (RN-001) siempre igual
+- [x] **CA-004**: ValidarTokenEvent -> RecuperacionTokenValido
+- [x] **CA-005**: TokenErrorType.tokenExpirado/tokenUsado
+- [x] **CA-006**: RestablecerContrasenaEvent -> RecuperacionContrasenaActualizada
+
+### Reglas de Negocio Frontend
+- [x] **RN-001**: Mensaje uniforme en RecuperacionEmailEnviado
+- [x] **RN-002**: Manejo TokenErrorType.tokenExpirado
+- [x] **RN-003**: Manejo TokenErrorType.tokenUsado
+- [x] **RN-004**: Validacion local minimo 8 chars + backend valida complejidad
+- [x] **RN-005**: Validacion _validarContrasenas() verifica coincidencia
+- [x] **RN-006**: Mostrado en RecuperacionContrasenaActualizada.sesionesCerradas
+
+### Verificacion
+- [x] flutter analyze: 0 errores
+- [x] Mapping snake_case <-> camelCase explicito
+- [x] Either pattern en repository
+- [x] Inyeccion de dependencias en injection_container.dart
+
+---
+## FASE 1: Diseno UX/UI
+**Responsable**: ux-ui-expert
+**Status**: Completado
+**Fecha**: 2026-01-14
+
+### Componentes UI Diseñados
+
+**Paginas**:
+- `solicitar_recuperacion_page.dart`: Formulario para solicitar recuperacion via email
+- `restablecer_contrasena_page.dart`: Formulario para establecer nueva contrasena con token
+
+**Widgets Reutilizados**:
+- `PasswordStrengthIndicator`: Indicador visual de requisitos de contrasena (reutilizado de registro)
+- `AppCard`: Card corporativa con variantes standard/elevated
+- `AppTextField`: Campos de texto con variantes email/password
+- `AppButton`: Boton primario con estados loading
+
+**Rutas Agregadas** (`app_router.dart`):
+- `/recuperar-contrasena` -> SolicitarRecuperacionPage
+- `/restablecer-contrasena/:token` -> RestablecerContrasenaPage
+
+**Navegacion Actualizada**:
+- Login: Link "Olvidaste tu contrasena?" ahora navega a `/recuperar-contrasena`
+
+### Funcionalidad UI
+
+**SolicitarRecuperacionPage (CA-001, CA-002, CA-003)**:
+- Formulario con campo email
+- Boton "Enviar instrucciones" con estado loading
+- Estado exito: Card verde con icono de email enviado
+- Mensaje uniforme por seguridad (RN-001)
+- Link "Volver al login"
+- Boton "Enviar nuevamente" para reintentar
+
+**RestablecerContrasenaPage (CA-004, CA-005, CA-006)**:
+- Validacion automatica del token al cargar (ValidarTokenEvent)
+- Estados visuales:
+  - Loading: Spinner "Verificando enlace..."
+  - Token invalido: Card con icono link_off y mensaje de error
+  - Token expirado: Card con icono timer_off y mensaje (RN-002)
+  - Token usado: Card con icono check_circle_outline (RN-003)
+  - Token valido: Formulario de nueva contrasena
+- Formulario nueva contrasena:
+  - Saludo personalizado con nombre del usuario
+  - Indicador de tiempo restante del token
+  - Campo nueva contrasena + PasswordStrengthIndicator (RN-004)
+  - Campo confirmar contrasena con validacion en tiempo real (RN-005)
+  - Check verde cuando las contrasenas coinciden
+- Dialog de exito:
+  - Icono check verde animado
+  - Mensaje de confirmacion
+  - Indicador de sesiones cerradas (RN-006)
+  - Boton "Iniciar sesion" que redirige a login
+
+### Layout Responsive
+- **Mobile (<600px)**: Formulario ancho completo, padding 16px, AppCard standard
+- **Tablet/Desktop (>=600px)**: Card centrada maxWidth 420px, padding 24px, AppCard elevated
+
+### Estados Visuales
+- **Loading**: CircularProgressIndicator + texto descriptivo
+- **Success**: Card verde con icono mark_email_read / check_circle
+- **Error**: SnackBar con icono apropiado segun tipo de error
+- **Token expirado**: Card con icono timer_off y color accentColor
+- **Token usado**: Card con icono check_circle_outline y color outline
+- **Token invalido**: Card con icono link_off y color error
+
+### Criterios de Aceptacion UI
+- [x] **CA-001**: Formulario email en SolicitarRecuperacionPage
+- [x] **CA-002**: Estado RecuperacionEmailEnviado con card de exito
+- [x] **CA-003**: Mensaje uniforme mostrado en card verde (RN-001)
+- [x] **CA-004**: Formulario nueva contrasena cuando token valido
+- [x] **CA-005**: Card de error con boton "Solicitar nuevo enlace"
+- [x] **CA-006**: Dialog de exito con redireccion a login
+
+### Reglas de Negocio UI
+- [x] **RN-001**: Mensaje uniforme en card de exito (no revela si email existe)
+- [x] **RN-002**: Indicador visual de tiempo restante + manejo expiracion
+- [x] **RN-003**: Card especifica para token ya utilizado
+- [x] **RN-004**: PasswordStrengthIndicator reutilizado de registro
+- [x] **RN-005**: Validacion tiempo real + check verde cuando coinciden
+- [x] **RN-006**: Indicador "Se cerraron todas las sesiones activas" en dialog
+
+### Verificacion
+- [x] flutter analyze: 0 errores
+- [x] Responsive verificado: Mobile/Tablet/Desktop
+- [x] Sin overflow warnings (SingleChildScrollView, ConstrainedBox)
+- [x] Design System aplicado (DesignTokens, Theme-aware)
+- [x] Consistente con login_page.dart y registro_page.dart
+
+---
+
+---
+## FASE 5: Validacion QA Tecnica
+**Responsable**: qa-testing-expert
+**Fecha**: 2026-01-14
+
+### Validacion Tecnica APROBADA
+
+#### 1. Dependencias
+```bash
+$ flutter pub get
+```
+- Sin errores
+- 35 packages con versiones mas recientes disponibles (incompatibles con constraints actuales)
+
+#### 2. Analisis Estatico
+```bash
+$ flutter analyze --no-pub
+```
+- **Resultado**: No issues found! (ran in 1.7s)
+
+#### 3. Tests
+```bash
+$ flutter test
+```
+- **Resultado**: All tests passed!
+- **Nota**: Se actualizo widget_test.dart para registrar SessionBloc y RecuperacionBloc en GetIt
+
+#### 4. Levantamiento
+```bash
+$ flutter run -d web-server --web-port 8080
+```
+- App activa en http://localhost:8080
+- HTTP Status: 200 OK
+
+### Archivos Verificados
+
+| Archivo | Existe | Lineas |
+|---------|--------|--------|
+| `lib/features/auth/data/models/recuperacion_response_model.dart` | SI | 159 |
+| `lib/features/auth/presentation/bloc/recuperacion/recuperacion_bloc.dart` | SI | 315 |
+| `lib/features/auth/presentation/bloc/recuperacion/recuperacion_event.dart` | SI | - |
+| `lib/features/auth/presentation/bloc/recuperacion/recuperacion_state.dart` | SI | - |
+| `lib/features/auth/presentation/pages/solicitar_recuperacion_page.dart` | SI | 372 |
+| `lib/features/auth/presentation/pages/restablecer_contrasena_page.dart` | SI | 711 |
+| `supabase/sql-cloud/2026-01-14_HU-003_recuperacion_contrasena.sql` | SI | - |
+
+### Rutas Configuradas
+
+| Ruta | Pagina | Verificado |
+|------|--------|------------|
+| `/recuperar-contrasena` | SolicitarRecuperacionPage | SI |
+| `/restablecer-contrasena/:token` | RestablecerContrasenaPage | SI |
+
+### Resumen
+
+| Validacion | Estado |
+|------------|--------|
+| Dependencias | PASS |
+| Analisis Estatico | PASS |
+| Tests | PASS |
+| Compilacion Web | PASS |
+| Archivos HU-003 | PASS |
+| Rutas | PASS |
+
+### Decision
+
+**VALIDACION TECNICA APROBADA**
+
+Siguiente paso: Usuario valida manualmente los CA en http://localhost:8080
+
+---
