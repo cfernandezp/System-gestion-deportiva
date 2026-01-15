@@ -28,7 +28,7 @@ Permite a administradores gestionar los roles de los usuarios registrados, otorg
 ### CA-003: Roles disponibles
 - **Dado** que voy a asignar un rol
 - **Cuando** veo las opciones disponibles
-- **Entonces** puedo elegir entre: Admin, Entrenador, Jugador, Arbitro
+- **Entonces** puedo elegir entre: Admin, Jugador
 
 ### CA-004: Restriccion de auto-modificacion
 - **Dado** que soy administrador
@@ -49,17 +49,15 @@ Permite a administradores gestionar los roles de los usuarios registrados, otorg
 
 | Rol | Descripcion | Permisos Generales |
 |-----|-------------|-------------------|
-| Admin | Administrador del sistema | Acceso total |
-| Entrenador | Director tecnico | Gestiona equipos y jugadores asignados |
-| Jugador | Miembro de equipo | Ve su informacion y estadisticas |
-| Arbitro | Oficial de partidos | Gestiona partidos asignados |
+| Admin | Administrador del sistema | Acceso total: crear fechas, asignar equipos, registrar goles, gestionar pagos, aprobar usuarios |
+| Jugador | Miembro del grupo | Inscribirse a fechas, ver su equipo, ver estadisticas, ver historial de pagos |
 
 ## Reglas de Negocio (RN)
 
 ### RN-001: Roles Validos del Sistema
 **Contexto**: Cuando se asigna o modifica el rol de un usuario.
 **Restriccion**: No se pueden crear, eliminar o usar roles fuera del catalogo oficial.
-**Validacion**: Solo existen cuatro roles validos: Admin, Entrenador, Jugador, Arbitro.
+**Validacion**: Solo existen dos roles validos: Admin, Jugador.
 **Regla calculo**: N/A
 **Caso especial**: Un usuario puede tener solo un rol activo a la vez.
 

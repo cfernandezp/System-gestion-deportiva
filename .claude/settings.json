@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "*",
-      "Bash(Select-Object -First 100)"
+      "Bash(Select-Object -First 100)",
+      "Bash(flutter --version:*)"
     ],
     "deny": [],
     "ask": [],

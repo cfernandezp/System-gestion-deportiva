@@ -65,7 +65,8 @@
       "Bash(flutter test:*)",
       "Bash(del \"c:\\\\Cristian\\\\Proyectos\\\\system-gestion-deportiva\\\\.claude\\\\agents\\\\negocio-medias-expert.md\")",
       "Bash(flutter create:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(claude --version:*)"
     ],
     "deny": [],
     "ask": [],

@@ -620,7 +620,79 @@ lib/core/routing/
 
 ---
 **Creado**: 2025-01-13
-**Ultima actualizacion**: 2026-01-13
+**Ultima actualizacion**: 2026-01-15
+
+---
+
+## FIX 2026-01-15: Registro usando Supabase Auth Nativo
+
+### Problema Detectado
+
+El login fallaba con "Email o contrasena incorrectos" aunque el usuario existia en la base de datos.
+
+**Causa raiz**: La funcion `registrar_usuario` insertaba directamente en `auth.users` usando `crypt()`, pero Supabase Auth tiene su propio formato interno para el hash de contrasenas. Por eso `supabase.auth.signInWithPassword()` no podia validar las credenciales.
+
+### Solucion Implementada
+
+**Nuevo flujo de registro (2 pasos)**:
+
+1. **Flutter** llama `supabase.auth.signUp(email, password)` - Crea usuario en `auth.users` con hash correcto
+2. **Flutter** llama RPC `completar_registro_usuario(auth_user_id, nombre, email)` - Crea perfil en tabla `usuarios`
+
+### Nueva Funcion RPC
+
+**`completar_registro_usuario(p_auth_user_id UUID, p_nombre_completo TEXT, p_email TEXT) -> JSON`**
+- **Descripcion**: Completa el registro de un usuario ya creado por Supabase Auth signUp()
+- **Reglas de Negocio**: RN-001, RN-004, RN-005, RN-006, RN-009
+- **Parametros**:
+  - `p_auth_user_id`: UUID - ID del usuario creado por signUp()
+  - `p_nombre_completo`: TEXT - Nombre completo (min 2 caracteres)
+  - `p_email`: TEXT - Email del usuario
+- **Response Success**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "usuario_id": "uuid",
+      "auth_user_id": "uuid",
+      "email": "user@example.com",
+      "estado": "pendiente_aprobacion",
+      "rol": "jugador",
+      "es_primer_usuario": false
+    },
+    "message": "Registro exitoso. Tu cuenta esta pendiente de aprobacion."
+  }
+  ```
+- **Response Error - Hints**:
+  - `auth_user_id_requerido` -> Falta parametro auth_user_id
+  - `auth_user_no_existe` -> Usuario no existe en auth.users
+  - `usuario_ya_registrado` -> Ya tiene perfil en usuarios
+  - `email_duplicado` -> Email ya registrado (otro usuario)
+  - `nombre_invalido` -> Nombre muy corto
+
+### Funcion Auxiliar
+
+**`eliminar_usuario_auth(p_auth_user_id UUID) -> JSON`**
+- **Descripcion**: Elimina usuario de auth.users para rollback si completar_registro falla
+- **Permisos**: Solo service_role
+- **Uso**: Interno, llamado desde Flutter si falla el paso 2
+
+### Script SQL
+- `supabase/sql-cloud/2026-01-15_fix_registro_auth.sql`
+
+### Cambios en Flutter
+
+**Archivo**: `lib/features/auth/data/datasources/auth_remote_datasource.dart`
+
+**Metodo `registrarUsuario()` actualizado**:
+1. Llama `supabase.auth.signUp()` para crear usuario en auth
+2. Si OK, llama RPC `completar_registro_usuario()` para crear perfil
+3. Si falla paso 2, hace rollback eliminando usuario de auth
+4. Cierra sesion al final (usuario debe esperar aprobacion)
+
+### Nota Importante
+
+La funcion `registrar_usuario` original queda **obsoleta** pero no se elimina para no romper nada existente. El nuevo flujo usa `completar_registro_usuario`
 
 ---
 

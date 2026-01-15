@@ -4,7 +4,7 @@
 Gestiona la autenticacion y autorizacion de usuarios en el sistema de gestion deportiva, incluyendo registro, inicio de sesion, recuperacion de contrasena y asignacion de roles.
 
 ## Objetivo
-Permitir que los usuarios accedan al sistema de forma segura segun su rol (Admin, Entrenador, Jugador, Arbitro, etc.) con autenticacion por email/password.
+Permitir que los usuarios accedan al sistema de forma segura segun su rol (Admin o Jugador) con autenticacion por email/password.
 
 ## Alcance
 - Registro de nuevos usuarios
@@ -24,10 +24,8 @@ Permitir que los usuarios accedan al sistema de forma segura segun su rol (Admin
 | E001-HU-005 | Gestion de Roles | 🟢 REF | Como administrador, quiero asignar roles a usuarios |
 
 ## Roles del Sistema
-- **Admin**: Acceso total al sistema
-- **Entrenador**: Gestiona equipos y jugadores asignados
-- **Jugador**: Ve su informacion y estadisticas
-- **Arbitro**: Gestiona partidos asignados
+- **Admin**: Acceso total (crear fechas, asignar equipos, registrar goles, gestionar pagos, aprobar usuarios)
+- **Jugador**: Inscribirse a fechas, ver su equipo, ver estadisticas, ver historial de pagos
 
 ## Dependencias
 - Ninguna (es la epica base del sistema)

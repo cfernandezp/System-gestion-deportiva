@@ -1,4 +1,5 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase_lib;
 
 import '../../../../core/errors/exceptions.dart';
 import '../models/cerrar_sesion_response_model.dart';
@@ -77,7 +78,7 @@ abstract class AuthRemoteDataSource {
 /// Implementacion del DataSource remoto de autenticacion
 /// Llama a las funciones RPC de Supabase
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
-  final SupabaseClient supabase;
+  final supabase_lib.SupabaseClient supabase;
 
   AuthRemoteDataSourceImpl({required this.supabase});
 
@@ -87,34 +88,139 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String email,
     required String password,
   }) async {
+    String? authUserId;
+
+    debugPrint('========== REGISTRO USUARIO - INICIO ==========');
+    debugPrint('[REGISTRO] Email: $email');
+    debugPrint('[REGISTRO] Nombre: $nombreCompleto');
+    debugPrint('[REGISTRO] Password length: ${password.length}');
+
     try {
+      // PASO 1: Crear usuario en auth.users usando Supabase Auth nativo
+      // Esto garantiza que el hash de contrasena sea compatible con signInWithPassword()
+      debugPrint('[REGISTRO] PASO 1: Llamando supabase.auth.signUp()...');
+      final authResponse = await supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {'nombre_completo': nombreCompleto},
+      );
+
+      debugPrint('[REGISTRO] signUp() completado');
+      debugPrint('[REGISTRO] authResponse.user: ${authResponse.user}');
+      debugPrint('[REGISTRO] authResponse.user?.id: ${authResponse.user?.id}');
+      debugPrint('[REGISTRO] authResponse.user?.email: ${authResponse.user?.email}');
+      debugPrint('[REGISTRO] authResponse.session: ${authResponse.session != null ? "EXISTE" : "NULL"}');
+
+      // Verificar que se creo el usuario en auth
+      if (authResponse.user == null) {
+        debugPrint('[REGISTRO] ERROR: authResponse.user es NULL');
+        throw ServerException(
+          message: 'Error al crear usuario en autenticacion',
+          code: 'AUTH_SIGNUP_FAILED',
+          hint: 'signup_failed',
+        );
+      }
+
+      authUserId = authResponse.user!.id;
+      debugPrint('[REGISTRO] Usuario creado en auth.users con ID: $authUserId');
+
+      // PASO 2: Completar registro en tabla usuarios
+      // Esta funcion RPC crea el perfil y notifica a admins
+      debugPrint('[REGISTRO] PASO 2: Llamando RPC completar_registro_usuario()...');
       final response = await supabase.rpc(
-        'registrar_usuario',
+        'completar_registro_usuario',
         params: {
+          'p_auth_user_id': authUserId,
           'p_nombre_completo': nombreCompleto,
           'p_email': email,
-          'p_password': password,
         },
       );
+
+      debugPrint('[REGISTRO] RPC completar_registro_usuario response: $response');
 
       final responseMap = response as Map<String, dynamic>;
 
       if (responseMap['success'] == true) {
+        debugPrint('[REGISTRO] EXITO: Registro completado correctamente');
+        // Cerrar sesion despues del registro (usuario debe esperar aprobacion)
+        await supabase.auth.signOut();
+        debugPrint('[REGISTRO] Sesion cerrada post-registro');
+        debugPrint('========== REGISTRO USUARIO - FIN (EXITO) ==========');
         return RegistroResponseModel.fromJson(responseMap);
       } else {
+        debugPrint('[REGISTRO] ERROR: completar_registro_usuario fallo');
+        debugPrint('[REGISTRO] Response error: ${responseMap['error']}');
+        // Si falla completar_registro, eliminar usuario de auth (rollback)
+        await _rollbackAuthUser(authUserId);
+
         final error = responseMap['error'] as Map<String, dynamic>? ?? {};
         throw ServerException(
-          message: error['message'] ?? 'Error al registrar usuario',
+          message: error['message'] ?? 'Error al completar registro',
           code: error['code'],
           hint: error['hint'],
         );
       }
+    } on supabase_lib.AuthException catch (e) {
+      // Manejar errores especificos de Supabase Auth
+      debugPrint('[REGISTRO] AuthException capturada:');
+      debugPrint('[REGISTRO]   message: ${e.message}');
+      debugPrint('[REGISTRO]   statusCode: ${e.statusCode}');
+      debugPrint('========== REGISTRO USUARIO - FIN (AUTH ERROR) ==========');
+
+      String hint = 'auth_error';
+      String message = e.message;
+
+      if (e.message.contains('already registered') ||
+          e.message.contains('already exists')) {
+        hint = 'email_duplicado';
+        message = 'El email ya esta registrado en el sistema';
+      } else if (e.message.contains('Invalid email')) {
+        hint = 'email_formato_invalido';
+        message = 'El formato del email no es valido';
+      } else if (e.message.contains('Password')) {
+        hint = 'password_invalido';
+        message = 'La contrasena no cumple los requisitos';
+      }
+
+      throw ServerException(
+        message: message,
+        code: 'AUTH_ERROR',
+        hint: hint,
+      );
     } on ServerException {
+      debugPrint('========== REGISTRO USUARIO - FIN (SERVER ERROR) ==========');
       rethrow;
     } catch (e) {
+      debugPrint('[REGISTRO] Exception generica: ${e.runtimeType}');
+      debugPrint('[REGISTRO] Exception message: $e');
+      debugPrint('========== REGISTRO USUARIO - FIN (EXCEPTION) ==========');
+      // Si algo falla despues de crear el auth user, hacer rollback
+      if (authUserId != null) {
+        await _rollbackAuthUser(authUserId);
+      }
+
       throw ServerException(
         message: 'Error de conexion al registrar usuario: ${e.toString()}',
       );
+    }
+  }
+
+  /// Elimina un usuario de auth.users cuando falla completar_registro
+  /// Esto es un rollback para mantener consistencia
+  Future<void> _rollbackAuthUser(String authUserId) async {
+    try {
+      // Primero cerrar sesion
+      await supabase.auth.signOut();
+
+      // Intentar eliminar via RPC (requiere service_role, puede fallar)
+      // Si falla, el usuario quedara en auth.users pero sin perfil
+      // Un admin puede limpiarlo manualmente despues
+      await supabase.rpc(
+        'eliminar_usuario_auth',
+        params: {'p_auth_user_id': authUserId},
+      );
+    } catch (_) {
+      // Ignorar errores de rollback - ya estamos en un estado de error
     }
   }
 
@@ -177,30 +283,186 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String email,
     required String password,
   }) async {
+    debugPrint('========== INICIAR SESION - INICIO ==========');
+    debugPrint('[LOGIN] Email: $email');
+    debugPrint('[LOGIN] Password length: ${password.length}');
+
     try {
-      final response = await supabase.rpc(
-        'iniciar_sesion',
+      // 1. Verificar si la cuenta esta bloqueada por intentos fallidos
+      // RN-007: Bloqueo temporal despues de 5 intentos fallidos
+      debugPrint('[LOGIN] PASO 1: Verificando bloqueo de cuenta...');
+      final bloqueoResponse = await supabase.rpc(
+        'verificar_bloqueo_login',
         params: {
           'p_email': email,
-          'p_password': password,
         },
       );
 
-      final responseMap = response as Map<String, dynamic>;
+      debugPrint('[LOGIN] verificar_bloqueo_login response: $bloqueoResponse');
 
-      if (responseMap['success'] == true) {
-        return LoginResponseModel.fromJson(responseMap);
-      } else {
-        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+      final bloqueoMap = bloqueoResponse as Map<String, dynamic>;
+
+      if (bloqueoMap['success'] == true) {
+        final bloqueoData = bloqueoMap['data'] as Map<String, dynamic>? ?? {};
+        final estaBloqueado = bloqueoData['bloqueado'] ?? false;
+        debugPrint('[LOGIN] Esta bloqueado: $estaBloqueado');
+
+        if (estaBloqueado) {
+          final minutosRestantes = bloqueoData['minutos_restantes'] ?? 15;
+          debugPrint('[LOGIN] Cuenta bloqueada por $minutosRestantes minutos');
+          debugPrint('========== INICIAR SESION - FIN (BLOQUEADO) ==========');
+          throw ServerException(
+            message:
+                'Cuenta bloqueada temporalmente. Intente nuevamente en $minutosRestantes minutos.',
+            code: 'CUENTA_BLOQUEADA',
+            hint: 'cuenta_bloqueada',
+          );
+        }
+      }
+
+      // 2. Intentar autenticacion con Supabase Auth
+      // Esto valida credenciales contra auth.users
+      debugPrint('[LOGIN] PASO 2: Llamando signInWithPassword()...');
+      debugPrint('[LOGIN]   email: $email');
+      debugPrint('[LOGIN]   password: ****** (${password.length} caracteres)');
+
+      try {
+        final authResponse = await supabase.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
+
+        debugPrint('[LOGIN] signInWithPassword() EXITOSO!');
+        debugPrint('[LOGIN] authResponse.user: ${authResponse.user}');
+        debugPrint('[LOGIN] authResponse.user?.id: ${authResponse.user?.id}');
+        debugPrint('[LOGIN] authResponse.user?.email: ${authResponse.user?.email}');
+        debugPrint('[LOGIN] authResponse.session: ${authResponse.session != null ? "EXISTE" : "NULL"}');
+
+      } on supabase_lib.AuthException catch (authError) {
+        // 3. Si falla auth, registrar intento fallido
+        // RN-007: Registrar intentos fallidos para bloqueo temporal
+        debugPrint('[LOGIN] !!!!! AuthException capturada !!!!!');
+        debugPrint('[LOGIN] AuthException.message: ${authError.message}');
+        debugPrint('[LOGIN] AuthException.statusCode: ${authError.statusCode}');
+        debugPrint('[LOGIN] AuthException.toString(): ${authError.toString()}');
+        debugPrint('[LOGIN] AuthException.runtimeType: ${authError.runtimeType}');
+
+        debugPrint('[LOGIN] Registrando intento fallido...');
+        try {
+          await supabase.rpc(
+            'registrar_intento_fallido',
+            params: {
+              'p_email': email,
+            },
+          );
+          debugPrint('[LOGIN] Intento fallido registrado');
+        } catch (e) {
+          debugPrint('[LOGIN] Error al registrar intento fallido: $e');
+          // Ignorar errores al registrar intento fallido
+        }
+
+        debugPrint('========== INICIAR SESION - FIN (AUTH ERROR) ==========');
         throw ServerException(
-          message: error['message'] ?? 'Error al iniciar sesion',
+          message: authError.message,
+          code: 'CREDENCIALES_INVALIDAS',
+          hint: 'credenciales_invalidas',
+        );
+      }
+
+      // 4. Auth exitoso - Verificar estado del usuario en la BD
+      // RN-003: Solo usuarios aprobados pueden acceder
+      debugPrint('[LOGIN] PASO 3: Verificando estado del usuario en BD...');
+      final sesionResponse = await supabase.rpc('verificar_sesion_usuario');
+
+      debugPrint('[LOGIN] verificar_sesion_usuario response: $sesionResponse');
+
+      final sesionMap = sesionResponse as Map<String, dynamic>;
+
+      if (sesionMap['success'] != true) {
+        debugPrint('[LOGIN] verificar_sesion_usuario fallo');
+        // Si falla la verificacion, cerrar sesion
+        await supabase.auth.signOut();
+        final error = sesionMap['error'] as Map<String, dynamic>? ?? {};
+        debugPrint('[LOGIN] Error: $error');
+        debugPrint('========== INICIAR SESION - FIN (SESION ERROR) ==========');
+        throw ServerException(
+          message: error['message'] ?? 'Error al verificar sesion',
           code: error['code'],
           hint: error['hint'],
         );
       }
+
+      final sesionData = sesionMap['data'] as Map<String, dynamic>? ?? {};
+      final estado = sesionData['estado'] ?? '';
+      final puedeAcceder = sesionData['puede_acceder'] ?? false;
+
+      debugPrint('[LOGIN] Estado usuario: $estado');
+      debugPrint('[LOGIN] Puede acceder: $puedeAcceder');
+
+      // 5. Verificar si el usuario puede acceder segun su estado
+      // RN-003, RN-004, RN-005: Validar estados pendiente/rechazado
+      if (!puedeAcceder) {
+        debugPrint('[LOGIN] Usuario NO puede acceder, cerrando sesion...');
+        // Cerrar sesion si no puede acceder
+        await supabase.auth.signOut();
+
+        if (estado == 'pendiente_aprobacion') {
+          debugPrint('========== INICIAR SESION - FIN (PENDIENTE) ==========');
+          throw ServerException(
+            message:
+                'Tu cuenta esta pendiente de aprobacion. Por favor espera a que un administrador la apruebe.',
+            code: 'USUARIO_PENDIENTE',
+            hint: 'usuario_pendiente',
+          );
+        } else if (estado == 'rechazado') {
+          debugPrint('========== INICIAR SESION - FIN (RECHAZADO) ==========');
+          throw ServerException(
+            message:
+                'Tu solicitud de registro ha sido rechazada. Contacta al administrador para mas informacion.',
+            code: 'USUARIO_RECHAZADO',
+            hint: 'usuario_rechazado',
+          );
+        } else if (estado == 'inactivo') {
+          debugPrint('========== INICIAR SESION - FIN (INACTIVO) ==========');
+          throw ServerException(
+            message:
+                'Tu cuenta ha sido desactivada. Contacta al administrador.',
+            code: 'USUARIO_INACTIVO',
+            hint: 'usuario_inactivo',
+          );
+        } else {
+          debugPrint('========== INICIAR SESION - FIN (ACCESO DENEGADO) ==========');
+          throw ServerException(
+            message: 'No tienes acceso al sistema.',
+            code: 'ACCESO_DENEGADO',
+            hint: 'acceso_denegado',
+          );
+        }
+      }
+
+      // 6. Retornar datos del usuario autenticado
+      debugPrint('[LOGIN] LOGIN EXITOSO!');
+      debugPrint('[LOGIN] Usuario: ${sesionData['nombre_completo']}');
+      debugPrint('[LOGIN] Rol: ${sesionData['rol']}');
+      debugPrint('========== INICIAR SESION - FIN (EXITO) ==========');
+      return LoginResponseModel.fromJson(sesionMap);
     } on ServerException {
       rethrow;
+    } on supabase_lib.AuthException catch (e) {
+      // Captura cualquier AuthException no manejada en el try interno
+      debugPrint('[LOGIN] AuthException NO MANEJADA:');
+      debugPrint('[LOGIN]   message: ${e.message}');
+      debugPrint('[LOGIN]   statusCode: ${e.statusCode}');
+      debugPrint('========== INICIAR SESION - FIN (UNHANDLED AUTH) ==========');
+      throw ServerException(
+        message: e.message,
+        code: 'AUTH_ERROR',
+        hint: 'credenciales_invalidas',
+      );
     } catch (e) {
+      debugPrint('[LOGIN] Exception generica: ${e.runtimeType}');
+      debugPrint('[LOGIN] Exception: $e');
+      debugPrint('========== INICIAR SESION - FIN (EXCEPTION) ==========');
       throw ServerException(
         message: 'Error de conexion al iniciar sesion: ${e.toString()}',
       );

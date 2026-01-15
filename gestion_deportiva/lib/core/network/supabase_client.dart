@@ -4,8 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Centraliza la conexion con el backend
 class SupabaseConfig {
   // TODO: Configurar variables de entorno para produccion
-  static const String supabaseUrl = 'YOUR_SUPABASE_URL';
-  static const String supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+  static const String supabaseUrl = 'https://tvvubzkqbksxvcjvivij.supabase.co';
+  static const String supabaseAnonKey = 'sb_publishable_KkJq9unjd4xC9YxQSmShZA_ATcIONaq';
 
   /// Inicializa Supabase - llamar en main.dart antes de runApp
   static Future<void> initialize() async {
