@@ -374,6 +374,10 @@ GRANT EXECUTE ON FUNCTION limpiar_intentos_expirados TO service_role;
 -- Habilitar RLS en tabla intentos_login
 ALTER TABLE intentos_login ENABLE ROW LEVEL SECURITY;
 
+-- Eliminar politicas existentes si existen (para re-ejecucion segura)
+DROP POLICY IF EXISTS "No acceso directo a intentos_login" ON intentos_login;
+DROP POLICY IF EXISTS "Service role acceso completo" ON intentos_login;
+
 -- No permitir acceso directo a la tabla desde clientes
 -- Solo las funciones SECURITY DEFINER pueden acceder
 CREATE POLICY "No acceso directo a intentos_login"

@@ -441,6 +441,10 @@ GRANT EXECUTE ON FUNCTION limpiar_tokens_expirados TO service_role;
 -- Habilitar RLS en tabla tokens_recuperacion
 ALTER TABLE tokens_recuperacion ENABLE ROW LEVEL SECURITY;
 
+-- Eliminar politicas existentes si existen (para re-ejecucion segura)
+DROP POLICY IF EXISTS "No acceso directo a tokens_recuperacion" ON tokens_recuperacion;
+DROP POLICY IF EXISTS "Service role acceso completo tokens" ON tokens_recuperacion;
+
 -- No permitir acceso directo a la tabla desde clientes
 -- Solo las funciones SECURITY DEFINER pueden acceder
 CREATE POLICY "No acceso directo a tokens_recuperacion"

@@ -279,6 +279,11 @@ GRANT EXECUTE ON FUNCTION obtener_historial_sesiones TO authenticated;
 -- Habilitar RLS en tabla sesiones_log
 ALTER TABLE sesiones_log ENABLE ROW LEVEL SECURITY;
 
+-- Eliminar politicas existentes si existen (para re-ejecucion segura)
+DROP POLICY IF EXISTS "Usuarios ven sus propias sesiones" ON sesiones_log;
+DROP POLICY IF EXISTS "No inserciones directas" ON sesiones_log;
+DROP POLICY IF EXISTS "Service role acceso completo" ON sesiones_log;
+
 -- Los usuarios solo pueden ver sus propias sesiones
 CREATE POLICY "Usuarios ven sus propias sesiones"
 ON sesiones_log FOR SELECT

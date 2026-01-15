@@ -866,6 +866,13 @@ GRANT EXECUTE ON FUNCTION marcar_notificacion_leida TO authenticated, service_ro
 ALTER TABLE usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notificaciones ENABLE ROW LEVEL SECURITY;
 
+-- Eliminar politicas existentes si existen (para re-ejecucion segura)
+DROP POLICY IF EXISTS "Usuarios pueden ver su propio perfil" ON usuarios;
+DROP POLICY IF EXISTS "Admins pueden ver todos los usuarios" ON usuarios;
+DROP POLICY IF EXISTS "Admins pueden actualizar usuarios" ON usuarios;
+DROP POLICY IF EXISTS "Usuarios pueden ver sus propias notificaciones" ON notificaciones;
+DROP POLICY IF EXISTS "Usuarios pueden actualizar sus propias notificaciones" ON notificaciones;
+
 -- Politicas para usuarios
 CREATE POLICY "Usuarios pueden ver su propio perfil"
 ON usuarios FOR SELECT
