@@ -13,6 +13,9 @@ import '../../features/home/presentation/pages/home_page.dart';
 // E002-HU-001: Ver Perfil Propio
 import '../../features/profile/presentation/bloc/perfil/perfil.dart';
 import '../../features/profile/presentation/pages/perfil_page.dart';
+// E002-HU-003: Lista de Jugadores
+import '../../features/jugadores/presentation/bloc/jugadores/jugadores.dart';
+import '../../features/jugadores/presentation/pages/jugadores_page.dart';
 
 /// Configuracion del router de la aplicacion
 /// Usa go_router para navegacion declarativa
@@ -32,6 +35,8 @@ class AppRouter {
   static const String restablecerContrasena = '/restablecer-contrasena';
   // E002-HU-001: Ver Perfil Propio
   static const String perfil = '/perfil';
+  // E002-HU-003: Lista de Jugadores
+  static const String jugadores = '/jugadores';
 
   /// Rutas publicas (no requieren autenticacion)
   static const List<String> _publicRoutes = [
@@ -147,6 +152,17 @@ class AppRouter {
         builder: (context, state) => BlocProvider(
           create: (context) => sl<PerfilBloc>()..add(const CargarPerfilEvent()),
           child: const PerfilPage(),
+        ),
+      ),
+
+      // E002-HU-003: Lista de Jugadores
+      // CA-001: Acceso a lista desde "Jugadores" o "Miembros"
+      GoRoute(
+        path: '/jugadores',
+        name: 'jugadores',
+        builder: (context, state) => BlocProvider(
+          create: (context) => sl<JugadoresBloc>()..add(const CargarJugadoresEvent()),
+          child: const JugadoresPage(),
         ),
       ),
     ],

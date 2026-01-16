@@ -24,6 +24,12 @@ import '../../features/profile/data/repositories/profile_repository_impl.dart';
 import '../../features/profile/domain/repositories/profile_repository.dart';
 import '../../features/profile/presentation/bloc/perfil/perfil_bloc.dart';
 
+// Jugadores Feature (E002-HU-003: Lista de Jugadores)
+import '../../features/jugadores/data/datasources/jugadores_remote_datasource.dart';
+import '../../features/jugadores/data/repositories/jugadores_repository_impl.dart';
+import '../../features/jugadores/domain/repositories/jugadores_repository.dart';
+import '../../features/jugadores/presentation/bloc/jugadores/jugadores_bloc.dart';
+
 /// Service Locator global
 final sl = GetIt.instance;
 
@@ -88,5 +94,20 @@ Future<void> initializeDependencies() async {
   // DataSource
   sl.registerLazySingleton<ProfileRemoteDataSource>(
     () => ProfileRemoteDataSourceImpl(supabase: sl()),
+  );
+
+  // -------------------- Jugadores (E002-HU-003) --------------------
+
+  // Blocs
+  sl.registerFactory(() => JugadoresBloc(repository: sl()));
+
+  // Repository
+  sl.registerLazySingleton<JugadoresRepository>(
+    () => JugadoresRepositoryImpl(remoteDataSource: sl()),
+  );
+
+  // DataSource
+  sl.registerLazySingleton<JugadoresRemoteDataSource>(
+    () => JugadoresRemoteDataSourceImpl(supabase: sl()),
   );
 }
