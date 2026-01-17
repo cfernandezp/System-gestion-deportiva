@@ -139,14 +139,13 @@ DashboardShell(
   breadcrumbs: ['Inicio', 'Mi Perfil'],
   actions: [IconButton(...)], // Acciones del header
   child: SingleChildScrollView(
-    child: Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 1200),
-        child: Padding(
-          padding: EdgeInsets.all(DesignTokens.spacingL), // 24px
-          child: Column(children: [...]),
-        ),
-      ),
+    padding: EdgeInsets.all(DesignTokens.spacingL), // 24px
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,  // ← SIEMPRE izquierda
+      children: [
+        // Contenido usa TODO el ancho disponible
+        // NO usar Center ni maxWidth restrictivo
+      ],
     ),
   ),
 )
@@ -450,10 +449,14 @@ class _DesktopView extends StatelessWidget {
     return DashboardShell(
       currentRoute: '/ruta',
       title: 'Título',
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 1000),
-          child: Column(children: [...]),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(DesignTokens.spacingL),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,  // ← OBLIGATORIO
+          children: [
+            // Contenido usa TODO el ancho disponible
+            // ❌ PROHIBIDO: Center, maxWidth restrictivo
+          ],
         ),
       ),
     );

@@ -83,11 +83,26 @@ class _DashboardShellState extends State<DashboardShell> {
       selectedIcon: Icons.group,
       route: '/jugadores',
     ),
+    // E003-HU-002: Inscribirse a Fecha (todos los usuarios)
+    NavItem(
+      label: 'Pichangas',
+      icon: Icons.sports_soccer_outlined,
+      selectedIcon: Icons.sports_soccer,
+      route: '/fechas',
+    ),
     NavItem(
       label: 'Usuarios',
       icon: Icons.people_outline,
       selectedIcon: Icons.people,
       route: '/admin/usuarios',
+      roles: ['admin', 'administrador'],
+    ),
+    // E003-HU-001: Crear Fecha (solo admin)
+    NavItem(
+      label: 'Crear Fecha',
+      icon: Icons.calendar_month_outlined,
+      selectedIcon: Icons.calendar_month,
+      route: '/fechas/crear',
       roles: ['admin', 'administrador'],
     ),
     NavItem(

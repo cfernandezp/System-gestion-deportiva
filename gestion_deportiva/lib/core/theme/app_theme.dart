@@ -229,7 +229,7 @@ class AppTheme {
       ),
 
       // === Card ===
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: DesignTokens.elevationS,
         shadowColor: Colors.black.withValues(alpha: 0.1),
         surfaceTintColor: Colors.transparent,
@@ -417,7 +417,7 @@ class AppTheme {
       ),
 
       // === Dialog ===
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         backgroundColor: colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: DesignTokens.elevationXl,
@@ -601,7 +601,7 @@ class AppTheme {
       ),
 
       // === Tab Bar ===
-      tabBarTheme: TabBarTheme(
+      tabBarTheme: TabBarThemeData(
         labelColor: colorScheme.primary,
         unselectedLabelColor: colorScheme.onSurfaceVariant,
         labelStyle: textTheme.labelLarge?.copyWith(
@@ -676,7 +676,7 @@ class AppTheme {
       ),
 
       // === Card ===
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: DesignTokens.elevationS,
         shadowColor: Colors.black.withValues(alpha: 0.3),
         surfaceTintColor: Colors.transparent,
@@ -864,7 +864,7 @@ class AppTheme {
       ),
 
       // === Dialog ===
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         backgroundColor: colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: DesignTokens.elevationXl,
@@ -1048,7 +1048,7 @@ class AppTheme {
       ),
 
       // === Tab Bar ===
-      tabBarTheme: TabBarTheme(
+      tabBarTheme: TabBarThemeData(
         labelColor: colorScheme.primary,
         unselectedLabelColor: colorScheme.onSurfaceVariant,
         labelStyle: textTheme.labelLarge?.copyWith(

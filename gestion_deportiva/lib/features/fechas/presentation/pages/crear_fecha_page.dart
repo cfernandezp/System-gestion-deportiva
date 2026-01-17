@@ -23,22 +23,37 @@ class _CrearFechaPageState extends State<CrearFechaPage> {
 
   // Controladores de campos (CA-002)
   late TextEditingController _lugarController;
+  late TextEditingController _costoController;
 
   // Valores seleccionados
   DateTime _fechaSeleccionada = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _horaSeleccionada = const TimeOfDay(hour: 20, minute: 0);
-  int _duracionHoras = 2; // Default: 2 horas (mas comun)
+  int _duracionHoras = 2; // Default: 2 horas
+  int _numEquipos = 2; // Default: 2 equipos
 
   @override
   void initState() {
     super.initState();
     _lugarController = TextEditingController();
+    _costoController = TextEditingController(text: '8.00');
+
+    // Agregar listeners para actualizar el estado del boton
+    _lugarController.addListener(_onFieldChanged);
+    _costoController.addListener(_onFieldChanged);
   }
 
   @override
   void dispose() {
+    _lugarController.removeListener(_onFieldChanged);
+    _costoController.removeListener(_onFieldChanged);
     _lugarController.dispose();
+    _costoController.dispose();
     super.dispose();
+  }
+
+  /// Callback para actualizar UI cuando cambian los campos
+  void _onFieldChanged() {
+    setState(() {});
   }
 
   /// Combina fecha y hora en DateTime (CA-004)
@@ -57,12 +72,17 @@ class _CrearFechaPageState extends State<CrearFechaPage> {
     return _fechaHoraInicio.isAfter(DateTime.now());
   }
 
-  /// Obtiene info de formato automatico (CA-003, RN-002, RN-003)
+  /// Obtiene costo parseado del controller
+  double get _costoPorJugador {
+    return double.tryParse(_costoController.text) ?? 8.00;
+  }
+
+  /// Obtiene info de formato basado en valores seleccionados
   String get _formatoInfo {
-    if (_duracionHoras == 1) {
-      return '2 equipos - S/ 8.00 por jugador';
+    if (_numEquipos == 2) {
+      return '$_numEquipos equipos - S/ ${_costoPorJugador.toStringAsFixed(2)} por jugador';
     } else {
-      return '3 equipos con rotacion - S/ 10.00 por jugador';
+      return '$_numEquipos equipos con rotacion - S/ ${_costoPorJugador.toStringAsFixed(2)} por jugador';
     }
   }
 
@@ -114,7 +134,8 @@ class _CrearFechaPageState extends State<CrearFechaPage> {
   /// Valida el formulario completo
   bool get _formularioValido {
     final lugar = _lugarController.text.trim();
-    return _esFechaFutura && lugar.length >= 3;
+    final costo = double.tryParse(_costoController.text) ?? 0;
+    return _esFechaFutura && lugar.length >= 3 && costo > 0;
   }
 
   /// Cancela y vuelve atras
@@ -164,6 +185,8 @@ class _CrearFechaPageState extends State<CrearFechaPage> {
             fechaHoraInicio: _fechaHoraInicio,
             duracionHoras: _duracionHoras,
             lugar: _lugarController.text.trim(),
+            numEquipos: _numEquipos,
+            costoPorJugador: _costoPorJugador,
           ));
     }
   }
@@ -195,9 +218,11 @@ class _CrearFechaPageState extends State<CrearFechaPage> {
             mobileBody: _MobileView(
               formKey: _formKey,
               lugarController: _lugarController,
+              costoController: _costoController,
               fechaFormateada: _fechaFormateada,
               horaFormateada: _horaFormateada,
               duracionHoras: _duracionHoras,
+              numEquipos: _numEquipos,
               formatoInfo: _formatoInfo,
               esFechaFutura: _esFechaFutura,
               formularioValido: _formularioValido,
@@ -207,15 +232,20 @@ class _CrearFechaPageState extends State<CrearFechaPage> {
               onDuracionChanged: (value) {
                 if (value != null) setState(() => _duracionHoras = value);
               },
+              onEquiposChanged: (value) {
+                if (value != null) setState(() => _numEquipos = value);
+              },
               onCancelar: _cancelar,
               onCrear: _crearFecha,
             ),
             desktopBody: _DesktopView(
               formKey: _formKey,
               lugarController: _lugarController,
+              costoController: _costoController,
               fechaFormateada: _fechaFormateada,
               horaFormateada: _horaFormateada,
               duracionHoras: _duracionHoras,
+              numEquipos: _numEquipos,
               formatoInfo: _formatoInfo,
               esFechaFutura: _esFechaFutura,
               formularioValido: _formularioValido,
@@ -224,6 +254,9 @@ class _CrearFechaPageState extends State<CrearFechaPage> {
               onSeleccionarHora: () => _seleccionarHora(context),
               onDuracionChanged: (value) {
                 if (value != null) setState(() => _duracionHoras = value);
+              },
+              onEquiposChanged: (value) {
+                if (value != null) setState(() => _numEquipos = value);
               },
               onCancelar: _cancelar,
               onCrear: _crearFecha,
@@ -297,9 +330,11 @@ class _CrearFechaPageState extends State<CrearFechaPage> {
 class _MobileView extends StatelessWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController lugarController;
+  final TextEditingController costoController;
   final String fechaFormateada;
   final String horaFormateada;
   final int duracionHoras;
+  final int numEquipos;
   final String formatoInfo;
   final bool esFechaFutura;
   final bool formularioValido;
@@ -307,15 +342,18 @@ class _MobileView extends StatelessWidget {
   final VoidCallback onSeleccionarFecha;
   final VoidCallback onSeleccionarHora;
   final ValueChanged<int?> onDuracionChanged;
+  final ValueChanged<int?> onEquiposChanged;
   final VoidCallback onCancelar;
   final VoidCallback onCrear;
 
   const _MobileView({
     required this.formKey,
     required this.lugarController,
+    required this.costoController,
     required this.fechaFormateada,
     required this.horaFormateada,
     required this.duracionHoras,
+    required this.numEquipos,
     required this.formatoInfo,
     required this.esFechaFutura,
     required this.formularioValido,
@@ -323,6 +361,7 @@ class _MobileView extends StatelessWidget {
     required this.onSeleccionarFecha,
     required this.onSeleccionarHora,
     required this.onDuracionChanged,
+    required this.onEquiposChanged,
     required this.onCancelar,
     required this.onCrear,
   });
@@ -375,7 +414,15 @@ class _MobileView extends StatelessWidget {
               _buildDuracionSelector(colorScheme),
               const SizedBox(height: DesignTokens.spacingM),
 
-              // Info automatica de formato (CA-003)
+              // Selector de numero de equipos
+              _buildEquiposSelector(colorScheme),
+              const SizedBox(height: DesignTokens.spacingM),
+
+              // Campo de costo por jugador
+              _buildCostoField(),
+              const SizedBox(height: DesignTokens.spacingM),
+
+              // Info resumen de formato
               _buildFormatoInfo(colorScheme),
               const SizedBox(height: DesignTokens.spacingM),
 
@@ -589,9 +636,64 @@ class _MobileView extends StatelessWidget {
     );
   }
 
-  Widget _buildFormatoInfo(ColorScheme colorScheme) {
-    final esUnaHora = duracionHoras == 1;
+  Widget _buildEquiposSelector(ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Cantidad de equipos *',
+          style: TextStyle(
+            fontWeight: DesignTokens.fontWeightMedium,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: DesignTokens.spacingS),
+        SegmentedButton<int>(
+          segments: const [
+            ButtonSegment(
+              value: 2,
+              label: Text('2'),
+              icon: Icon(Icons.group),
+            ),
+            ButtonSegment(
+              value: 3,
+              label: Text('3'),
+              icon: Icon(Icons.groups),
+            ),
+            ButtonSegment(
+              value: 4,
+              label: Text('4'),
+              icon: Icon(Icons.groups),
+            ),
+          ],
+          selected: {numEquipos},
+          onSelectionChanged: (values) => onEquiposChanged(values.first),
+        ),
+      ],
+    );
+  }
 
+  Widget _buildCostoField() {
+    return TextFormField(
+      controller: costoController,
+      decoration: const InputDecoration(
+        labelText: 'Costo por jugador (S/) *',
+        hintText: 'Ej: 8.00',
+        prefixIcon: Icon(Icons.attach_money),
+        helperText: 'Monto que pagara cada jugador',
+      ),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      validator: (value) {
+        final costo = double.tryParse(value ?? '');
+        if (costo == null || costo <= 0) {
+          return 'Ingrese un monto valido mayor a 0';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildFormatoInfo(ColorScheme colorScheme) {
     return Container(
       padding: const EdgeInsets.all(DesignTokens.spacingM),
       decoration: BoxDecoration(
@@ -604,7 +706,7 @@ class _MobileView extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            esUnaHora ? Icons.group : Icons.groups,
+            numEquipos == 2 ? Icons.group : Icons.groups,
             color: colorScheme.secondary,
           ),
           const SizedBox(width: DesignTokens.spacingM),
@@ -613,7 +715,7 @@ class _MobileView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Formato de juego',
+                  'Resumen del formato',
                   style: TextStyle(
                     fontSize: DesignTokens.fontSizeS,
                     color: colorScheme.onSurfaceVariant,
@@ -662,9 +764,11 @@ class _MobileView extends StatelessWidget {
 class _DesktopView extends StatelessWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController lugarController;
+  final TextEditingController costoController;
   final String fechaFormateada;
   final String horaFormateada;
   final int duracionHoras;
+  final int numEquipos;
   final String formatoInfo;
   final bool esFechaFutura;
   final bool formularioValido;
@@ -672,15 +776,18 @@ class _DesktopView extends StatelessWidget {
   final VoidCallback onSeleccionarFecha;
   final VoidCallback onSeleccionarHora;
   final ValueChanged<int?> onDuracionChanged;
+  final ValueChanged<int?> onEquiposChanged;
   final VoidCallback onCancelar;
   final VoidCallback onCrear;
 
   const _DesktopView({
     required this.formKey,
     required this.lugarController,
+    required this.costoController,
     required this.fechaFormateada,
     required this.horaFormateada,
     required this.duracionHoras,
+    required this.numEquipos,
     required this.formatoInfo,
     required this.esFechaFutura,
     required this.formularioValido,
@@ -688,6 +795,7 @@ class _DesktopView extends StatelessWidget {
     required this.onSeleccionarFecha,
     required this.onSeleccionarHora,
     required this.onDuracionChanged,
+    required this.onEquiposChanged,
     required this.onCancelar,
     required this.onCrear,
   });
@@ -730,30 +838,28 @@ class _DesktopView extends StatelessWidget {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(DesignTokens.spacingL),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Container(
-            padding: const EdgeInsets.all(DesignTokens.spacingXl),
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: BorderRadius.circular(DesignTokens.radiusL),
-              border: Border.all(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            _buildDesktopHeader(colorScheme, textTheme),
+            const SizedBox(height: DesignTokens.spacingL),
+
+            // Card del formulario - alineado a izquierda, usa espacio disponible
+            Container(
+              padding: const EdgeInsets.all(DesignTokens.spacingL),
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                ),
               ),
-              boxShadow: DesignTokens.shadowMd,
-            ),
-            child: Form(
-              key: formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header
-                  _buildDesktopHeader(colorScheme, textTheme),
-                  const SizedBox(height: DesignTokens.spacingXl),
-                  const Divider(),
-                  const SizedBox(height: DesignTokens.spacingL),
-
                   // Grid de 2 columnas para fecha y hora
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -770,13 +876,39 @@ class _DesktopView extends StatelessWidget {
 
                   const SizedBox(height: DesignTokens.spacingL),
 
-                  // Duracion
-                  _buildDuracionSelectorDesktop(colorScheme),
+                  // Duracion y equipos en 2 columnas
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Duracion
+                      Expanded(
+                        child: _buildDuracionSelectorDesktop(colorScheme),
+                      ),
+                      const SizedBox(width: DesignTokens.spacingL),
+                      // Equipos
+                      Expanded(
+                        child: _buildEquiposSelectorDesktop(colorScheme),
+                      ),
+                    ],
+                  ),
 
                   const SizedBox(height: DesignTokens.spacingL),
 
-                  // Info de formato (CA-003)
-                  _buildFormatoInfoDesktop(colorScheme),
+                  // Costo y resumen formato en 2 columnas
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Costo por jugador
+                      Expanded(
+                        child: _buildCostoFieldDesktop(),
+                      ),
+                      const SizedBox(width: DesignTokens.spacingL),
+                      // Info de formato
+                      Expanded(
+                        child: _buildFormatoInfoDesktop(colorScheme),
+                      ),
+                    ],
+                  ),
 
                   const SizedBox(height: DesignTokens.spacingL),
 
@@ -785,7 +917,7 @@ class _DesktopView extends StatelessWidget {
                 ],
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -962,7 +1094,7 @@ class _DesktopView extends StatelessWidget {
           ],
           selected: {duracionHoras},
           onSelectionChanged: (values) => onDuracionChanged(values.first),
-          style: ButtonStyle(
+          style: const ButtonStyle(
             visualDensity: VisualDensity.comfortable,
           ),
         ),
@@ -970,9 +1102,67 @@ class _DesktopView extends StatelessWidget {
     );
   }
 
-  Widget _buildFormatoInfoDesktop(ColorScheme colorScheme) {
-    final esUnaHora = duracionHoras == 1;
+  Widget _buildEquiposSelectorDesktop(ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Cantidad de equipos *',
+          style: TextStyle(
+            fontWeight: DesignTokens.fontWeightMedium,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: DesignTokens.spacingS),
+        SegmentedButton<int>(
+          segments: const [
+            ButtonSegment(
+              value: 2,
+              label: Text('2 equipos'),
+              icon: Icon(Icons.group),
+            ),
+            ButtonSegment(
+              value: 3,
+              label: Text('3 equipos'),
+              icon: Icon(Icons.groups),
+            ),
+            ButtonSegment(
+              value: 4,
+              label: Text('4 equipos'),
+              icon: Icon(Icons.groups),
+            ),
+          ],
+          selected: {numEquipos},
+          onSelectionChanged: (values) => onEquiposChanged(values.first),
+          style: const ButtonStyle(
+            visualDensity: VisualDensity.comfortable,
+          ),
+        ),
+      ],
+    );
+  }
 
+  Widget _buildCostoFieldDesktop() {
+    return TextFormField(
+      controller: costoController,
+      decoration: const InputDecoration(
+        labelText: 'Costo por jugador (S/) *',
+        hintText: 'Ej: 8.00',
+        prefixIcon: Icon(Icons.attach_money),
+        helperText: 'Monto que pagara cada jugador',
+      ),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      validator: (value) {
+        final costo = double.tryParse(value ?? '');
+        if (costo == null || costo <= 0) {
+          return 'Ingrese un monto valido mayor a 0';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildFormatoInfoDesktop(ColorScheme colorScheme) {
     return Container(
       padding: const EdgeInsets.all(DesignTokens.spacingL),
       decoration: BoxDecoration(
@@ -991,7 +1181,7 @@ class _DesktopView extends StatelessWidget {
               borderRadius: BorderRadius.circular(DesignTokens.radiusS),
             ),
             child: Icon(
-              esUnaHora ? Icons.group : Icons.groups,
+              numEquipos == 2 ? Icons.group : Icons.groups,
               color: colorScheme.secondary,
               size: DesignTokens.iconSizeL,
             ),
@@ -1002,7 +1192,7 @@ class _DesktopView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Formato de juego (automatico)',
+                  'Resumen del formato',
                   style: TextStyle(
                     fontSize: DesignTokens.fontSizeS,
                     color: colorScheme.onSurfaceVariant,
@@ -1019,7 +1209,7 @@ class _DesktopView extends StatelessWidget {
                 ),
                 const SizedBox(height: DesignTokens.spacingXs),
                 Text(
-                  esUnaHora
+                  numEquipos == 2
                       ? 'Partido continuo entre 2 equipos'
                       : 'Rotacion: ganador continua, perdedor descansa',
                   style: TextStyle(

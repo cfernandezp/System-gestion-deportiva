@@ -31,11 +31,13 @@ import '../../features/jugadores/domain/repositories/jugadores_repository.dart';
 import '../../features/jugadores/presentation/bloc/jugadores/jugadores_bloc.dart';
 import '../../features/jugadores/presentation/bloc/perfil_jugador/perfil_jugador_bloc.dart';
 
-// Fechas Feature (E003-HU-001: Crear Fecha)
+// Fechas Feature (E003-HU-001: Crear Fecha, E003-HU-002: Inscribirse a Fecha)
 import '../../features/fechas/data/datasources/fechas_remote_datasource.dart';
 import '../../features/fechas/data/repositories/fechas_repository_impl.dart';
 import '../../features/fechas/domain/repositories/fechas_repository.dart';
 import '../../features/fechas/presentation/bloc/crear_fecha/crear_fecha_bloc.dart';
+import '../../features/fechas/presentation/bloc/inscripcion/inscripcion_bloc.dart';
+import '../../features/fechas/presentation/bloc/fechas_disponibles/fechas_disponibles_bloc.dart';
 
 /// Service Locator global
 final sl = GetIt.instance;
@@ -120,11 +122,14 @@ Future<void> initializeDependencies() async {
     () => JugadoresRemoteDataSourceImpl(supabase: sl()),
   );
 
-  // -------------------- Fechas (E003-HU-001) --------------------
+  // -------------------- Fechas (E003-HU-001, E003-HU-002) --------------------
 
   // Blocs
   // E003-HU-001: Crear Fecha
   sl.registerFactory(() => CrearFechaBloc(repository: sl()));
+  // E003-HU-002: Inscribirse a Fecha
+  sl.registerFactory(() => InscripcionBloc(repository: sl()));
+  sl.registerFactory(() => FechasDisponiblesBloc(repository: sl()));
 
   // Repository
   sl.registerLazySingleton<FechasRepository>(

@@ -14,20 +14,34 @@ class CrearFechaSubmitEvent extends CrearFechaEvent {
   /// Fecha y hora de inicio (CA-002, RN-004)
   final DateTime fechaHoraInicio;
 
-  /// Duracion en horas: 1 o 2 (CA-002, RN-002)
+  /// Duracion en horas (CA-002)
   final int duracionHoras;
 
   /// Nombre de cancha o direccion (CA-005)
   final String lugar;
 
+  /// Numero de equipos (2-4)
+  final int numEquipos;
+
+  /// Costo por jugador en soles
+  final double costoPorJugador;
+
   const CrearFechaSubmitEvent({
     required this.fechaHoraInicio,
     required this.duracionHoras,
     required this.lugar,
+    required this.numEquipos,
+    required this.costoPorJugador,
   });
 
   @override
-  List<Object?> get props => [fechaHoraInicio, duracionHoras, lugar];
+  List<Object?> get props => [
+        fechaHoraInicio,
+        duracionHoras,
+        lugar,
+        numEquipos,
+        costoPorJugador,
+      ];
 }
 
 /// Evento para reiniciar el estado del formulario

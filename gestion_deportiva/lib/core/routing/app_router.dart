@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -22,6 +24,30 @@ import '../../features/jugadores/presentation/pages/jugador_perfil_page.dart';
 // E003-HU-001: Crear Fecha
 import '../../features/fechas/presentation/bloc/crear_fecha/crear_fecha.dart';
 import '../../features/fechas/presentation/pages/crear_fecha_page.dart';
+// E003-HU-002: Inscribirse a Fecha
+import '../../features/fechas/presentation/bloc/inscripcion/inscripcion.dart';
+import '../../features/fechas/presentation/bloc/fechas_disponibles/fechas_disponibles.dart';
+import '../../features/fechas/presentation/pages/fechas_disponibles_page.dart';
+import '../../features/fechas/presentation/pages/fecha_detalle_page.dart';
+
+/// Notificador que escucha cambios en el SessionBloc y notifica al GoRouter
+/// Esto resuelve la race condition entre login exitoso y la redireccion
+class GoRouterRefreshStream extends ChangeNotifier {
+  late final StreamSubscription<SessionState> _subscription;
+
+  GoRouterRefreshStream(Stream<SessionState> stream) {
+    _subscription = stream.listen((_) {
+      // Notificar al router que debe re-evaluar las redirecciones
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
 
 /// Configuracion del router de la aplicacion
 /// Usa go_router para navegacion declarativa
@@ -31,6 +57,28 @@ import '../../features/fechas/presentation/pages/crear_fecha_page.dart';
 /// - RN-003: Redireccion obligatoria post-cierre
 /// - RN-005: Proteccion de recursos post-cierre
 class AppRouter {
+  /// Duracion de la transicion entre paginas (suave e imperceptible)
+  static const Duration _transitionDuration = Duration(milliseconds: 200);
+
+  /// Crea una pagina con transicion fade suave
+  /// Usado para todas las rutas para mantener consistencia
+  static CustomTransitionPage<void> _buildPageWithFadeTransition({
+    required LocalKey key,
+    required Widget child,
+  }) {
+    return CustomTransitionPage<void>(
+      key: key,
+      child: child,
+      transitionDuration: _transitionDuration,
+      reverseTransitionDuration: _transitionDuration,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: animation,
+          child: child,
+        );
+      },
+    );
+  }
   /// Rutas de la aplicacion
   static const String home = '/';
   static const String login = '/login';
@@ -47,6 +95,9 @@ class AppRouter {
   static const String jugadorPerfil = '/jugadores/:id';
   // E003-HU-001: Crear Fecha (solo admin)
   static const String crearFecha = '/fechas/crear';
+  // E003-HU-002: Inscribirse a Fecha
+  static const String fechasDisponibles = '/fechas';
+  static const String fechaDetalle = '/fechas/:id';
 
   /// Rutas publicas (no requieren autenticacion)
   static const List<String> _publicRoutes = [
@@ -68,9 +119,23 @@ class AppRouter {
     });
   }
 
+  /// Instancia privada del refresh notifier para evitar recreacion
+  static GoRouterRefreshStream? _refreshNotifier;
+
+  /// Obtiene o crea el refresh notifier
+  static GoRouterRefreshStream _getRefreshNotifier() {
+    _refreshNotifier ??= GoRouterRefreshStream(sl<SessionBloc>().stream);
+    return _refreshNotifier!;
+  }
+
   static final GoRouter router = GoRouter(
     initialLocation: '/',
     debugLogDiagnostics: true,
+
+    /// refreshListenable: Escucha cambios en SessionBloc y re-evalua redirecciones
+    /// Esto resuelve la race condition: cuando SessionBloc cambia a SessionAuthenticated,
+    /// el router automaticamente re-evalua y redirige al usuario a home
+    refreshListenable: _getRefreshNotifier(),
 
     /// HU-004: CA-003 - Acceso denegado post-logout
     /// RN-005: Proteccion de recursos post-cierre
@@ -111,21 +176,30 @@ class AppRouter {
       GoRoute(
         path: '/',
         name: 'home',
-        builder: (context, state) => const HomePage(),
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: const HomePage(),
+        ),
       ),
 
       // Ruta de login de usuario (HU-002)
       GoRoute(
         path: '/login',
         name: 'login',
-        builder: (context, state) => const LoginPage(),
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: const LoginPage(),
+        ),
       ),
 
       // Ruta de registro de usuario (HU-001)
       GoRoute(
         path: '/registro',
         name: 'registro',
-        builder: (context, state) => const RegistroPage(),
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: const RegistroPage(),
+        ),
       ),
 
       // Ruta de gestion de usuarios (HU-005: Gestion de Roles)
@@ -133,7 +207,10 @@ class AppRouter {
       GoRoute(
         path: '/admin/usuarios',
         name: 'adminUsuarios',
-        builder: (context, state) => const UsuariosPage(),
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: const UsuariosPage(),
+        ),
       ),
 
       // HU-003: Recuperacion de contrasena
@@ -141,16 +218,22 @@ class AppRouter {
       GoRoute(
         path: '/recuperar-contrasena',
         name: 'recuperarContrasena',
-        builder: (context, state) => const SolicitarRecuperacionPage(),
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: const SolicitarRecuperacionPage(),
+        ),
       ),
 
       // CA-004, CA-005, CA-006: Restablecer contrasena con token
       GoRoute(
         path: '/restablecer-contrasena/:token',
         name: 'restablecerContrasena',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final token = state.pathParameters['token'] ?? '';
-          return RestablecerContrasenaPage(token: token);
+          return _buildPageWithFadeTransition(
+            key: state.pageKey,
+            child: RestablecerContrasenaPage(token: token),
+          );
         },
       ),
 
@@ -159,9 +242,12 @@ class AppRouter {
       GoRoute(
         path: '/perfil',
         name: 'perfil',
-        builder: (context, state) => BlocProvider(
-          create: (context) => sl<PerfilBloc>()..add(const CargarPerfilEvent()),
-          child: const PerfilPage(),
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: BlocProvider(
+            create: (context) => sl<PerfilBloc>()..add(const CargarPerfilEvent()),
+            child: const PerfilPage(),
+          ),
         ),
       ),
 
@@ -170,9 +256,12 @@ class AppRouter {
       GoRoute(
         path: '/jugadores',
         name: 'jugadores',
-        builder: (context, state) => BlocProvider(
-          create: (context) => sl<JugadoresBloc>()..add(const CargarJugadoresEvent()),
-          child: const JugadoresPage(),
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: BlocProvider(
+            create: (context) => sl<JugadoresBloc>()..add(const CargarJugadoresEvent()),
+            child: const JugadoresPage(),
+          ),
         ),
       ),
 
@@ -181,12 +270,15 @@ class AppRouter {
       GoRoute(
         path: '/jugadores/:id',
         name: 'jugadorPerfil',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final jugadorId = state.pathParameters['id'] ?? '';
-          return BlocProvider(
-            create: (context) => sl<PerfilJugadorBloc>()
-              ..add(CargarPerfilJugadorEvent(jugadorId)),
-            child: JugadorPerfilPage(jugadorId: jugadorId),
+          return _buildPageWithFadeTransition(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (context) => sl<PerfilJugadorBloc>()
+                ..add(CargarPerfilJugadorEvent(jugadorId)),
+              child: JugadorPerfilPage(jugadorId: jugadorId),
+            ),
           );
         },
       ),
@@ -196,10 +288,46 @@ class AppRouter {
       GoRoute(
         path: '/fechas/crear',
         name: 'crearFecha',
-        builder: (context, state) => BlocProvider(
-          create: (context) => sl<CrearFechaBloc>(),
-          child: const CrearFechaPage(),
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: BlocProvider(
+            create: (context) => sl<CrearFechaBloc>(),
+            child: const CrearFechaPage(),
+          ),
         ),
+      ),
+
+      // E003-HU-002: Lista de Fechas Disponibles
+      // CA-001: Mostrar lista con fecha, hora, lugar, duracion, costo, inscritos
+      GoRoute(
+        path: '/fechas',
+        name: 'fechasDisponibles',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: BlocProvider(
+            create: (context) => sl<FechasDisponiblesBloc>()
+              ..add(const CargarFechasDisponiblesEvent()),
+            child: const FechasDisponiblesPage(),
+          ),
+        ),
+      ),
+
+      // E003-HU-002: Detalle de Fecha con inscripcion
+      // CA-001 a CA-006: Ver detalle, inscribirse, cancelar, lista inscritos
+      GoRoute(
+        path: '/fechas/:id',
+        name: 'fechaDetalle',
+        pageBuilder: (context, state) {
+          final fechaId = state.pathParameters['id'] ?? '';
+          return _buildPageWithFadeTransition(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (context) => sl<InscripcionBloc>()
+                ..add(CargarFechaDetalleEvent(fechaId: fechaId)),
+              child: FechaDetallePage(fechaId: fechaId),
+            ),
+          );
+        },
       ),
     ],
 

@@ -26,6 +26,8 @@ class CrearFechaBloc extends Bloc<CrearFechaEvent, CrearFechaState> {
       fechaHoraInicio: event.fechaHoraInicio,
       duracionHoras: event.duracionHoras,
       lugar: event.lugar,
+      numEquipos: event.numEquipos,
+      costoPorJugador: event.costoPorJugador,
     );
 
     // Validacion frontend (CA-004, CA-005, RN-002)

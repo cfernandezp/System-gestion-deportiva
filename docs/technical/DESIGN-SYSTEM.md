@@ -434,6 +434,141 @@ Widget build(BuildContext context) {
 
 ---
 
+## Patrones de Layout - OBLIGATORIO
+
+### ⚠️ REGLA CRITICA PARA AGENTES IA
+
+**ANTES de implementar cualquier página UI, el agente DEBE revisar páginas existentes como referencia:**
+- `lib/features/jugadores/presentation/pages/jugadores_page.dart`
+- `lib/features/admin/presentation/pages/usuarios_page.dart`
+- `lib/features/home/presentation/pages/home_page.dart`
+
+### Layout Dashboard (Desktop/Tablet)
+
+```dart
+// ✅ CORRECTO - Contenido alineado a izquierda, usa espacio disponible
+DashboardShell(
+  currentRoute: '/mi-ruta',
+  title: 'Titulo Pagina',
+  breadcrumbs: ['Inicio', 'Seccion', 'Pagina'],
+  child: SingleChildScrollView(
+    padding: const EdgeInsets.all(DesignTokens.spacingL),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,  // ← SIEMPRE a la izquierda
+      children: [
+        // Header de seccion
+        Text('Seccion', style: textTheme.headlineMedium),
+        const SizedBox(height: DesignTokens.spacingM),
+
+        // Contenido - USA TODO EL ANCHO DISPONIBLE
+        _buildContenido(),
+      ],
+    ),
+  ),
+)
+
+// ❌ INCORRECTO - NO centrar contenido como modal
+Center(  // ← PROHIBIDO en páginas dashboard
+  child: ConstrainedBox(
+    constraints: BoxConstraints(maxWidth: 800),  // ← PROHIBIDO
+    child: Card(
+      // Esto es patrón de MODAL, no de página
+    ),
+  ),
+)
+```
+
+### Layout Mobile
+
+```dart
+// ✅ CORRECTO - Scaffold simple sin DashboardShell
+Scaffold(
+  appBar: AppBar(title: Text('Titulo')),
+  body: SingleChildScrollView(
+    padding: const EdgeInsets.all(DesignTokens.spacingM),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [...],
+    ),
+  ),
+)
+```
+
+### ResponsiveLayout Obligatorio
+
+**TODA página debe usar ResponsiveLayout:**
+
+```dart
+@override
+Widget build(BuildContext context) {
+  return ResponsiveLayout(
+    mobileBody: _buildMobileView(),
+    desktopBody: _buildDesktopView(),
+  );
+}
+
+Widget _buildDesktopView() {
+  return DashboardShell(
+    currentRoute: '/mi-ruta',
+    title: 'Mi Pagina',
+    child: // Contenido alineado izquierda
+  );
+}
+
+Widget _buildMobileView() {
+  return Scaffold(
+    appBar: AppBar(...),
+    body: // Contenido
+  );
+}
+```
+
+### Formularios en Dashboard
+
+```dart
+// ✅ CORRECTO - Formulario integrado en dashboard
+SingleChildScrollView(
+  padding: EdgeInsets.all(DesignTokens.spacingL),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Campos en filas cuando hay espacio
+      Row(
+        children: [
+          Expanded(child: _buildCampo1()),
+          SizedBox(width: DesignTokens.spacingM),
+          Expanded(child: _buildCampo2()),
+        ],
+      ),
+      SizedBox(height: DesignTokens.spacingM),
+      _buildCampo3(),  // Campo full width
+    ],
+  ),
+)
+
+// ❌ INCORRECTO - Card centrada tipo modal
+Center(
+  child: Card(
+    child: Padding(
+      padding: EdgeInsets.all(32),
+      child: Form(...),
+    ),
+  ),
+)
+```
+
+### Reglas de Oro
+
+| ✅ Hacer | ❌ NO Hacer |
+|----------|-------------|
+| `CrossAxisAlignment.start` | `Center` wrapper |
+| Usar todo el ancho disponible | `maxWidth` restrictivo |
+| Padding con `DesignTokens.spacingL` | Padding hardcodeado |
+| Campos en `Row` + `Expanded` | Todo apilado vertical |
+| `DashboardShell` para desktop | Card flotante tipo modal |
+
+---
+
 ## Archivos del Design System
 
 ```

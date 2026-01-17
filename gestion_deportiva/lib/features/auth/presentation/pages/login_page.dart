@@ -94,7 +94,9 @@ class _LoginViewState extends State<_LoginView> {
         listener: (context, state) {
           if (state is LoginSuccess) {
             // CA-002: Login exitoso
-            // 1. Actualizar SessionBloc con datos del usuario autenticado
+            // Actualizar SessionBloc con datos del usuario autenticado
+            // La navegacion a home es automatica via GoRouter.refreshListenable
+            // que escucha cambios en SessionBloc y re-evalua redirecciones
             context.read<SessionBloc>().add(
                   SessionAuthenticatedEvent(
                     usuarioId: state.response.usuarioId,
@@ -103,8 +105,8 @@ class _LoginViewState extends State<_LoginView> {
                     rol: state.response.rol,
                   ),
                 );
-            // 2. Navegar a home
-            context.go('/');
+            // NOTA: NO navegamos manualmente - el router lo hace automaticamente
+            // cuando detecta SessionAuthenticated via refreshListenable
           } else if (state is LoginError) {
             // CA-003: Mostrar mensaje de error apropiado
             _mostrarErrorSnackBar(context, state);

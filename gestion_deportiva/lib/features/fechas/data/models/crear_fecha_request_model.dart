@@ -9,17 +9,27 @@ class CrearFechaRequestModel extends Equatable {
   final DateTime fechaHoraInicio;
 
   /// Duracion en horas (1 o 2)
-  /// CA-002, RN-002: Determina formato y numero de equipos
+  /// CA-002: Seleccionado por el administrador
   final int duracionHoras;
 
   /// Nombre de cancha o direccion
   /// CA-005: Campo obligatorio, minimo 3 caracteres
   final String lugar;
 
+  /// Numero de equipos (2-4)
+  /// Definido por el administrador
+  final int numEquipos;
+
+  /// Costo por jugador en soles
+  /// Definido por el administrador
+  final double costoPorJugador;
+
   const CrearFechaRequestModel({
     required this.fechaHoraInicio,
     required this.duracionHoras,
     required this.lugar,
+    required this.numEquipos,
+    required this.costoPorJugador,
   });
 
   /// Convierte a Map para enviar como params al RPC
@@ -29,22 +39,23 @@ class CrearFechaRequestModel extends Equatable {
       'p_fecha_hora_inicio': fechaHoraInicio.toUtc().toIso8601String(),
       'p_duracion_horas': duracionHoras,
       'p_lugar': lugar.trim(),
+      'p_num_equipos': numEquipos,
+      'p_costo_por_jugador': costoPorJugador,
     };
   }
 
   /// Valida los datos antes de enviar (validacion frontend)
   /// CA-004: Fecha futura
   /// CA-005: Lugar no vacio
-  /// RN-002: Duracion 1 o 2
   String? validar() {
-    // RN-004: Fecha futura
+    // Fecha futura
     if (fechaHoraInicio.isBefore(DateTime.now())) {
       return 'La fecha debe ser futura';
     }
 
-    // RN-002: Duracion valida
-    if (duracionHoras != 1 && duracionHoras != 2) {
-      return 'La duracion debe ser 1 o 2 horas';
+    // Duracion valida (1-3 horas)
+    if (duracionHoras < 1 || duracionHoras > 3) {
+      return 'La duracion debe ser entre 1 y 3 horas';
     }
 
     // CA-005: Lugar obligatorio
@@ -56,41 +67,39 @@ class CrearFechaRequestModel extends Equatable {
       return 'El lugar debe tener al menos 3 caracteres';
     }
 
+    // Numero de equipos valido (2-4)
+    if (numEquipos < 2 || numEquipos > 4) {
+      return 'El numero de equipos debe ser entre 2 y 4';
+    }
+
+    // Costo valido
+    if (costoPorJugador <= 0) {
+      return 'El costo debe ser mayor a 0';
+    }
+
     return null; // Sin errores
   }
 
-  /// Obtiene el formato de juego segun duracion (CA-003, RN-002)
+  /// Obtiene el formato de juego segun numero de equipos
   String get formatoJuego {
-    if (duracionHoras == 1) {
-      return '2 equipos';
+    if (numEquipos == 2) {
+      return '2 equipos - Partido continuo';
     } else {
-      return '3 equipos con rotacion';
+      return '$numEquipos equipos con rotacion';
     }
   }
 
-  /// Obtiene el costo segun duracion (CA-003, RN-003)
-  double get costoPorJugador {
-    if (duracionHoras == 1) {
-      return 8.00;
-    } else {
-      return 10.00;
-    }
-  }
-
-  /// Formato del costo para mostrar (CA-003)
+  /// Formato del costo para mostrar
   String get costoFormato {
     return 'S/ ${costoPorJugador.toStringAsFixed(2)}';
   }
 
-  /// Numero de equipos segun duracion (RN-007)
-  int get numEquipos {
-    if (duracionHoras == 1) {
-      return 2;
-    } else {
-      return 3;
-    }
-  }
-
   @override
-  List<Object?> get props => [fechaHoraInicio, duracionHoras, lugar];
+  List<Object?> get props => [
+        fechaHoraInicio,
+        duracionHoras,
+        lugar,
+        numEquipos,
+        costoPorJugador,
+      ];
 }

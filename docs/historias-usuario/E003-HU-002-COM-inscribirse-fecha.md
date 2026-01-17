@@ -2,7 +2,7 @@
 
 ## Informacion General
 - **Epica**: E003 - Gestion de Fechas/Jornadas
-- **Estado**: 🔵 En Desarrollo (DEV)
+- **Estado**: ✅ Completado (COM)
 - **Prioridad**: Alta
 
 ## Historia de Usuario
@@ -310,3 +310,87 @@ Permite a los jugadores inscribirse a una fecha abierta, confirmando su asistenc
 ### RLS (Row Level Security)
 - **inscripciones**: Usuarios ven sus inscripciones, admins ven todas, usuarios aprobados ven lista de inscritos
 - **pagos**: Usuarios ven sus pagos, admins ven y actualizan todos
+
+---
+## FASE 3: Implementacion Frontend
+**Responsable**: flutter-expert
+**Status**: Completado
+**Fecha**: 2026-01-17
+
+### Data Layer - Models
+| Archivo | Descripcion |
+|---------|-------------|
+| `lib/features/fechas/data/models/inscripcion_model.dart` | Modelo de inscripcion con `InscripcionModel`, `InscripcionResponseModel`, `CancelarInscripcionResponseModel` |
+| `lib/features/fechas/data/models/inscrito_model.dart` | Modelo de jugador inscrito `InscritoModel` |
+| `lib/features/fechas/data/models/fecha_detalle_model.dart` | Modelo de detalle de fecha con inscritos `FechaDetalleModel`, `FechaDetalleResponseModel` |
+| `lib/features/fechas/data/models/fecha_disponible_model.dart` | Modelo para listar fechas `FechaDisponibleModel`, `ListarFechasDisponiblesResponseModel` |
+
+### Data Layer - DataSource
+| Archivo | Metodos RPC |
+|---------|-------------|
+| `lib/features/fechas/data/datasources/fechas_remote_datasource.dart` | `inscribirseFecha()`, `cancelarInscripcion()`, `obtenerFechaDetalle()`, `listarFechasDisponibles()` |
+
+### Domain Layer
+| Archivo | Metodos |
+|---------|---------|
+| `lib/features/fechas/domain/repositories/fechas_repository.dart` | Interface con 4 nuevos metodos |
+| `lib/features/fechas/data/repositories/fechas_repository_impl.dart` | Implementacion con patron Either |
+
+### Presentation Layer - BLoCs
+| BLoC | Archivos |
+|------|----------|
+| **InscripcionBloc** | `inscripcion_bloc.dart`, `inscripcion_event.dart`, `inscripcion_state.dart` |
+| **FechasDisponiblesBloc** | `fechas_disponibles_bloc.dart`, `fechas_disponibles_event.dart`, `fechas_disponibles_state.dart` |
+
+### Dependency Injection
+- `lib/core/di/injection_container.dart` - Registrados: `InscripcionBloc`, `FechasDisponiblesBloc`
+
+---
+## FASE 4: Implementacion UI/UX
+**Responsable**: ux-ui-expert
+**Status**: Completado
+**Fecha**: 2026-01-17
+
+### Paginas Creadas
+| Pagina | Descripcion |
+|--------|-------------|
+| `lib/features/fechas/presentation/pages/fechas_disponibles_page.dart` | Lista de fechas abiertas con pull-to-refresh |
+| `lib/features/fechas/presentation/pages/fecha_detalle_page.dart` | Detalle de fecha con inscripcion/cancelacion |
+
+### Widgets Creados
+| Widget | Descripcion |
+|--------|-------------|
+| `lib/features/fechas/presentation/widgets/fecha_card.dart` | Card de fecha para lista |
+| `lib/features/fechas/presentation/widgets/lista_inscritos_widget.dart` | Lista expandible de inscritos |
+
+### Navegacion
+- Ruta `/fechas` - Lista de fechas disponibles
+- Ruta `/fechas/:id` - Detalle de fecha
+- Menu "Pichangas" agregado a DashboardShell y AppBottomNavBar
+
+### Criterios de Aceptacion UI
+- [x] **CA-001**: Lista y detalle muestran fecha, hora, lugar, duracion, costo, inscritos
+- [x] **CA-002**: Boton "Anotarme" visible cuando puede inscribirse
+- [x] **CA-003**: Dialogo de confirmacion al inscribirse
+- [x] **CA-004**: Badge "Ya estas anotado" y boton "Cancelar inscripcion"
+- [x] **CA-005**: Mensaje "Inscripciones cerradas" con icono lock
+- [x] **CA-006**: Contador circular de inscritos
+
+---
+## FASE 5: Validacion QA
+**Responsable**: qa-testing-expert
+**Status**: Completado
+**Fecha**: 2026-01-17
+
+### Resultados
+- **flutter analyze**: 0 errores (5 warnings de deprecacion en archivos no relacionados)
+- **flutter build web**: Compilacion exitosa
+- **Imports**: Todos correctos
+- **DI**: BLoCs registrados correctamente
+- **Rutas**: Configuradas en app_router.dart
+
+---
+## Nota de Despliegue
+**IMPORTANTE**: El script SQL debe ejecutarse manualmente en Supabase Cloud:
+- Archivo: `supabase/sql-cloud/2026-01-17_E003-HU-002_inscribirse_fecha.sql`
+- Dashboard: https://supabase.com/dashboard/project/tvvubzkqbksxvcjvivij/sql/new

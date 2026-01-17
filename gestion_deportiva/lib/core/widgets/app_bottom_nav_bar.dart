@@ -54,12 +54,12 @@ class AppBottomNavBar extends StatelessWidget {
       selectedIcon: Icons.group,
       route: '/jugadores',
     ),
+    // E003-HU-002: Inscribirse a Fecha (todos los usuarios)
     BottomNavItem(
-      label: 'Usuarios',
-      icon: Icons.people_outline,
-      selectedIcon: Icons.people,
-      route: '/admin/usuarios',
-      roles: ['admin', 'administrador'],
+      label: 'Pichangas',
+      icon: Icons.sports_soccer_outlined,
+      selectedIcon: Icons.sports_soccer,
+      route: '/fechas',
     ),
   ];
 

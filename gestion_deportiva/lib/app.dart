@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/di/injection_container.dart';
 import 'core/routing/app_router.dart';
@@ -28,6 +29,18 @@ class App extends StatelessWidget {
       child: MaterialApp.router(
         title: 'Gestion Deportiva',
         debugShowCheckedModeBanner: false,
+
+        // Localizaciones (requerido para DatePicker/TimePicker en espanol)
+        locale: const Locale('es', 'PE'),
+        supportedLocales: const [
+          Locale('es', 'PE'),
+          Locale('es', ''),
+        ],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
 
         // Tema
         theme: AppTheme.lightTheme,
