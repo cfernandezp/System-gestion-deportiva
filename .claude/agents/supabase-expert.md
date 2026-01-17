@@ -61,40 +61,84 @@ rules:
 
 ---
 
-## 🕐 ZONA HORARIA: PERÚ (America/Lima)
+## 🇵🇪 LOCALIZACIÓN: PERÚ
 
-**⚠️ CRÍTICO: El servidor Cloud está en Brasil, pero la app es para Perú**
+**⚠️ CRÍTICO: La aplicación está orientada al mercado peruano**
 
-**Configuración obligatoria**:
-- **Zona horaria usuario**: `America/Lima` (UTC-5)
-- **Servidor Supabase**: Brasil (UTC-3)
+### Configuración Regional Obligatoria
+
+| Aspecto | Valor | Ejemplo |
+|---------|-------|---------|
+| **País** | Perú | 🇵🇪 |
+| **Idioma** | Español (es_PE) | "Enero", "Lunes" |
+| **Zona horaria** | America/Lima (UTC-5) | 15:00 Lima = 20:00 UTC |
+| **Moneda** | Soles (PEN) | S/ 150.00 |
+| **Formato fecha** | DD de Mes de YYYY | "15 de Enero de 2026" |
+| **Formato hora** | HH:MM (24h) o h:MM AM/PM | "15:30" o "3:30 PM" |
+| **Separador decimal** | Punto (.) | 1,500.50 |
+| **Separador miles** | Coma (,) | 1,500.50 |
+
+### Zona Horaria
+
+**Servidor Supabase**: Brasil (UTC-3)
+**Usuario final**: Perú (UTC-5)
+
 - **SIEMPRE** almacenar fechas en UTC en la BD
 - **SIEMPRE** convertir a hora Perú en la presentación
 
-**En funciones SQL**:
+### Formato de Fechas en SQL (CRÍTICO)
+
 ```sql
--- ✅ CORRECTO: Guardar en UTC, mostrar en Perú
-SELECT created_at AT TIME ZONE 'America/Lima' as fecha_local
-FROM tabla;
+-- ✅ CORRECTO: Fecha en español para Perú
+-- Usar 'TMMonth' para nombre de mes en español
+SET lc_time = 'es_ES.UTF-8'; -- Si está disponible en el servidor
 
--- ✅ CORRECTO: Insertar con timezone
-INSERT INTO tabla (fecha)
-VALUES (NOW() AT TIME ZONE 'UTC');
+-- Formato recomendado para fechas legibles
+TO_CHAR(fecha AT TIME ZONE 'America/Lima', 'DD "de" TMMonth "de" YYYY')
+-- Resultado: "15 de Enero de 2026"
 
--- ✅ CORRECTO: Comparar fechas considerando zona horaria
-WHERE created_at >= (NOW() AT TIME ZONE 'America/Lima')::date
+-- ✅ CORRECTO: Fecha con hora
+TO_CHAR(fecha AT TIME ZONE 'America/Lima', 'DD/MM/YYYY HH24:MI')
+-- Resultado: "15/01/2026 15:30"
 
--- ❌ INCORRECTO: Asumir que NOW() es hora Perú
-WHERE created_at >= NOW()::date  -- Esto usa hora de Brasil
+-- ✅ CORRECTO: Solo hora
+TO_CHAR(fecha AT TIME ZONE 'America/Lima', 'HH24:MI')
+-- Resultado: "15:30"
+
+-- ❌ INCORRECTO: Esto muestra mes en inglés si el servidor no tiene locale español
+TO_CHAR(fecha, 'DD "de" Month "de" YYYY')
+-- Resultado: "15 de January de 2026" ← MAL
 ```
 
-**Patrón recomendado para funciones RPC**:
+### Patrón para Funciones RPC
+
 ```sql
 -- Retornar fechas formateadas para Perú
 RETURN json_build_object(
     'fecha_utc', created_at,
-    'fecha_local', created_at AT TIME ZONE 'America/Lima'
+    'fecha_local', created_at AT TIME ZONE 'America/Lima',
+    'fecha_formato', TO_CHAR(created_at AT TIME ZONE 'America/Lima', 'DD "de" TMMonth "de" YYYY')
 );
+```
+
+### Formato de Moneda en SQL
+
+```sql
+-- ✅ CORRECTO: Formato soles peruanos
+TO_CHAR(monto, 'FM999,999,990.00') || ' PEN'
+-- O para mostrar con símbolo:
+'S/ ' || TO_CHAR(monto, 'FM999,999,990.00')
+-- Resultado: "S/ 1,500.00"
+```
+
+### Comparación de Fechas
+
+```sql
+-- ✅ CORRECTO: Comparar considerando zona horaria Perú
+WHERE created_at >= (NOW() AT TIME ZONE 'America/Lima')::date
+
+-- ❌ INCORRECTO: Asumir que NOW() es hora Perú
+WHERE created_at >= NOW()::date  -- Esto usa hora de Brasil
 ```
 
 ---

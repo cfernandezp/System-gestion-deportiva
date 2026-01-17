@@ -34,8 +34,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   /// E002-HU-002: Actualiza el perfil del usuario autenticado
+  /// Actualizado 2026-01-16: Agregado nombreCompleto como campo editable
   @override
   Future<Either<Failure, PerfilResponseModel>> actualizarPerfilPropio({
+    required String nombreCompleto,
     required String apodo,
     String? telefono,
     String? posicionPreferida,
@@ -43,6 +45,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }) async {
     try {
       final result = await remoteDataSource.actualizarPerfilPropio(
+        nombreCompleto: nombreCompleto,
         apodo: apodo,
         telefono: telefono,
         posicionPreferida: posicionPreferida,

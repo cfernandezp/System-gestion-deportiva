@@ -23,12 +23,14 @@ Permite a cada jugador modificar su informacion de perfil.
 ### CA-002: Campos editables
 - **Dado** que estoy editando mi perfil
 - **Cuando** veo el formulario
-- **Entonces** puedo editar: apodo, telefono, posicion preferida y foto
+- **Entonces** puedo editar: nombre completo, apodo, telefono, posicion preferida y foto
+- **Nota**: Actualizado 2026-01-16 para incluir nombre_completo como campo editable
 
 ### CA-003: Campos no editables
 - **Dado** que estoy editando mi perfil
 - **Cuando** veo el formulario
-- **Entonces** NO puedo editar: nombre completo, email (requieren contactar admin)
+- **Entonces** NO puedo editar: email (requiere contactar admin)
+- **Nota**: Actualizado 2026-01-16 - nombre_completo ahora es editable
 
 ### CA-004: Guardar cambios
 - **Dado** que modifique mis datos
@@ -53,11 +55,12 @@ Permite a cada jugador modificar su informacion de perfil.
 **Validacion**: El apodo debe ser unico entre todos los jugadores registrados.
 **Caso especial**: Si el jugador mantiene su apodo actual (sin cambios), no aplica validacion de unicidad.
 
-### RN-002: Campos de Edicion Restringida
+### RN-002: Campos de Edicion Restringida (Actualizado 2026-01-16)
 **Contexto**: Cuando un jugador accede a editar su perfil.
-**Restriccion**: El jugador NO puede modificar su nombre completo ni su email.
-**Validacion**: Solo pueden editarse: apodo, telefono, posicion preferida y foto.
-**Caso especial**: Para modificar nombre o email, el jugador debe contactar a un administrador quien realizara el cambio.
+**Restriccion**: El jugador NO puede modificar su email.
+**Validacion**: Pueden editarse: nombre completo, apodo, telefono, posicion preferida y foto.
+**Caso especial**: Para modificar email, el jugador debe contactar a un administrador quien realizara el cambio.
+**Historial**: Antes de 2026-01-16, nombre_completo tampoco era editable.
 
 ### RN-003: Propiedad del Perfil
 **Contexto**: Cuando un jugador intenta editar un perfil.
@@ -87,9 +90,10 @@ Permite a cada jugador modificar su informacion de perfil.
 ### Script SQL
 **Archivo**: `supabase/sql-cloud/2026-01-15_E002-HU-002_editar_perfil_propio.sql`
 
-### Funcion RPC
+### Funcion RPC (Actualizada 2026-01-16)
 ```sql
 actualizar_perfil_propio(
+    p_nombre_completo VARCHAR(100),  -- Agregado 2026-01-16
     p_apodo VARCHAR(50),
     p_telefono VARCHAR(20) DEFAULT NULL,
     p_posicion_preferida posicion_jugador DEFAULT NULL,
@@ -119,23 +123,23 @@ actualizar_perfil_propio(
 }
 ```
 
-### Cobertura de Criterios
+### Cobertura de Criterios (Actualizado 2026-01-16)
 | CA | Implementacion |
 |----|----------------|
 | CA-001 | Funcion accesible via RPC para editar |
-| CA-002 | Parametros: p_apodo, p_telefono, p_posicion_preferida, p_foto_url |
-| CA-003 | Funcion NO acepta nombre_completo ni email |
+| CA-002 | Parametros: p_nombre_completo, p_apodo, p_telefono, p_posicion_preferida, p_foto_url |
+| CA-003 | Funcion NO acepta email (solo campo restringido) |
 | CA-004 | Retorna perfil actualizado con mensaje de confirmacion |
 | CA-005 | Valida apodo unico con error 'apodo_duplicado' |
 | CA-006 | No aplica backend (frontend maneja cancelacion) |
 
-### Cobertura de Reglas
+### Cobertura de Reglas (Actualizado 2026-01-16)
 | RN | Implementacion |
 |----|----------------|
 | RN-001 | Validacion unicidad solo si apodo cambio, case-insensitive |
-| RN-002 | UPDATE solo de campos permitidos |
+| RN-002 | UPDATE de campos permitidos (incluye nombre_completo desde 2026-01-16) |
 | RN-003 | auth.uid() garantiza solo perfil propio |
-| RN-004 | TRIM + validacion 2-30 caracteres |
+| RN-004 | TRIM + validacion 2-30 caracteres (apodo), 2-100 (nombre) |
 | RN-005 | No aplica backend (frontend maneja cancelacion) |
 
 ---
@@ -149,27 +153,27 @@ actualizar_perfil_propio(
 | `lib/features/profile/domain/repositories/profile_repository.dart` | Interface con metodo actualizarPerfilPropio |
 | `lib/features/profile/data/datasources/profile_remote_datasource.dart` | DataSource con llamada RPC actualizar_perfil_propio |
 | `lib/features/profile/data/repositories/profile_repository_impl.dart` | Implementacion del repositorio |
-| `lib/features/profile/presentation/bloc/perfil/perfil_event.dart` | ActualizarPerfilEvent con campos editables |
+| `lib/features/profile/presentation/bloc/perfil/perfil_event.dart` | ActualizarPerfilEvent con campos editables (incluye nombreCompleto) |
 | `lib/features/profile/presentation/bloc/perfil/perfil_state.dart` | PerfilSaving, PerfilUpdateSuccess, PerfilUpdateError |
 | `lib/features/profile/presentation/bloc/perfil/perfil_bloc.dart` | Handler _onActualizarPerfil |
 
-### Cobertura de Criterios
+### Cobertura de Criterios (Actualizado 2026-01-16)
 | CA | Implementacion |
 |----|----------------|
 | CA-001 | PerfilPage tiene boton editar que navega a EditarPerfilPage |
-| CA-002 | ActualizarPerfilEvent con: apodo, telefono, posicionPreferida, fotoUrl |
-| CA-003 | Solo se envian campos editables al backend |
+| CA-002 | ActualizarPerfilEvent con: nombreCompleto, apodo, telefono, posicionPreferida, fotoUrl |
+| CA-003 | Solo se envian campos editables al backend (email excluido) |
 | CA-004 | PerfilUpdateSuccess con mensaje de confirmacion |
 | CA-005 | PerfilUpdateError.isApodoDuplicado para detectar error especifico |
 | CA-006 | No aplica (UI maneja cancelacion) |
 
-### Cobertura de Reglas
+### Cobertura de Reglas (Actualizado 2026-01-16)
 | RN | Implementacion |
 |----|----------------|
 | RN-001 | Backend valida unicidad |
-| RN-002 | Solo campos permitidos en ActualizarPerfilEvent |
+| RN-002 | Campos editables en ActualizarPerfilEvent (incluye nombreCompleto) |
 | RN-003 | Repository usa auth.uid() del backend |
-| RN-004 | Validacion en UI + backend |
+| RN-004 | Validacion en UI + backend (nombre 2-100, apodo 2-30) |
 | RN-005 | No aplica (UI maneja cancelacion) |
 
 ---
@@ -184,9 +188,10 @@ actualizar_perfil_propio(
 
 ### EditarPerfilPage - Caracteristicas
 
-**Formulario de Edicion:**
-- **Campos editables (CA-002):** apodo, telefono, posicion preferida, foto URL
-- **Campos NO editables (CA-003):** nombre completo, email (mostrados como disabled)
+**Formulario de Edicion (Actualizado 2026-01-16):**
+- **Campos editables (CA-002):** nombre completo, apodo, telefono, posicion preferida, foto URL
+- **Campos NO editables (CA-003):** email (mostrado como disabled)
+- **Validacion de nombre (RN-004):** 2-100 caracteres, no vacio
 - **Validacion de apodo (RN-004):** 2-30 caracteres, no vacio
 - **Dropdown para posicion:** Enum PosicionJugador con displayName
 
@@ -200,23 +205,23 @@ actualizar_perfil_propio(
 - **SnackBar error (CA-005):** Mensaje de error (ej: "El apodo ya esta en uso")
 - **Loading state:** CircularProgressIndicator durante guardado
 
-### Cobertura de Criterios
+### Cobertura de Criterios (Actualizado 2026-01-16)
 | CA | Implementacion |
 |----|----------------|
 | CA-001 | IconButton en PerfilPage AppBar navega a EditarPerfilPage |
-| CA-002 | TextFormField para apodo, telefono, foto; Dropdown para posicion |
-| CA-003 | Seccion "Datos no editables" con TextFormField disabled |
+| CA-002 | TextFormField para nombre, apodo, telefono, foto; Dropdown para posicion |
+| CA-003 | Seccion "Dato no editable" con email en TextFormField disabled |
 | CA-004 | BlocListener muestra SnackBar verde y hace pop() |
 | CA-005 | BlocListener muestra SnackBar rojo con mensaje de error |
 | CA-006 | AlertDialog "Descartar cambios?" + PopScope canPop |
 
-### Cobertura de Reglas
+### Cobertura de Reglas (Actualizado 2026-01-16)
 | RN | Implementacion |
 |----|----------------|
 | RN-001 | Error mostrado en SnackBar si apodo duplicado |
-| RN-002 | UI solo muestra campos editables en formulario |
+| RN-002 | UI muestra campos editables (incluye nombre_completo) |
 | RN-003 | Navegacion solo desde perfil propio |
-| RN-004 | TextFormField validator 2-30 caracteres + maxLength |
+| RN-004 | Validators: nombre 2-100, apodo 2-30 caracteres + maxLength |
 | RN-005 | _hayCambios + AlertDialog + datos originales preservados |
 
 ---
@@ -258,3 +263,4 @@ actualizar_perfil_propio(
 **Frontend**: 2026-01-15
 **UI**: 2026-01-15
 **QA**: 2026-01-15
+**Actualizado**: 2026-01-16 - Agregado nombre_completo como campo editable (RN-002 modificado)

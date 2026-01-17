@@ -24,15 +24,18 @@ class RefrescarPerfilEvent extends PerfilEvent {
 }
 
 /// E002-HU-002: Evento para actualizar el perfil
-/// CA-002: Campos editables: apodo, telefono, posicion, foto
+/// CA-002: Campos editables: nombre_completo, apodo, telefono, posicion, foto
 /// CA-004: Guardar cambios con confirmacion
+/// Actualizado 2026-01-16: Agregado nombreCompleto como campo editable
 class ActualizarPerfilEvent extends PerfilEvent {
+  final String nombreCompleto;
   final String apodo;
   final String? telefono;
   final PosicionJugador? posicionPreferida;
   final String? fotoUrl;
 
   const ActualizarPerfilEvent({
+    required this.nombreCompleto,
     required this.apodo,
     this.telefono,
     this.posicionPreferida,
@@ -40,5 +43,5 @@ class ActualizarPerfilEvent extends PerfilEvent {
   });
 
   @override
-  List<Object?> get props => [apodo, telefono, posicionPreferida, fotoUrl];
+  List<Object?> get props => [nombreCompleto, apodo, telefono, posicionPreferida, fotoUrl];
 }

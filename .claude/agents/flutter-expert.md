@@ -35,27 +35,96 @@ Implementa → Compila → Corrige errores → Compila → Reporta
 
 ---
 
-## 🕐 ZONA HORARIA: PERÚ (America/Lima)
+## 🇵🇪 LOCALIZACIÓN: PERÚ
 
-**⚠️ CRÍTICO: El servidor Cloud está en Brasil, pero la app es para Perú**
+**⚠️ CRÍTICO: La aplicación está orientada al mercado peruano**
 
-**Configuración obligatoria**:
-- **Zona horaria usuario**: `America/Lima` (UTC-5)
-- **Servidor Supabase**: Brasil (UTC-3)
-- **BD almacena en UTC** → Flutter convierte a hora Perú para mostrar
+### Configuración Regional Obligatoria
 
-**En código Dart**:
+| Aspecto | Valor | Ejemplo |
+|---------|-------|---------|
+| **País** | Perú | 🇵🇪 |
+| **Locale** | es_PE | Español Perú |
+| **Zona horaria** | America/Lima (UTC-5) | 15:00 Lima = 20:00 UTC |
+| **Moneda** | Soles (PEN) | S/ 150.00 |
+| **Formato fecha** | DD de Mes de YYYY | "15 de Enero de 2026" |
+| **Formato hora** | HH:MM (24h) | "15:30" |
+| **Separador decimal** | Punto (.) | 1,500.50 |
+
+### Dependencias Requeridas (pubspec.yaml)
+
+```yaml
+dependencies:
+  intl: ^0.18.0
+  # Para inicializar locales
+```
+
+### Inicialización de Locale (main.dart)
+
 ```dart
-// ✅ CORRECTO: Convertir UTC a hora Perú para mostrar
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ OBLIGATORIO: Inicializar locale español
+  await initializeDateFormatting('es_PE', null);
+  Intl.defaultLocale = 'es_PE';
+
+  runApp(MyApp());
+}
+```
+
+### Formato de Fechas en Dart (CRÍTICO)
+
+```dart
 import 'package:intl/intl.dart';
 
-// Configurar locale Perú
-final formatoFecha = DateFormat('dd/MM/yyyy HH:mm', 'es_PE');
+// ✅ CORRECTO: Formatos en español para Perú
+final formatoFechaCompleta = DateFormat("dd 'de' MMMM 'de' yyyy", 'es_PE');
+// Resultado: "15 de enero de 2026"
 
-// Convertir de UTC (BD) a hora local Perú
+final formatoFechaCorta = DateFormat('dd/MM/yyyy', 'es_PE');
+// Resultado: "15/01/2026"
+
+final formatoHora = DateFormat('HH:mm', 'es_PE');
+// Resultado: "15:30"
+
+final formatoFechaHora = DateFormat("dd/MM/yyyy HH:mm", 'es_PE');
+// Resultado: "15/01/2026 15:30"
+
+// Uso:
+DateTime fecha = DateTime.parse(json['created_at']).toLocal();
+String fechaFormateada = formatoFechaCompleta.format(fecha);
+```
+
+### Formato de Moneda
+
+```dart
+import 'package:intl/intl.dart';
+
+// ✅ CORRECTO: Formato soles peruanos
+final formatoMoneda = NumberFormat.currency(
+  locale: 'es_PE',
+  symbol: 'S/ ',
+  decimalDigits: 2,
+);
+// Resultado: "S/ 1,500.00"
+
+// Uso:
+String montoFormateado = formatoMoneda.format(1500.00);
+```
+
+### Zona Horaria
+
+**Servidor Supabase**: Brasil (UTC-3)
+**Usuario final**: Perú (UTC-5)
+
+```dart
+// ✅ CORRECTO: Convertir UTC a hora Perú para mostrar
 DateTime fechaUtc = DateTime.parse(json['created_at']);
 DateTime fechaPeru = fechaUtc.toLocal(); // Usa timezone del dispositivo
-String fechaFormateada = formatoFecha.format(fechaPeru);
 
 // ✅ CORRECTO: Enviar fecha a BD en UTC
 DateTime ahora = DateTime.now().toUtc();
@@ -69,7 +138,8 @@ Map<String, dynamic> params = {
 };
 ```
 
-**En Models (fromJson/toJson)**:
+### En Models (fromJson/toJson)
+
 ```dart
 class PartidoModel {
   final DateTime fechaHora;
@@ -90,10 +160,19 @@ class PartidoModel {
 }
 ```
 
-**Dependencia requerida** (pubspec.yaml):
-```yaml
-dependencies:
-  intl: ^0.18.0
+### Helper de Formateo Recomendado
+
+```dart
+// lib/core/utils/date_formatter.dart
+class DateFormatterPeru {
+  static final _formatoFechaCompleta = DateFormat("dd 'de' MMMM 'de' yyyy", 'es_PE');
+  static final _formatoFechaCorta = DateFormat('dd/MM/yyyy', 'es_PE');
+  static final _formatoHora = DateFormat('HH:mm', 'es_PE');
+
+  static String fechaCompleta(DateTime fecha) => _formatoFechaCompleta.format(fecha.toLocal());
+  static String fechaCorta(DateTime fecha) => _formatoFechaCorta.format(fecha.toLocal());
+  static String hora(DateTime fecha) => _formatoHora.format(fecha.toLocal());
+}
 ```
 
 ---
@@ -315,7 +394,67 @@ class MyPage extends StatelessWidget {
 }
 ```
 
-### 3. Mapping Explícito
+### 3. 🚨 TRANSICIÓN INSTANTÁNEA (CRÍTICO)
+
+**El layout SIEMPRE debe mostrarse inmediatamente. El loading va DENTRO del contenido.**
+
+```dart
+// ❌ INCORRECTO: Loading reemplaza TODO el layout
+Widget build(BuildContext context) {
+  return BlocBuilder<MyBloc, MyState>(
+    builder: (context, state) {
+      if (state is MyLoading) {
+        return const Scaffold(  // ← Pantalla de carga completa
+          body: Center(child: CircularProgressIndicator()),
+        );
+      }
+      return ResponsiveLayout(...);  // Layout solo aparece después
+    },
+  );
+}
+
+// ✅ CORRECTO: Layout siempre visible, loading dentro del contenido
+Widget build(BuildContext context) {
+  return BlocBuilder<MyBloc, MyState>(
+    builder: (context, state) {
+      final data = _obtenerDatos(state);
+      final isLoading = state is MyLoading;
+      final hasError = state is MyError;
+
+      // SIEMPRE retornar el layout
+      return ResponsiveLayout(
+        mobileBody: _MobileView(
+          data: data,
+          isLoading: isLoading,
+          hasError: hasError,
+        ),
+        desktopBody: _DesktopView(
+          data: data,
+          isLoading: isLoading,
+          hasError: hasError,
+        ),
+      );
+    },
+  );
+}
+
+// Dentro de _MobileView o _DesktopView:
+Widget _buildContent(BuildContext context) {
+  // Loading DENTRO del contenido
+  if (isLoading && data == null) {
+    return const Center(child: CircularProgressIndicator());
+  }
+  if (hasError && data == null) {
+    return _buildErrorWidget();
+  }
+  return _buildDataList();
+}
+```
+
+**Razón**: El usuario debe ver el sidebar/navbar **inmediatamente** al navegar.
+Solo el área de contenido debe mostrar el estado de carga.
+
+### 4. Mapping Explícito
 
 ```dart
 // ✅ CORRECTO
@@ -325,7 +464,7 @@ nombreCompleto: json['nombre_completo']
 nombreCompleto: json['nombreCompleto']  // BD usa snake_case
 ```
 
-### 4. Prohibiciones
+### 5. Prohibiciones
 
 ❌ NO:
 - Código fuera de Clean Architecture

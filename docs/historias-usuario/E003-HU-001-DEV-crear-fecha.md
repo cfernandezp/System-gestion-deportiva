@@ -245,3 +245,128 @@ Estados del ciclo de vida de una fecha de pichanga:
 | RN-007 | Completado | num_equipos calculado segun duracion |
 
 ---
+
+## FASE 4: Implementacion Frontend
+**Responsable**: flutter-expert
+**Status**: Completado
+**Fecha**: 2026-01-16
+
+### Estructura Clean Architecture
+
+```
+lib/features/fechas/
+├── data/
+│   ├── models/
+│   │   ├── fecha_model.dart
+│   │   ├── crear_fecha_request_model.dart
+│   │   ├── crear_fecha_response_model.dart
+│   │   └── models.dart (barrel)
+│   ├── datasources/
+│   │   └── fechas_remote_datasource.dart
+│   └── repositories/
+│       └── fechas_repository_impl.dart
+├── domain/
+│   └── repositories/
+│       └── fechas_repository.dart
+└── presentation/
+    └── bloc/
+        └── crear_fecha/
+            ├── crear_fecha_bloc.dart
+            ├── crear_fecha_event.dart
+            ├── crear_fecha_state.dart
+            └── crear_fecha.dart (barrel)
+```
+
+### Models Implementados
+
+#### `EstadoFecha` (Enum)
+Mapeo BD -> Dart:
+- `abierta` -> `EstadoFecha.abierta`
+- `cerrada` -> `EstadoFecha.cerrada`
+- `en_juego` -> `EstadoFecha.enJuego`
+- `finalizada` -> `EstadoFecha.finalizada`
+- `cancelada` -> `EstadoFecha.cancelada`
+
+#### `FechaModel`
+Mapeo snake_case -> camelCase:
+| Backend | Dart |
+|---------|------|
+| `fecha_id` | `fechaId` |
+| `fecha_hora_inicio` | `fechaHoraInicio` |
+| `fecha_hora_local` | `fechaHoraLocal` |
+| `fecha_formato` | `fechaFormato` |
+| `duracion_horas` | `duracionHoras` |
+| `lugar` | `lugar` |
+| `num_equipos` | `numEquipos` |
+| `costo_por_jugador` | `costoPorJugador` |
+| `costo_formato` | `costoFormato` |
+| `estado` | `estado` (EstadoFecha) |
+| `formato_juego` | `formatoJuego` |
+| `created_by` | `createdBy` |
+| `created_by_nombre` | `createdByNombre` |
+
+#### `CrearFechaRequestModel`
+Parametros para RPC `crear_fecha`:
+- `fechaHoraInicio` -> `p_fecha_hora_inicio` (UTC)
+- `duracionHoras` -> `p_duracion_horas`
+- `lugar` -> `p_lugar`
+
+Incluye validacion frontend: fecha futura, duracion 1|2, lugar min 3 chars
+
+### Integracion Backend
+
+| Capa | Llamada |
+|------|---------|
+| UI | `BlocProvider<CrearFechaBloc>` |
+| Bloc | `CrearFechaSubmitEvent(fechaHoraInicio, duracionHoras, lugar)` |
+| Repository | `crearFecha(CrearFechaRequestModel)` |
+| DataSource | `supabase.rpc('crear_fecha', params)` |
+| Backend | `crear_fecha(p_fecha_hora_inicio, p_duracion_horas, p_lugar)` |
+
+### Estados del Bloc
+
+| Estado | Descripcion |
+|--------|-------------|
+| `CrearFechaInitial` | Formulario listo |
+| `CrearFechaLoading` | Enviando al servidor |
+| `CrearFechaSuccess` | Fecha creada (contiene FechaModel) |
+| `CrearFechaError` | Error con message, code, hint |
+
+### Inyeccion de Dependencias (DI)
+
+Registrado en `core/di/injection_container.dart`:
+- `CrearFechaBloc` (Factory)
+- `FechasRepository` -> `FechasRepositoryImpl` (Singleton)
+- `FechasRemoteDataSource` -> `FechasRemoteDataSourceImpl` (Singleton)
+
+### Criterios de Aceptacion Frontend
+
+| CA | Estado | Implementacion |
+|----|--------|----------------|
+| CA-001 | Pendiente UI | Validacion permisos en UI (verificar rol admin) |
+| CA-002 | Completado | Campos en CrearFechaSubmitEvent |
+| CA-003 | Completado | CrearFechaRequestModel.formatoJuego, costoPorJugador |
+| CA-004 | Completado | Validacion frontend + backend (hint: fecha_pasada) |
+| CA-005 | Completado | Validacion lugar min 3 chars |
+| CA-006 | Completado | CrearFechaSuccess con FechaModel completo |
+| CA-007 | Backend | Notificacion manejada por backend |
+
+### Reglas de Negocio Frontend
+
+| RN | Estado | Implementacion |
+|----|--------|----------------|
+| RN-001 | Backend | Validacion admin en RPC |
+| RN-002 | Completado | numEquipos calculado en request model |
+| RN-003 | Completado | costoPorJugador calculado en request model |
+| RN-004 | Completado | Validacion fechaHoraInicio > now |
+| RN-005 | Backend | Unicidad validada en RPC |
+| RN-006 | Backend | Estado inicial en RPC |
+| RN-007 | Completado | numEquipos segun duracion |
+
+### Verificacion
+- [x] `flutter analyze`: 0 issues
+- [x] Mapping snake_case <-> camelCase correcto
+- [x] Either pattern en repository
+- [x] Zona horaria: fechas en UTC para BD, toLocal() para mostrar
+
+---

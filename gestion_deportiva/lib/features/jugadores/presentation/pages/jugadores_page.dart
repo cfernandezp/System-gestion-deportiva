@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/widgets/app_bottom_nav_bar.dart';
@@ -19,37 +20,33 @@ class JugadoresPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<JugadoresBloc, JugadoresState>(
       builder: (context, state) {
-        if (state is JugadoresLoading) {
-          return const _LoadingView();
-        }
-
-        if (state is JugadoresError) {
-          return _ErrorView(
-            message: state.message,
-            onRetry: () {
-              context.read<JugadoresBloc>().add(const CargarJugadoresEvent());
-            },
-          );
-        }
-
-        // Obtener datos del estado
+        // Obtener datos del estado (manejar loading/error dentro del layout)
         final jugadores = _obtenerJugadores(state);
         final filtros = _obtenerFiltros(state);
-        final isLoading = state is JugadoresRefreshing || state is JugadoresBuscando;
+        final isLoading = state is JugadoresLoading ||
+                          state is JugadoresRefreshing ||
+                          state is JugadoresBuscando;
         final isEmpty = state is JugadoresVacio;
+        final hasError = state is JugadoresError;
+        final errorMessage = hasError ? state.message : null;
 
+        // Siempre mostrar el layout, el loading/error va dentro del contenido
         return ResponsiveLayout(
           mobileBody: _MobileJugadoresView(
             jugadores: jugadores,
             filtros: filtros,
             isLoading: isLoading,
             isEmpty: isEmpty,
+            hasError: hasError,
+            errorMessage: errorMessage,
           ),
           desktopBody: _DesktopJugadoresView(
             jugadores: jugadores,
             filtros: filtros,
             isLoading: isLoading,
             isEmpty: isEmpty,
+            hasError: hasError,
+            errorMessage: errorMessage,
           ),
         );
       },
@@ -81,12 +78,16 @@ class _MobileJugadoresView extends StatelessWidget {
   final FiltrosJugadores filtros;
   final bool isLoading;
   final bool isEmpty;
+  final bool hasError;
+  final String? errorMessage;
 
   const _MobileJugadoresView({
     required this.jugadores,
     required this.filtros,
     required this.isLoading,
     required this.isEmpty,
+    this.hasError = false,
+    this.errorMessage,
   });
 
   @override
@@ -103,39 +104,7 @@ class _MobileJugadoresView extends StatelessWidget {
 
           // Lista de jugadores
           Expanded(
-            child: isEmpty
-                ? JugadoresEmptyState(
-                    tieneBusqueda: filtros.busqueda?.isNotEmpty ?? false,
-                    onLimpiarBusqueda: () {
-                      context.read<JugadoresBloc>().add(const LimpiarBusquedaEvent());
-                    },
-                  )
-                : RefreshIndicator(
-                    onRefresh: () async {
-                      context.read<JugadoresBloc>().add(const RefrescarJugadoresEvent());
-                    },
-                    child: Stack(
-                      children: [
-                        ListView.separated(
-                          padding: const EdgeInsets.all(DesignTokens.spacingM),
-                          itemCount: jugadores.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: DesignTokens.spacingS),
-                          itemBuilder: (context, index) {
-                            final jugador = jugadores[index];
-                            return JugadorCard(jugador: jugador);
-                          },
-                        ),
-                        if (isLoading)
-                          const Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            child: LinearProgressIndicator(),
-                          ),
-                      ],
-                    ),
-                  ),
+            child: _buildContent(context),
           ),
         ],
       ),
@@ -194,6 +163,84 @@ class _MobileJugadoresView extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildContent(BuildContext context) {
+    // Estado de carga inicial
+    if (isLoading && jugadores.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // Estado de error
+    if (hasError && jugadores.isEmpty) {
+      return _buildErrorContent(context);
+    }
+
+    // Estado vacío
+    if (isEmpty) {
+      return JugadoresEmptyState(
+        tieneBusqueda: filtros.busqueda?.isNotEmpty ?? false,
+        onLimpiarBusqueda: () {
+          context.read<JugadoresBloc>().add(const LimpiarBusquedaEvent());
+        },
+      );
+    }
+
+    // Lista con datos
+    return RefreshIndicator(
+      onRefresh: () async {
+        context.read<JugadoresBloc>().add(const RefrescarJugadoresEvent());
+      },
+      child: Stack(
+        children: [
+          ListView.separated(
+            padding: const EdgeInsets.all(DesignTokens.spacingM),
+            itemCount: jugadores.length,
+            separatorBuilder: (_, __) => const SizedBox(height: DesignTokens.spacingS),
+            itemBuilder: (context, index) {
+              final jugador = jugadores[index];
+              return JugadorCard(
+                jugador: jugador,
+                onTap: () => context.push('/jugadores/${jugador.jugadorId}'),
+              );
+            },
+          ),
+          if (isLoading)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorContent(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+          const SizedBox(height: DesignTokens.spacingM),
+          Text(
+            errorMessage ?? 'Error al cargar jugadores',
+            style: TextStyle(color: colorScheme.onSurfaceVariant),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: DesignTokens.spacingM),
+          FilledButton.icon(
+            onPressed: () {
+              context.read<JugadoresBloc>().add(const CargarJugadoresEvent());
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Reintentar'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ============================================
@@ -205,12 +252,16 @@ class _DesktopJugadoresView extends StatelessWidget {
   final FiltrosJugadores filtros;
   final bool isLoading;
   final bool isEmpty;
+  final bool hasError;
+  final String? errorMessage;
 
   const _DesktopJugadoresView({
     required this.jugadores,
     required this.filtros,
     required this.isLoading,
     required this.isEmpty,
+    this.hasError = false,
+    this.errorMessage,
   });
 
   @override
@@ -226,28 +277,7 @@ class _DesktopJugadoresView extends StatelessWidget {
 
           // Lista de jugadores
           Expanded(
-            child: isEmpty
-                ? JugadoresEmptyState(
-                    tieneBusqueda: filtros.busqueda?.isNotEmpty ?? false,
-                    onLimpiarBusqueda: () {
-                      context.read<JugadoresBloc>().add(const LimpiarBusquedaEvent());
-                    },
-                  )
-                : Stack(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(DesignTokens.spacingL),
-                        child: _buildJugadoresGrid(context),
-                      ),
-                      if (isLoading)
-                        const Positioned(
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          child: LinearProgressIndicator(),
-                        ),
-                    ],
-                  ),
+            child: _buildContent(context),
           ),
         ],
       ),
@@ -325,6 +355,71 @@ class _DesktopJugadoresView extends StatelessWidget {
     );
   }
 
+  Widget _buildContent(BuildContext context) {
+    // Estado de carga inicial
+    if (isLoading && jugadores.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // Estado de error
+    if (hasError && jugadores.isEmpty) {
+      return _buildErrorContent(context);
+    }
+
+    // Estado vacío
+    if (isEmpty) {
+      return JugadoresEmptyState(
+        tieneBusqueda: filtros.busqueda?.isNotEmpty ?? false,
+        onLimpiarBusqueda: () {
+          context.read<JugadoresBloc>().add(const LimpiarBusquedaEvent());
+        },
+      );
+    }
+
+    // Grid con datos
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(DesignTokens.spacingL),
+          child: _buildJugadoresGrid(context),
+        ),
+        if (isLoading)
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: LinearProgressIndicator(),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildErrorContent(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+          const SizedBox(height: DesignTokens.spacingM),
+          Text(
+            errorMessage ?? 'Error al cargar jugadores',
+            style: TextStyle(color: colorScheme.onSurfaceVariant),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: DesignTokens.spacingM),
+          FilledButton.icon(
+            onPressed: () {
+              context.read<JugadoresBloc>().add(const CargarJugadoresEvent());
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Reintentar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildJugadoresGrid(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -341,85 +436,13 @@ class _DesktopJugadoresView extends StatelessWidget {
           itemCount: jugadores.length,
           itemBuilder: (context, index) {
             final jugador = jugadores[index];
-            return JugadorCard(jugador: jugador);
+            return JugadorCard(
+              jugador: jugador,
+              onTap: () => context.push('/jugadores/${jugador.jugadorId}'),
+            );
           },
         );
       },
-    );
-  }
-}
-
-// ============================================
-// WIDGETS AUXILIARES
-// ============================================
-
-/// Vista de carga
-class _LoadingView extends StatelessWidget {
-  const _LoadingView();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-  }
-}
-
-/// Vista de error
-class _ErrorView extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorView({
-    required this.message,
-    required this.onRetry,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(DesignTokens.spacingXl),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: DesignTokens.iconSizeXxl,
-                color: colorScheme.error,
-              ),
-              const SizedBox(height: DesignTokens.spacingM),
-              Text(
-                'Error al cargar jugadores',
-                style: textTheme.titleMedium?.copyWith(
-                  color: colorScheme.error,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: DesignTokens.spacingS),
-              Text(
-                message,
-                style: textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: DesignTokens.spacingL),
-              FilledButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Reintentar'),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

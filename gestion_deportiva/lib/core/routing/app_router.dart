@@ -16,6 +16,12 @@ import '../../features/profile/presentation/pages/perfil_page.dart';
 // E002-HU-003: Lista de Jugadores
 import '../../features/jugadores/presentation/bloc/jugadores/jugadores.dart';
 import '../../features/jugadores/presentation/pages/jugadores_page.dart';
+// E002-HU-004: Ver Perfil de Otro Jugador
+import '../../features/jugadores/presentation/bloc/perfil_jugador/perfil_jugador.dart';
+import '../../features/jugadores/presentation/pages/jugador_perfil_page.dart';
+// E003-HU-001: Crear Fecha
+import '../../features/fechas/presentation/bloc/crear_fecha/crear_fecha.dart';
+import '../../features/fechas/presentation/pages/crear_fecha_page.dart';
 
 /// Configuracion del router de la aplicacion
 /// Usa go_router para navegacion declarativa
@@ -37,6 +43,10 @@ class AppRouter {
   static const String perfil = '/perfil';
   // E002-HU-003: Lista de Jugadores
   static const String jugadores = '/jugadores';
+  // E002-HU-004: Ver Perfil de Otro Jugador
+  static const String jugadorPerfil = '/jugadores/:id';
+  // E003-HU-001: Crear Fecha (solo admin)
+  static const String crearFecha = '/fechas/crear';
 
   /// Rutas publicas (no requieren autenticacion)
   static const List<String> _publicRoutes = [
@@ -163,6 +173,32 @@ class AppRouter {
         builder: (context, state) => BlocProvider(
           create: (context) => sl<JugadoresBloc>()..add(const CargarJugadoresEvent()),
           child: const JugadoresPage(),
+        ),
+      ),
+
+      // E002-HU-004: Ver Perfil de Otro Jugador
+      // CA-001: Acceso desde lista de jugadores
+      GoRoute(
+        path: '/jugadores/:id',
+        name: 'jugadorPerfil',
+        builder: (context, state) {
+          final jugadorId = state.pathParameters['id'] ?? '';
+          return BlocProvider(
+            create: (context) => sl<PerfilJugadorBloc>()
+              ..add(CargarPerfilJugadorEvent(jugadorId)),
+            child: JugadorPerfilPage(jugadorId: jugadorId),
+          );
+        },
+      ),
+
+      // E003-HU-001: Crear Fecha
+      // CA-001: Solo accesible para administradores (validado en backend)
+      GoRoute(
+        path: '/fechas/crear',
+        name: 'crearFecha',
+        builder: (context, state) => BlocProvider(
+          create: (context) => sl<CrearFechaBloc>(),
+          child: const CrearFechaPage(),
         ),
       ),
     ],

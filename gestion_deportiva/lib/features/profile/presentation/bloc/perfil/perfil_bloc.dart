@@ -89,10 +89,11 @@ class PerfilBloc extends Bloc<PerfilEvent, PerfilState> {
   }
 
   /// E002-HU-002: Maneja el evento de actualizar perfil
-  /// CA-002: Campos editables: apodo, telefono, posicion, foto
+  /// CA-002: Campos editables: nombre_completo, apodo, telefono, posicion, foto
   /// CA-004: Guardar cambios con confirmacion
   /// CA-005: Validacion de apodo unico (error si ya existe)
   /// RN-001 a RN-004: Validaciones de negocio en backend
+  /// Actualizado 2026-01-16: Agregado nombreCompleto como campo editable
   Future<void> _onActualizarPerfil(
     ActualizarPerfilEvent event,
     Emitter<PerfilState> emit,
@@ -110,6 +111,7 @@ class PerfilBloc extends Bloc<PerfilEvent, PerfilState> {
     emit(PerfilSaving(perfilActual: perfilActual));
 
     final result = await repository.actualizarPerfilPropio(
+      nombreCompleto: event.nombreCompleto,
       apodo: event.apodo,
       telefono: event.telefono,
       posicionPreferida: event.posicionPreferida?.name,

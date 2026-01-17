@@ -24,11 +24,18 @@ import '../../features/profile/data/repositories/profile_repository_impl.dart';
 import '../../features/profile/domain/repositories/profile_repository.dart';
 import '../../features/profile/presentation/bloc/perfil/perfil_bloc.dart';
 
-// Jugadores Feature (E002-HU-003: Lista de Jugadores)
+// Jugadores Feature (E002-HU-003: Lista de Jugadores, E002-HU-004: Ver Perfil de Otro Jugador)
 import '../../features/jugadores/data/datasources/jugadores_remote_datasource.dart';
 import '../../features/jugadores/data/repositories/jugadores_repository_impl.dart';
 import '../../features/jugadores/domain/repositories/jugadores_repository.dart';
 import '../../features/jugadores/presentation/bloc/jugadores/jugadores_bloc.dart';
+import '../../features/jugadores/presentation/bloc/perfil_jugador/perfil_jugador_bloc.dart';
+
+// Fechas Feature (E003-HU-001: Crear Fecha)
+import '../../features/fechas/data/datasources/fechas_remote_datasource.dart';
+import '../../features/fechas/data/repositories/fechas_repository_impl.dart';
+import '../../features/fechas/domain/repositories/fechas_repository.dart';
+import '../../features/fechas/presentation/bloc/crear_fecha/crear_fecha_bloc.dart';
 
 /// Service Locator global
 final sl = GetIt.instance;
@@ -96,10 +103,12 @@ Future<void> initializeDependencies() async {
     () => ProfileRemoteDataSourceImpl(supabase: sl()),
   );
 
-  // -------------------- Jugadores (E002-HU-003) --------------------
+  // -------------------- Jugadores (E002-HU-003, E002-HU-004) --------------------
 
   // Blocs
   sl.registerFactory(() => JugadoresBloc(repository: sl()));
+  // E002-HU-004: Bloc para ver perfil de otro jugador
+  sl.registerFactory(() => PerfilJugadorBloc(repository: sl()));
 
   // Repository
   sl.registerLazySingleton<JugadoresRepository>(
@@ -109,5 +118,21 @@ Future<void> initializeDependencies() async {
   // DataSource
   sl.registerLazySingleton<JugadoresRemoteDataSource>(
     () => JugadoresRemoteDataSourceImpl(supabase: sl()),
+  );
+
+  // -------------------- Fechas (E003-HU-001) --------------------
+
+  // Blocs
+  // E003-HU-001: Crear Fecha
+  sl.registerFactory(() => CrearFechaBloc(repository: sl()));
+
+  // Repository
+  sl.registerLazySingleton<FechasRepository>(
+    () => FechasRepositoryImpl(remoteDataSource: sl()),
+  );
+
+  // DataSource
+  sl.registerLazySingleton<FechasRemoteDataSource>(
+    () => FechasRemoteDataSourceImpl(supabase: sl()),
   );
 }

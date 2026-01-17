@@ -1,9 +1,15 @@
 -- ============================================
 -- E002-HU-002: Editar Perfil Propio
 -- Fecha: 2026-01-15
+-- Actualizado: 2026-01-16 - Agregado p_nombre_completo como campo editable
 -- Descripcion: Funcion RPC para actualizar perfil del usuario autenticado
 --              con validacion de apodo unico y restricciones de campos
 -- ============================================
+
+-- ============================================
+-- LIMPIEZA: Eliminar version anterior de la funcion
+-- ============================================
+DROP FUNCTION IF EXISTS actualizar_perfil_propio(VARCHAR, VARCHAR, posicion_jugador, TEXT);
 
 -- ============================================
 -- FUNCION RPC: actualizar_perfil_propio
@@ -13,14 +19,16 @@
 -- Funcion: actualizar_perfil_propio
 -- Descripcion: Actualiza el perfil del usuario autenticado
 -- Parametros:
+--   p_nombre_completo: Nuevo nombre completo (2-100 caracteres)
 --   p_apodo: Nuevo apodo (2-30 caracteres, unico)
 --   p_telefono: Nuevo telefono (opcional)
 --   p_posicion_preferida: Nueva posicion (opcional, enum posicion_jugador)
 --   p_foto_url: Nueva URL de foto (opcional)
--- Reglas: RN-001, RN-002, RN-003, RN-004, RN-005
--- CA: CA-001, CA-002, CA-003, CA-004, CA-005, CA-006
+-- Reglas: RN-001, RN-002 (actualizado), RN-003, RN-004, RN-005
+-- CA: CA-001, CA-002 (actualizado), CA-003, CA-004, CA-005, CA-006
 -- ============================================
 CREATE OR REPLACE FUNCTION actualizar_perfil_propio(
+    p_nombre_completo VARCHAR(100),
     p_apodo VARCHAR(50),
     p_telefono VARCHAR(20) DEFAULT NULL,
     p_posicion_preferida posicion_jugador DEFAULT NULL,
@@ -33,6 +41,7 @@ DECLARE
     v_usuario_id UUID;
     v_apodo_actual VARCHAR(50);
     v_apodo_limpio VARCHAR(50);
+    v_nombre_limpio VARCHAR(100);
     v_existe_apodo BOOLEAN;
     v_usuario_actualizado RECORD;
     v_antiguedad_texto TEXT;
@@ -57,6 +66,30 @@ BEGIN
     IF v_usuario_id IS NULL THEN
         v_error_hint := 'usuario_no_encontrado';
         RAISE EXCEPTION 'No se encontro tu perfil en el sistema';
+    END IF;
+
+    -- ========================================
+    -- Validacion de Nombre Completo (2-100 caracteres)
+    -- ========================================
+    -- Limpiar nombre de espacios al inicio y final
+    v_nombre_limpio := TRIM(p_nombre_completo);
+
+    -- Validar que no este vacio o solo espacios
+    IF v_nombre_limpio IS NULL OR LENGTH(v_nombre_limpio) = 0 THEN
+        v_error_hint := 'nombre_vacio';
+        RAISE EXCEPTION 'El nombre completo no puede estar vacio';
+    END IF;
+
+    -- Validar longitud minima (2 caracteres)
+    IF LENGTH(v_nombre_limpio) < 2 THEN
+        v_error_hint := 'nombre_muy_corto';
+        RAISE EXCEPTION 'El nombre completo debe tener al menos 2 caracteres';
+    END IF;
+
+    -- Validar longitud maxima (100 caracteres)
+    IF LENGTH(v_nombre_limpio) > 100 THEN
+        v_error_hint := 'nombre_muy_largo';
+        RAISE EXCEPTION 'El nombre completo no puede tener mas de 100 caracteres';
     END IF;
 
     -- ========================================
@@ -101,12 +134,13 @@ BEGIN
     END IF;
 
     -- ========================================
-    -- RN-002: Campos de Edicion Restringida
-    -- Solo se actualizan: apodo, telefono, posicion_preferida, foto_url
-    -- NO se pueden editar: nombre_completo, email (CA-003)
+    -- RN-002: Campos de Edicion (actualizado 2026-01-16)
+    -- Se actualizan: nombre_completo, apodo, telefono, posicion_preferida, foto_url
+    -- NO se puede editar: email (CA-003) - requiere contactar admin
     -- ========================================
     UPDATE usuarios
     SET
+        nombre_completo = v_nombre_limpio,
         apodo = v_apodo_limpio,
         telefono = NULLIF(TRIM(COALESCE(p_telefono, '')), ''),
         posicion_preferida = p_posicion_preferida,
@@ -182,14 +216,23 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- PERMISOS
 -- ============================================
 
--- Solo usuarios autenticados pueden actualizar su perfil
-GRANT EXECUTE ON FUNCTION actualizar_perfil_propio(VARCHAR, VARCHAR, posicion_jugador, TEXT) TO authenticated;
+-- Revocar permisos de firma anterior si existe
+DO $$
+BEGIN
+    REVOKE EXECUTE ON FUNCTION actualizar_perfil_propio(VARCHAR, VARCHAR, posicion_jugador, TEXT) FROM authenticated;
+EXCEPTION
+    WHEN undefined_function THEN
+        NULL; -- La funcion con firma anterior no existe, ignorar
+END $$;
+
+-- Solo usuarios autenticados pueden actualizar su perfil (nueva firma con nombre_completo)
+GRANT EXECUTE ON FUNCTION actualizar_perfil_propio(VARCHAR, VARCHAR, VARCHAR, posicion_jugador, TEXT) TO authenticated;
 
 -- ============================================
 -- COMENTARIOS
 -- ============================================
 
-COMMENT ON FUNCTION actualizar_perfil_propio IS 'E002-HU-002: Actualiza perfil propio del usuario autenticado. Valida apodo unico (RN-001), campos restringidos (RN-002), propiedad (RN-003), formato apodo (RN-004). CA-001 a CA-006';
+COMMENT ON FUNCTION actualizar_perfil_propio IS 'E002-HU-002: Actualiza perfil propio del usuario autenticado. Incluye nombre_completo (2026-01-16). Valida apodo unico (RN-001), campos editables (RN-002), propiedad (RN-003), formato apodo (RN-004). CA-001 a CA-006';
 
 -- ============================================
 -- FIN DEL SCRIPT

@@ -8,6 +8,7 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../bloc/login/login.dart';
+import '../bloc/session/session.dart';
 
 /// Pagina de inicio de sesion
 /// Implementa HU-002: Inicio de Sesion
@@ -92,7 +93,17 @@ class _LoginViewState extends State<_LoginView> {
       body: BlocConsumer<LoginBloc, LoginState>(
         listener: (context, state) {
           if (state is LoginSuccess) {
-            // CA-002: Login exitoso -> navegar a home
+            // CA-002: Login exitoso
+            // 1. Actualizar SessionBloc con datos del usuario autenticado
+            context.read<SessionBloc>().add(
+                  SessionAuthenticatedEvent(
+                    usuarioId: state.response.usuarioId,
+                    nombreCompleto: state.response.nombreCompleto,
+                    email: state.response.email,
+                    rol: state.response.rol,
+                  ),
+                );
+            // 2. Navegar a home
             context.go('/');
           } else if (state is LoginError) {
             // CA-003: Mostrar mensaje de error apropiado

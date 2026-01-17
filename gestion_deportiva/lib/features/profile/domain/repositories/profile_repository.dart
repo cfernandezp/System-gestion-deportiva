@@ -18,13 +18,15 @@ abstract class ProfileRepository {
 
   /// E002-HU-002: Actualiza el perfil del usuario autenticado
   /// CA-001: Acceso a edicion desde perfil
-  /// CA-002: Campos editables: apodo, telefono, posicion, foto
-  /// CA-003: Campos NO editables: nombre, email
+  /// CA-002: Campos editables: nombre_completo, apodo, telefono, posicion, foto
+  /// CA-003: Campos NO editables: email
   /// CA-004: Guardar cambios con confirmacion
   /// CA-005: Validacion apodo unico
   /// RN-001 a RN-004: Validaciones de negocio
   /// Retorna [PerfilResponseModel] con perfil actualizado si exito
+  /// Actualizado 2026-01-16: Agregado nombreCompleto como campo editable
   Future<Either<Failure, PerfilResponseModel>> actualizarPerfilPropio({
+    required String nombreCompleto,
     required String apodo,
     String? telefono,
     String? posicionPreferida,
