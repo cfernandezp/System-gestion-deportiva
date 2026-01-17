@@ -370,3 +370,93 @@ Registrado en `core/di/injection_container.dart`:
 - [x] Zona horaria: fechas en UTC para BD, toLocal() para mostrar
 
 ---
+
+## FASE 1: Diseno UX/UI
+**Responsable**: ux-ui-expert
+**Status**: Completado
+**Fecha**: 2026-01-16
+
+### Componentes UI Disenados
+
+**Paginas**:
+- `crear_fecha_page.dart`: Formulario de creacion con ResponsiveLayout
+
+**Layout Mobile (< 600px)**:
+- Scaffold con AppBar contextual (boton cerrar + boton Crear)
+- Formulario vertical full-width
+- NO BottomNavigationBar (es pagina de formulario/modal)
+- Selectores nativos de fecha/hora
+- SegmentedButton para duracion
+
+**Layout Desktop (>= 600px)**:
+- DashboardShell con Sidebar y breadcrumbs
+- Card centrada con maxWidth: 800px
+- Grid de 2 columnas para fecha/hora
+- Botones de accion en header del dashboard
+
+### Widgets Implementados
+
+| Widget | Descripcion |
+|--------|-------------|
+| `_MobileView` | Vista mobile con Scaffold y formulario vertical |
+| `_DesktopView` | Vista desktop con DashboardShell y card centrada |
+| `_ResumenItem` | Widget auxiliar para mostrar resumen en dialog de exito |
+
+### Interacciones UI
+
+| Componente | Interaccion |
+|------------|-------------|
+| Selector fecha | DatePicker nativo con locale es_PE |
+| Selector hora | TimePicker 24h |
+| Duracion | SegmentedButton (1h / 2h) |
+| Lugar | TextField con validacion |
+| Info formato | Card informativa actualizada en tiempo real |
+| Boton Crear | Deshabilitado si formulario invalido, loading durante envio |
+| Dialog exito | Muestra resumen completo de la fecha creada |
+
+### Estados Visuales
+
+| Estado | UI |
+|--------|-----|
+| Initial | Formulario listo, valores por defecto |
+| Loading | Boton con CircularProgressIndicator |
+| Success | Dialog con icono check verde y resumen |
+| Error | SnackBar rojo con mensaje de error |
+| Fecha pasada | Borde rojo en selector + mensaje error |
+
+### Routing
+
+- **Ruta**: `/fechas/crear`
+- **Nombre**: `crearFecha`
+- **Protegida**: Si (requiere autenticacion)
+- **Permisos**: Admin (validado en backend)
+
+### Criterios de Aceptacion UI
+
+| CA | Estado | Implementacion UI |
+|----|--------|-------------------|
+| CA-001 | Completado | Ruta `/fechas/crear`, validacion de permisos en backend |
+| CA-002 | Completado | Campos: DatePicker, TimePicker, SegmentedButton, TextField |
+| CA-003 | Completado | Card `_buildFormatoInfo` actualiza dinamicamente segun duracion |
+| CA-004 | Completado | Validacion visual de fecha futura + mensaje error |
+| CA-005 | Completado | TextField lugar con validacion min 3 chars |
+| CA-006 | Completado | Dialog `_mostrarExito` con resumen completo |
+| CA-007 | Backend | Notificacion manejada por backend |
+
+### Validacion ResponsiveLayout
+
+- [x] ResponsiveLayout: Linea 194
+- [x] DashboardShell (desktop): Linea 697
+- [x] Scaffold (mobile): Linea 334
+- [x] flutter analyze: 0 errores
+
+### Verificacion
+
+- [x] Mobile layout verificado (formulario vertical)
+- [x] Desktop layout verificado (card centrada con sidebar)
+- [x] Sin overflow warnings
+- [x] Design System aplicado (DesignTokens)
+- [x] Textos en espanol (Peru)
+- [x] Formato de moneda: S/ X.XX
+
+---
