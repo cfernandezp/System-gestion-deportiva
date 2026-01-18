@@ -68,7 +68,8 @@
       "Bash(pkill:*)",
       "Bash(claude --version:*)",
       "Bash(vercel --version:*)",
-      "Bash(npm --version:*)"
+      "Bash(npm --version:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": [],
