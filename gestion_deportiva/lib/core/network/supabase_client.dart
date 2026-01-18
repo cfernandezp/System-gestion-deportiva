@@ -3,9 +3,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Configuracion y acceso al cliente Supabase
 /// Centraliza la conexion con el backend
 class SupabaseConfig {
-  // TODO: Configurar variables de entorno para produccion
-  static const String supabaseUrl = 'https://tvvubzkqbksxvcjvivij.supabase.co';
-  static const String supabaseAnonKey = 'sb_publishable_KkJq9unjd4xC9YxQSmShZA_ATcIONaq';
+  // Variables de entorno para produccion (Vercel), con fallback para desarrollo local
+  static const String supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://tvvubzkqbksxvcjvivij.supabase.co',
+  );
+  static const String supabaseAnonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'sb_publishable_KkJq9unjd4xC9YxQSmShZA_ATcIONaq',
+  );
 
   /// Inicializa Supabase - llamar en main.dart antes de runApp
   static Future<void> initialize() async {

@@ -66,7 +66,9 @@
       "Bash(del \"c:\\\\Cristian\\\\Proyectos\\\\system-gestion-deportiva\\\\.claude\\\\agents\\\\negocio-medias-expert.md\")",
       "Bash(flutter create:*)",
       "Bash(pkill:*)",
-      "Bash(claude --version:*)"
+      "Bash(claude --version:*)",
+      "Bash(vercel --version:*)",
+      "Bash(npm --version:*)"
     ],
     "deny": [],
     "ask": [],
