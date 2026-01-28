@@ -31,13 +31,25 @@ import '../../features/jugadores/domain/repositories/jugadores_repository.dart';
 import '../../features/jugadores/presentation/bloc/jugadores/jugadores_bloc.dart';
 import '../../features/jugadores/presentation/bloc/perfil_jugador/perfil_jugador_bloc.dart';
 
-// Fechas Feature (E003-HU-001: Crear Fecha, E003-HU-002: Inscribirse a Fecha)
+// Fechas Feature (E003-HU-001: Crear Fecha, E003-HU-002: Inscribirse a Fecha, E003-HU-003: Ver Inscritos, E003-HU-004: Cerrar Inscripciones, E003-HU-007: Cancelar Inscripcion, E003-HU-008: Editar Fecha)
 import '../../features/fechas/data/datasources/fechas_remote_datasource.dart';
 import '../../features/fechas/data/repositories/fechas_repository_impl.dart';
 import '../../features/fechas/domain/repositories/fechas_repository.dart';
 import '../../features/fechas/presentation/bloc/crear_fecha/crear_fecha_bloc.dart';
 import '../../features/fechas/presentation/bloc/inscripcion/inscripcion_bloc.dart';
 import '../../features/fechas/presentation/bloc/fechas_disponibles/fechas_disponibles_bloc.dart';
+import '../../features/fechas/presentation/bloc/editar_fecha/editar_fecha_bloc.dart';
+import '../../features/fechas/presentation/bloc/inscritos/inscritos_bloc.dart';
+import '../../features/fechas/presentation/bloc/cerrar_inscripciones/cerrar_inscripciones_bloc.dart';
+import '../../features/fechas/presentation/bloc/cancelar_inscripcion/cancelar_inscripcion_bloc.dart';
+import '../../features/fechas/presentation/bloc/asignaciones/asignaciones_bloc.dart';
+import '../../features/fechas/presentation/bloc/mi_equipo/mi_equipo_bloc.dart';
+
+// Solicitudes Feature (E001-HU-006: Gestionar Solicitudes de Registro)
+import '../../features/solicitudes/data/datasources/solicitudes_remote_datasource.dart';
+import '../../features/solicitudes/data/repositories/solicitudes_repository_impl.dart';
+import '../../features/solicitudes/domain/repositories/solicitudes_repository.dart';
+import '../../features/solicitudes/presentation/bloc/solicitudes/solicitudes_bloc.dart';
 
 /// Service Locator global
 final sl = GetIt.instance;
@@ -122,7 +134,7 @@ Future<void> initializeDependencies() async {
     () => JugadoresRemoteDataSourceImpl(supabase: sl()),
   );
 
-  // -------------------- Fechas (E003-HU-001, E003-HU-002) --------------------
+  // -------------------- Fechas (E003-HU-001, E003-HU-002, E003-HU-003, E003-HU-004, E003-HU-007, E003-HU-008) --------------------
 
   // Blocs
   // E003-HU-001: Crear Fecha
@@ -130,6 +142,18 @@ Future<void> initializeDependencies() async {
   // E003-HU-002: Inscribirse a Fecha
   sl.registerFactory(() => InscripcionBloc(repository: sl()));
   sl.registerFactory(() => FechasDisponiblesBloc(repository: sl()));
+  // E003-HU-003: Ver Inscritos
+  sl.registerFactory(() => InscritosBloc(repository: sl(), supabase: sl()));
+  // E003-HU-004: Cerrar Inscripciones
+  sl.registerFactory(() => CerrarInscripcionesBloc(repository: sl()));
+  // E003-HU-007: Cancelar Inscripcion
+  sl.registerFactory(() => CancelarInscripcionBloc(repository: sl()));
+  // E003-HU-008: Editar Fecha
+  sl.registerFactory(() => EditarFechaBloc(repository: sl()));
+  // E003-HU-005: Asignar Equipos
+  sl.registerFactory(() => AsignacionesBloc(repository: sl()));
+  // E003-HU-006: Ver Mi Equipo
+  sl.registerFactory(() => MiEquipoBloc(repository: sl(), supabase: sl()));
 
   // Repository
   sl.registerLazySingleton<FechasRepository>(
@@ -139,5 +163,21 @@ Future<void> initializeDependencies() async {
   // DataSource
   sl.registerLazySingleton<FechasRemoteDataSource>(
     () => FechasRemoteDataSourceImpl(supabase: sl()),
+  );
+
+  // -------------------- Solicitudes (E001-HU-006) --------------------
+
+  // Blocs
+  // E001-HU-006: Gestionar Solicitudes de Registro
+  sl.registerFactory(() => SolicitudesBloc(repository: sl()));
+
+  // Repository
+  sl.registerLazySingleton<SolicitudesRepository>(
+    () => SolicitudesRepositoryImpl(remoteDataSource: sl()),
+  );
+
+  // DataSource
+  sl.registerLazySingleton<SolicitudesRemoteDataSource>(
+    () => SolicitudesRemoteDataSourceImpl(supabase: sl()),
   );
 }

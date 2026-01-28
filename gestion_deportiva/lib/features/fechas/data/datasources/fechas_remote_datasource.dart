@@ -6,10 +6,27 @@ import '../models/crear_fecha_response_model.dart';
 import '../models/inscripcion_model.dart';
 import '../models/fecha_detalle_model.dart';
 import '../models/fecha_disponible_model.dart';
+import '../models/editar_fecha_response_model.dart';
+import '../models/inscritos_response_model.dart';
+import '../models/cerrar_inscripciones_response_model.dart';
+import '../models/reabrir_inscripciones_response_model.dart';
+import '../models/cancelar_inscripcion_response_model.dart';
+import '../models/verificar_cancelar_response_model.dart';
+import '../models/obtener_asignaciones_response_model.dart';
+import '../models/asignar_equipo_response_model.dart';
+import '../models/confirmar_equipos_response_model.dart';
+import '../models/mi_equipo_model.dart';
+import '../models/equipos_fecha_model.dart';
 
 /// Interface del DataSource remoto de fechas
 /// E003-HU-001: Crear Fecha
 /// E003-HU-002: Inscribirse a Fecha
+/// E003-HU-003: Ver Inscritos
+/// E003-HU-004: Cerrar Inscripciones
+/// E003-HU-005: Asignar Equipos
+/// E003-HU-006: Ver Mi Equipo
+/// E003-HU-007: Cancelar Inscripcion
+/// E003-HU-008: Editar Fecha
 abstract class FechasRemoteDataSource {
   /// Crea una nueva fecha de pichanga
   /// RPC: crear_fecha(p_fecha_hora_inicio, p_duracion_horas, p_lugar)
@@ -23,10 +40,32 @@ abstract class FechasRemoteDataSource {
   /// CA-002, CA-003, RN-001 a RN-004
   Future<InscripcionResponseModel> inscribirseFecha(String fechaId);
 
-  /// Cancela la inscripcion del usuario a una fecha
+  /// Cancela la inscripcion del usuario a una fecha (version simple)
   /// RPC: cancelar_inscripcion(p_fecha_id)
   /// CA-004
   Future<CancelarInscripcionResponseModel> cancelarInscripcion(String fechaId);
+
+  // ==================== E003-HU-007: Cancelar Inscripcion ====================
+
+  /// Verifica si el usuario puede cancelar su inscripcion
+  /// RPC: verificar_puede_cancelar(p_fecha_id)
+  /// CA-001, CA-002, CA-005, RN-001, RN-002
+  Future<VerificarCancelarRpcResponseModel> verificarPuedeCancelar(
+      String fechaId);
+
+  /// Cancela la inscripcion del usuario a una fecha (version completa)
+  /// RPC: cancelar_inscripcion(p_fecha_id)
+  /// CA-003, CA-004, CA-007, RN-001 a RN-006
+  Future<CancelarInscripcionRpcResponseModel> cancelarInscripcionCompleta(
+      String fechaId);
+
+  /// Cancela la inscripcion de un jugador por parte de un admin
+  /// RPC: cancelar_inscripcion_admin(p_inscripcion_id, p_anular_deuda)
+  /// CA-006, RN-002 a RN-006
+  Future<CancelarInscripcionAdminRpcResponseModel> cancelarInscripcionAdmin({
+    required String inscripcionId,
+    required bool anularDeuda,
+  });
 
   /// Obtiene el detalle de una fecha con sus inscritos
   /// RPC: obtener_fecha_detalle(p_fecha_id)
@@ -37,6 +76,72 @@ abstract class FechasRemoteDataSource {
   /// RPC: listar_fechas_disponibles()
   /// RN-002
   Future<ListarFechasDisponiblesResponseModel> listarFechasDisponibles();
+
+  // ==================== E003-HU-003: Ver Inscritos ====================
+
+  /// Obtiene la lista de jugadores inscritos a una fecha
+  /// RPC: obtener_inscritos_fecha(p_fecha_id)
+  /// CA-001 a CA-006, RN-001 a RN-005
+  Future<InscritosFechaResponseModel> obtenerInscritosFecha(String fechaId);
+
+  // ==================== E003-HU-004: Cerrar Inscripciones ====================
+
+  /// Cierra las inscripciones de una fecha
+  /// RPC: cerrar_inscripciones(p_fecha_id)
+  /// CA-001 a CA-007, RN-001 a RN-006
+  Future<CerrarInscripcionesRpcResponseModel> cerrarInscripciones(
+      String fechaId);
+
+  /// Reabre las inscripciones de una fecha cerrada
+  /// RPC: reabrir_inscripciones(p_fecha_id)
+  /// CA-006, RN-001, RN-005, RN-006
+  Future<ReabrirInscripcionesRpcResponseModel> reabrirInscripciones(
+      String fechaId);
+
+  // ==================== E003-HU-008: Editar Fecha ====================
+
+  /// Edita una fecha de pichanga existente
+  /// RPC: editar_fecha(p_fecha_id, p_fecha_hora_inicio, p_duracion_horas, p_lugar)
+  /// CA-001 a CA-008, RN-001 a RN-008
+  Future<EditarFechaRpcResponseModel> editarFecha({
+    required String fechaId,
+    required DateTime fechaHoraInicio,
+    required int duracionHoras,
+    required String lugar,
+  });
+
+  // ==================== E003-HU-005: Asignar Equipos ====================
+
+  /// Obtiene las asignaciones de equipos de una fecha
+  /// RPC: obtener_asignaciones(p_fecha_id)
+  /// CA-001, CA-002, CA-003, RN-003, RN-004
+  Future<ObtenerAsignacionesResponseModel> obtenerAsignaciones(String fechaId);
+
+  /// Asigna un jugador a un equipo
+  /// RPC: asignar_equipo(p_fecha_id, p_usuario_id, p_equipo)
+  /// CA-004, CA-005, CA-008, RN-001, RN-002, RN-004, RN-008
+  Future<AsignarEquipoResponseModel> asignarEquipo({
+    required String fechaId,
+    required String usuarioId,
+    required String equipo,
+  });
+
+  /// Confirma las asignaciones de equipos de una fecha
+  /// RPC: confirmar_equipos(p_fecha_id)
+  /// CA-006, CA-007, RN-001, RN-002, RN-005, RN-006, RN-007
+  Future<ConfirmarEquiposResponseModel> confirmarEquipos(String fechaId);
+
+  // ==================== E003-HU-006: Ver Mi Equipo ====================
+
+  /// Obtiene el equipo del usuario actual para una fecha
+  /// RPC: obtener_mi_equipo(p_fecha_id)
+  /// CA-001, CA-002, CA-003, CA-005, CA-006, RN-001, RN-003
+  Future<MiEquipoResponseModel> obtenerMiEquipo(String fechaId);
+
+  /// Obtiene todos los equipos de una fecha con sus jugadores
+  /// RPC: obtener_equipos_fecha(p_fecha_id)
+  /// CA-004, RN-002
+  Future<EquiposFechaResponseModel> obtenerEquiposFecha(String fechaId);
 }
 
 /// Implementacion del DataSource remoto de fechas
@@ -199,6 +304,421 @@ class FechasRemoteDataSourceImpl implements FechasRemoteDataSource {
     } catch (e) {
       throw ServerException(
         message: 'Error de conexion al listar fechas: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== E003-HU-007: Cancelar Inscripcion ====================
+
+  @override
+  Future<VerificarCancelarRpcResponseModel> verificarPuedeCancelar(
+      String fechaId) async {
+    try {
+      // RPC: verificar_puede_cancelar(p_fecha_id)
+      // CA-001, CA-002, CA-005, RN-001, RN-002
+      final response = await supabase.rpc(
+        'verificar_puede_cancelar',
+        params: {'p_fecha_id': fechaId},
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return VerificarCancelarRpcResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al verificar cancelacion',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al verificar cancelacion: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
+  Future<CancelarInscripcionRpcResponseModel> cancelarInscripcionCompleta(
+      String fechaId) async {
+    try {
+      // RPC: cancelar_inscripcion(p_fecha_id)
+      // CA-003, CA-004, CA-007, RN-001 a RN-006
+      final response = await supabase.rpc(
+        'cancelar_inscripcion',
+        params: {'p_fecha_id': fechaId},
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return CancelarInscripcionRpcResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al cancelar inscripcion',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al cancelar inscripcion: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
+  Future<CancelarInscripcionAdminRpcResponseModel> cancelarInscripcionAdmin({
+    required String inscripcionId,
+    required bool anularDeuda,
+  }) async {
+    try {
+      // RPC: cancelar_inscripcion_admin(p_inscripcion_id, p_anular_deuda)
+      // CA-006, RN-002 a RN-006
+      final response = await supabase.rpc(
+        'cancelar_inscripcion_admin',
+        params: {
+          'p_inscripcion_id': inscripcionId,
+          'p_anular_deuda': anularDeuda,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return CancelarInscripcionAdminRpcResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al cancelar inscripcion',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message:
+            'Error de conexion al cancelar inscripcion admin: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== E003-HU-003: Ver Inscritos ====================
+
+  @override
+  Future<InscritosFechaResponseModel> obtenerInscritosFecha(
+      String fechaId) async {
+    try {
+      // RPC: obtener_inscritos_fecha(p_fecha_id)
+      // CA-001 a CA-006, RN-001 a RN-005
+      final response = await supabase.rpc(
+        'obtener_inscritos_fecha',
+        params: {'p_fecha_id': fechaId},
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return InscritosFechaResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al obtener inscritos',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al obtener inscritos: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== E003-HU-004: Cerrar Inscripciones ====================
+
+  @override
+  Future<CerrarInscripcionesRpcResponseModel> cerrarInscripciones(
+      String fechaId) async {
+    try {
+      // RPC: cerrar_inscripciones(p_fecha_id)
+      // CA-001 a CA-007, RN-001 a RN-006
+      final response = await supabase.rpc(
+        'cerrar_inscripciones',
+        params: {'p_fecha_id': fechaId},
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return CerrarInscripcionesRpcResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al cerrar inscripciones',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al cerrar inscripciones: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
+  Future<ReabrirInscripcionesRpcResponseModel> reabrirInscripciones(
+      String fechaId) async {
+    try {
+      // RPC: reabrir_inscripciones(p_fecha_id)
+      // CA-006, RN-001, RN-005, RN-006
+      final response = await supabase.rpc(
+        'reabrir_inscripciones',
+        params: {'p_fecha_id': fechaId},
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return ReabrirInscripcionesRpcResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al reabrir inscripciones',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al reabrir inscripciones: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== E003-HU-008: Editar Fecha ====================
+
+  @override
+  Future<EditarFechaRpcResponseModel> editarFecha({
+    required String fechaId,
+    required DateTime fechaHoraInicio,
+    required int duracionHoras,
+    required String lugar,
+  }) async {
+    try {
+      // RPC: editar_fecha(p_fecha_id, p_fecha_hora_inicio, p_duracion_horas, p_lugar)
+      // CA-001 a CA-008, RN-001 a RN-008
+      final response = await supabase.rpc(
+        'editar_fecha',
+        params: {
+          'p_fecha_id': fechaId,
+          'p_fecha_hora_inicio': fechaHoraInicio.toUtc().toIso8601String(),
+          'p_duracion_horas': duracionHoras,
+          'p_lugar': lugar,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return EditarFechaRpcResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al editar la fecha',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al editar fecha: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== E003-HU-005: Asignar Equipos ====================
+
+  @override
+  Future<ObtenerAsignacionesResponseModel> obtenerAsignaciones(
+      String fechaId) async {
+    try {
+      // RPC: obtener_asignaciones(p_fecha_id)
+      // CA-001, CA-002, CA-003, RN-003, RN-004
+      final response = await supabase.rpc(
+        'obtener_asignaciones',
+        params: {'p_fecha_id': fechaId},
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return ObtenerAsignacionesResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al obtener asignaciones',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al obtener asignaciones: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
+  Future<AsignarEquipoResponseModel> asignarEquipo({
+    required String fechaId,
+    required String usuarioId,
+    required String equipo,
+  }) async {
+    try {
+      // RPC: asignar_equipo(p_fecha_id, p_usuario_id, p_equipo)
+      // CA-004, CA-005, CA-008, RN-001, RN-002, RN-004, RN-008
+      final response = await supabase.rpc(
+        'asignar_equipo',
+        params: {
+          'p_fecha_id': fechaId,
+          'p_usuario_id': usuarioId,
+          'p_equipo': equipo,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return AsignarEquipoResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al asignar equipo',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al asignar equipo: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
+  Future<ConfirmarEquiposResponseModel> confirmarEquipos(String fechaId) async {
+    try {
+      // RPC: confirmar_equipos(p_fecha_id)
+      // CA-006, CA-007, RN-001, RN-002, RN-005, RN-006, RN-007
+      final response = await supabase.rpc(
+        'confirmar_equipos',
+        params: {'p_fecha_id': fechaId},
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return ConfirmarEquiposResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al confirmar equipos',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al confirmar equipos: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== E003-HU-006: Ver Mi Equipo ====================
+
+  @override
+  Future<MiEquipoResponseModel> obtenerMiEquipo(String fechaId) async {
+    try {
+      // RPC: obtener_mi_equipo(p_fecha_id)
+      // CA-001, CA-002, CA-003, CA-005, CA-006, RN-001, RN-003
+      final response = await supabase.rpc(
+        'obtener_mi_equipo',
+        params: {'p_fecha_id': fechaId},
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return MiEquipoResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al obtener mi equipo',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al obtener mi equipo: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
+  Future<EquiposFechaResponseModel> obtenerEquiposFecha(String fechaId) async {
+    try {
+      // RPC: obtener_equipos_fecha(p_fecha_id)
+      // CA-004, RN-002
+      final response = await supabase.rpc(
+        'obtener_equipos_fecha',
+        params: {'p_fecha_id': fechaId},
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return EquiposFechaResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al obtener equipos de la fecha',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al obtener equipos: ${e.toString()}',
       );
     }
   }

@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/widgets/dashboard_shell.dart';
 import '../../../../core/widgets/responsive_layout.dart';
+import '../../../auth/presentation/bloc/session/session.dart';
 import '../../data/models/fecha_detalle_model.dart';
+import '../../data/models/fecha_model.dart';
 import '../bloc/inscripcion/inscripcion.dart';
+import '../bloc/mi_equipo/mi_equipo.dart';
 import '../widgets/widgets.dart';
 
-/// Pagina de detalle de fecha con opcion de inscripcion
+/// Pagina de detalle de fecha con opcion de inscripcion y edicion
 /// E003-HU-002: Inscribirse a Fecha
 /// CA-001: Mostrar todos los detalles de la fecha
 /// CA-002: Boton "Anotarme" visible cuando no esta inscrito
@@ -17,6 +21,22 @@ import '../widgets/widgets.dart';
 /// CA-004: Indicador "Ya estas anotado" cuando inscrito
 /// CA-005: Mensaje "Inscripciones cerradas" si fecha no es abierta
 /// CA-006: Lista de jugadores inscritos con contador
+///
+/// E003-HU-003: Ver Inscritos (Integrado)
+/// CA-001: Acceso a lista de inscritos
+/// CA-002: Informacion de cada inscrito (foto, apodo, posicion)
+/// CA-003: Header con contador
+/// CA-004: Estado vacio
+/// CA-005: Indicador "(Tu)" para usuario actual
+/// CA-006: Actualizacion en tiempo real
+///
+/// E003-HU-004: Cerrar Inscripciones
+/// CA-001: Boton "Cerrar inscripciones" visible para admin si estado = 'abierta'
+/// CA-006: Boton "Reabrir inscripciones" visible para admin si estado = 'cerrada'
+///
+/// E003-HU-008: Editar Fecha
+/// CA-001: Boton "Editar" solo visible para admin
+/// CA-002: Solo habilitado si fecha estado = 'abierta'
 /// Usa ResponsiveLayout: Mobile App Style + Desktop Dashboard Style
 class FechaDetallePage extends StatelessWidget {
   /// ID de la fecha a mostrar
@@ -164,11 +184,225 @@ class _MobileDetalleView extends StatelessWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          // E003-HU-005: Boton "Asignar Equipos" visible para admin si estado = 'cerrada'
+          if (fechaDetalle != null)
+            _buildAsignarEquiposButton(context),
+          // E003-HU-004 CA-001/CA-006: Boton cerrar/reabrir inscripciones (admin)
+          if (fechaDetalle != null)
+            _buildCerrarReabrirButton(context),
+          // E003-HU-008 CA-001: Boton "Editar" solo visible para admin
+          if (fechaDetalle != null)
+            _buildEditarButton(context),
+        ],
       ),
       body: _buildContent(context),
       bottomNavigationBar: fechaDetalle != null
           ? _buildBottomBar(context)
           : null,
+    );
+  }
+
+  /// E003-HU-005: Boton para asignar equipos
+  /// Solo visible para admin si estado = 'cerrada'
+  Widget _buildAsignarEquiposButton(BuildContext context) {
+    return BlocBuilder<SessionBloc, SessionState>(
+      builder: (context, sessionState) {
+        // Solo mostrar si es admin
+        if (sessionState is! SessionAuthenticated) {
+          return const SizedBox.shrink();
+        }
+
+        final isAdmin = sessionState.rol.toLowerCase() == 'admin' ||
+            sessionState.rol.toLowerCase() == 'administrador';
+
+        if (!isAdmin) {
+          return const SizedBox.shrink();
+        }
+
+        final estado = fechaDetalle!.fecha.estado;
+
+        // Solo mostrar si estado = 'cerrada'
+        if (estado != EstadoFecha.cerrada) {
+          return const SizedBox.shrink();
+        }
+
+        return IconButton(
+          onPressed: () => context.go('/fechas/$fechaId/equipos'),
+          icon: Icon(
+            Icons.groups,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          tooltip: 'Asignar equipos',
+        );
+      },
+    );
+  }
+
+  /// E003-HU-004: Boton cerrar/reabrir inscripciones para admin
+  /// CA-001: Solo visible para admin si estado = 'abierta'
+  /// CA-006: Solo visible para admin si estado = 'cerrada'
+  Widget _buildCerrarReabrirButton(BuildContext context) {
+    return BlocBuilder<SessionBloc, SessionState>(
+      builder: (context, sessionState) {
+        // Solo mostrar si es admin
+        if (sessionState is! SessionAuthenticated) {
+          return const SizedBox.shrink();
+        }
+
+        final isAdmin = sessionState.rol.toLowerCase() == 'admin' ||
+            sessionState.rol.toLowerCase() == 'administrador';
+
+        if (!isAdmin) {
+          return const SizedBox.shrink();
+        }
+
+        final estado = fechaDetalle!.fecha.estado;
+
+        // CA-001: Si estado = 'abierta', mostrar "Cerrar inscripciones"
+        if (estado == EstadoFecha.abierta) {
+          return IconButton(
+            onPressed: () => _abrirCerrarInscripcionesDialog(context),
+            icon: Icon(
+              Icons.lock,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            tooltip: 'Cerrar inscripciones',
+          );
+        }
+
+        // CA-006: Si estado = 'cerrada', mostrar "Reabrir inscripciones"
+        if (estado == EstadoFecha.cerrada) {
+          return IconButton(
+            onPressed: () => _abrirReabrirInscripcionesDialog(context),
+            icon: Icon(
+              Icons.lock_open,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            tooltip: 'Reabrir inscripciones',
+          );
+        }
+
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  /// Abre el dialog de cerrar inscripciones
+  void _abrirCerrarInscripcionesDialog(BuildContext context) {
+    CerrarInscripcionesDialog.show(
+      context,
+      fechaDetalle: fechaDetalle!,
+      onSuccess: () {
+        // Recargar detalle despues de cerrar
+        context.read<InscripcionBloc>().add(
+          CargarFechaDetalleEvent(fechaId: fechaId),
+        );
+      },
+    );
+  }
+
+  /// Abre el dialog de reabrir inscripciones
+  void _abrirReabrirInscripcionesDialog(BuildContext context) {
+    ReabrirInscripcionesDialog.show(
+      context,
+      fechaDetalle: fechaDetalle!,
+      onSuccess: () {
+        // Recargar detalle despues de reabrir
+        context.read<InscripcionBloc>().add(
+          CargarFechaDetalleEvent(fechaId: fechaId),
+        );
+      },
+    );
+  }
+
+  /// E003-HU-008: Boton de editar para admin
+  /// CA-001: Solo visible para admin
+  /// CA-002: Solo habilitado si fecha estado = 'abierta'
+  Widget _buildEditarButton(BuildContext context) {
+    return BlocBuilder<SessionBloc, SessionState>(
+      builder: (context, sessionState) {
+        // CA-001: Solo mostrar si es admin
+        if (sessionState is! SessionAuthenticated) {
+          return const SizedBox.shrink();
+        }
+
+        final isAdmin = sessionState.rol.toLowerCase() == 'admin' ||
+            sessionState.rol.toLowerCase() == 'administrador';
+
+        if (!isAdmin) {
+          return const SizedBox.shrink();
+        }
+
+        // CA-002: Verificar si la fecha es editable
+        final esEditable = fechaDetalle!.fecha.estado == EstadoFecha.abierta;
+
+        return IconButton(
+          onPressed: esEditable
+              ? () => _abrirDialogoEditar(context)
+              : () => _mostrarMensajeNoEditable(context),
+          icon: Icon(
+            Icons.edit,
+            color: esEditable
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          tooltip: esEditable
+              ? 'Editar fecha'
+              : 'No se puede editar (${fechaDetalle!.fecha.estado.displayName})',
+        );
+      },
+    );
+  }
+
+  /// Abre el dialogo de edicion
+  void _abrirDialogoEditar(BuildContext context) {
+    EditarFechaDialog.show(
+      context,
+      fechaDetalle: fechaDetalle!,
+      onSuccess: () {
+        // Recargar detalle despues de editar
+        context.read<InscripcionBloc>().add(
+          CargarFechaDetalleEvent(fechaId: fechaId),
+        );
+      },
+    );
+  }
+
+  /// Muestra mensaje cuando la fecha no es editable
+  void _mostrarMensajeNoEditable(BuildContext context) {
+    final estado = fechaDetalle!.fecha.estado;
+    String mensaje;
+
+    switch (estado) {
+      case EstadoFecha.cerrada:
+        mensaje = 'No se puede editar: las inscripciones estan cerradas.';
+        break;
+      case EstadoFecha.enJuego:
+        mensaje = 'No se puede editar: la pichanga esta en curso.';
+        break;
+      case EstadoFecha.finalizada:
+        mensaje = 'No se puede editar: la pichanga ya termino.';
+        break;
+      case EstadoFecha.cancelada:
+        mensaje = 'No se puede editar: la pichanga fue cancelada.';
+        break;
+      default:
+        mensaje = 'No se puede editar esta fecha.';
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.info_outline, color: Colors.white),
+            const SizedBox(width: DesignTokens.spacingS),
+            Expanded(child: Text(mensaje)),
+          ],
+        ),
+        backgroundColor: Theme.of(context).colorScheme.secondary,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -205,11 +439,29 @@ class _MobileDetalleView extends StatelessWidget {
 
             const SizedBox(height: DesignTokens.spacingM),
 
-            // CA-006: Lista de inscritos
-            ListaInscritosWidget(
-              inscritos: fechaDetalle!.inscritos,
-              totalInscritos: fechaDetalle!.totalInscritos,
-              capacidadMaxima: fechaDetalle!.capacidadMaxima,
+            // E003-HU-003: Lista de inscritos con realtime
+            // CA-001 a CA-006: Widget dedicado con BLoC propio
+            InscritosListWidget(
+              fechaId: fechaId,
+              habilitarRealtime: true,
+              capacidadMaxima: fechaDetalle!.capacidadMaxima > 0
+                  ? fechaDetalle!.capacidadMaxima
+                  : null,
+            ),
+
+            const SizedBox(height: DesignTokens.spacingM),
+
+            // E003-HU-006: Ver Mi Equipo
+            // CA-001 a CA-007: Widget para ver equipo asignado
+            BlocProvider(
+              create: (context) => MiEquipoBloc(
+                repository: sl(),
+                supabase: sl(),
+              ),
+              child: MiEquipoWidget(
+                fechaId: fechaId,
+                habilitarRealtime: true,
+              ),
             ),
 
             const SizedBox(height: DesignTokens.spacingL),
@@ -258,7 +510,7 @@ class _MobileDetalleView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        fecha.fechaFormato,
+                        '${fecha.fechaFormato} - ${fecha.horaFormato.isNotEmpty ? fecha.horaFormato : "Por definir"}',
                         style: textTheme.titleMedium?.copyWith(
                           fontWeight: DesignTokens.fontWeightBold,
                         ),
@@ -647,7 +899,7 @@ class _MobileDetalleView extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: DesignTokens.spacingM),
-            _DialogInfoRow(icon: Icons.calendar_today, text: fecha.fechaFormato),
+            _DialogInfoRow(icon: Icons.calendar_today, text: '${fecha.fechaFormato} - ${fecha.horaFormato}'),
             _DialogInfoRow(icon: Icons.location_on, text: fecha.lugar),
             _DialogInfoRow(
               icon: Icons.attach_money,
@@ -675,40 +927,20 @@ class _MobileDetalleView extends StatelessWidget {
     );
   }
 
-  /// Dialogo de confirmacion para cancelar inscripcion
+  /// E003-HU-007: Dialogo de confirmacion para cancelar inscripcion
+  /// CA-001: Visible solo si usuario esta inscrito
+  /// CA-002: Mensaje de confirmacion
+  /// CA-005: Si fecha cerrada, mostrar mensaje
   void _confirmarCancelacion(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: Icon(
-          Icons.warning_amber_rounded,
-          color: Theme.of(context).colorScheme.error,
-          size: 48,
-        ),
-        title: const Text('Cancelar inscripcion'),
-        content: const Text(
-          'Si cancelas tu inscripcion, la deuda asociada sera anulada.\n\n'
-          'Estas seguro de que quieres cancelar?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Volver'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              context.read<InscripcionBloc>().add(
-                CancelarInscripcionEvent(fechaId: fechaId),
-              );
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Si, cancelar'),
-          ),
-        ],
-      ),
+    CancelarInscripcionDialog.show(
+      context,
+      fechaDetalle: fechaDetalle!,
+      onSuccess: () {
+        // Recargar detalle despues de cancelar
+        context.read<InscripcionBloc>().add(
+          CargarFechaDetalleEvent(fechaId: fechaId),
+        );
+      },
     );
   }
 
@@ -772,6 +1004,15 @@ class _DesktopDetalleView extends StatelessWidget {
       title: 'Detalle de Pichanga',
       breadcrumbs: const ['Inicio', 'Fechas', 'Detalle'],
       actions: [
+        // E003-HU-005: Boton "Asignar Equipos" visible para admin si estado = 'cerrada'
+        if (fechaDetalle != null)
+          _buildAsignarEquiposButton(context),
+        // E003-HU-004 CA-001/CA-006: Boton cerrar/reabrir inscripciones (admin)
+        if (fechaDetalle != null)
+          _buildCerrarReabrirButton(context),
+        // E003-HU-008 CA-001: Boton "Editar" solo visible para admin
+        if (fechaDetalle != null)
+          _buildEditarButton(context),
         OutlinedButton.icon(
           onPressed: () {
             context.read<InscripcionBloc>().add(
@@ -789,6 +1030,215 @@ class _DesktopDetalleView extends StatelessWidget {
         ),
       ],
       child: _buildContent(context),
+    );
+  }
+
+  /// E003-HU-005: Boton para asignar equipos (Desktop)
+  /// Solo visible para admin si estado = 'cerrada'
+  Widget _buildAsignarEquiposButton(BuildContext context) {
+    return BlocBuilder<SessionBloc, SessionState>(
+      builder: (context, sessionState) {
+        // Solo mostrar si es admin
+        if (sessionState is! SessionAuthenticated) {
+          return const SizedBox.shrink();
+        }
+
+        final isAdmin = sessionState.rol.toLowerCase() == 'admin' ||
+            sessionState.rol.toLowerCase() == 'administrador';
+
+        if (!isAdmin) {
+          return const SizedBox.shrink();
+        }
+
+        final estado = fechaDetalle!.fecha.estado;
+
+        // Solo mostrar si estado = 'cerrada'
+        if (estado != EstadoFecha.cerrada) {
+          return const SizedBox.shrink();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(right: DesignTokens.spacingS),
+          child: FilledButton.icon(
+            onPressed: () => context.go('/fechas/$fechaId/equipos'),
+            icon: const Icon(Icons.groups),
+            label: const Text('Asignar Equipos'),
+          ),
+        );
+      },
+    );
+  }
+
+  /// E003-HU-004: Boton cerrar/reabrir inscripciones para admin (Desktop)
+  /// CA-001: Solo visible para admin si estado = 'abierta'
+  /// CA-006: Solo visible para admin si estado = 'cerrada'
+  Widget _buildCerrarReabrirButton(BuildContext context) {
+    return BlocBuilder<SessionBloc, SessionState>(
+      builder: (context, sessionState) {
+        // Solo mostrar si es admin
+        if (sessionState is! SessionAuthenticated) {
+          return const SizedBox.shrink();
+        }
+
+        final isAdmin = sessionState.rol.toLowerCase() == 'admin' ||
+            sessionState.rol.toLowerCase() == 'administrador';
+
+        if (!isAdmin) {
+          return const SizedBox.shrink();
+        }
+
+        final estado = fechaDetalle!.fecha.estado;
+
+        // CA-001: Si estado = 'abierta', mostrar "Cerrar inscripciones"
+        if (estado == EstadoFecha.abierta) {
+          return Padding(
+            padding: const EdgeInsets.only(right: DesignTokens.spacingS),
+            child: FilledButton.icon(
+              onPressed: () => _abrirCerrarInscripcionesDialog(context),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.secondary,
+              ),
+              icon: const Icon(Icons.lock),
+              label: const Text('Cerrar Inscripciones'),
+            ),
+          );
+        }
+
+        // CA-006: Si estado = 'cerrada', mostrar "Reabrir inscripciones"
+        if (estado == EstadoFecha.cerrada) {
+          return Padding(
+            padding: const EdgeInsets.only(right: DesignTokens.spacingS),
+            child: FilledButton.icon(
+              onPressed: () => _abrirReabrirInscripcionesDialog(context),
+              icon: const Icon(Icons.lock_open),
+              label: const Text('Reabrir Inscripciones'),
+            ),
+          );
+        }
+
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  /// Abre el dialog de cerrar inscripciones
+  void _abrirCerrarInscripcionesDialog(BuildContext context) {
+    CerrarInscripcionesDialog.show(
+      context,
+      fechaDetalle: fechaDetalle!,
+      onSuccess: () {
+        // Recargar detalle despues de cerrar
+        context.read<InscripcionBloc>().add(
+          CargarFechaDetalleEvent(fechaId: fechaId),
+        );
+      },
+    );
+  }
+
+  /// Abre el dialog de reabrir inscripciones
+  void _abrirReabrirInscripcionesDialog(BuildContext context) {
+    ReabrirInscripcionesDialog.show(
+      context,
+      fechaDetalle: fechaDetalle!,
+      onSuccess: () {
+        // Recargar detalle despues de reabrir
+        context.read<InscripcionBloc>().add(
+          CargarFechaDetalleEvent(fechaId: fechaId),
+        );
+      },
+    );
+  }
+
+  /// E003-HU-008: Boton de editar para admin (Desktop)
+  /// CA-001: Solo visible para admin
+  /// CA-002: Solo habilitado si fecha estado = 'abierta'
+  Widget _buildEditarButton(BuildContext context) {
+    return BlocBuilder<SessionBloc, SessionState>(
+      builder: (context, sessionState) {
+        // CA-001: Solo mostrar si es admin
+        if (sessionState is! SessionAuthenticated) {
+          return const SizedBox.shrink();
+        }
+
+        final isAdmin = sessionState.rol.toLowerCase() == 'admin' ||
+            sessionState.rol.toLowerCase() == 'administrador';
+
+        if (!isAdmin) {
+          return const SizedBox.shrink();
+        }
+
+        // CA-002: Verificar si la fecha es editable
+        final esEditable = fechaDetalle!.fecha.estado == EstadoFecha.abierta;
+
+        return Padding(
+          padding: const EdgeInsets.only(right: DesignTokens.spacingS),
+          child: esEditable
+              ? FilledButton.icon(
+                  onPressed: () => _abrirDialogoEditar(context),
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Editar Fecha'),
+                )
+              : OutlinedButton.icon(
+                  onPressed: () => _mostrarMensajeNoEditable(context),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  icon: const Icon(Icons.edit_off),
+                  label: Text('No editable (${fechaDetalle!.fecha.estado.displayName})'),
+                ),
+        );
+      },
+    );
+  }
+
+  /// Abre el dialogo de edicion
+  void _abrirDialogoEditar(BuildContext context) {
+    EditarFechaDialog.show(
+      context,
+      fechaDetalle: fechaDetalle!,
+      onSuccess: () {
+        // Recargar detalle despues de editar
+        context.read<InscripcionBloc>().add(
+          CargarFechaDetalleEvent(fechaId: fechaId),
+        );
+      },
+    );
+  }
+
+  /// Muestra mensaje cuando la fecha no es editable
+  void _mostrarMensajeNoEditable(BuildContext context) {
+    final estado = fechaDetalle!.fecha.estado;
+    String mensaje;
+
+    switch (estado) {
+      case EstadoFecha.cerrada:
+        mensaje = 'No se puede editar: las inscripciones estan cerradas.';
+        break;
+      case EstadoFecha.enJuego:
+        mensaje = 'No se puede editar: la pichanga esta en curso.';
+        break;
+      case EstadoFecha.finalizada:
+        mensaje = 'No se puede editar: la pichanga ya termino.';
+        break;
+      case EstadoFecha.cancelada:
+        mensaje = 'No se puede editar: la pichanga fue cancelada.';
+        break;
+      default:
+        mensaje = 'No se puede editar esta fecha.';
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.info_outline, color: Colors.white),
+            const SizedBox(width: DesignTokens.spacingS),
+            Expanded(child: Text(mensaje)),
+          ],
+        ),
+        backgroundColor: Theme.of(context).colorScheme.secondary,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -828,12 +1278,35 @@ class _DesktopDetalleView extends StatelessWidget {
 
           const SizedBox(width: DesignTokens.spacingL),
 
-          // Columna derecha: Lista de inscritos (expandida)
+          // Columna derecha: Lista de inscritos + Mi Equipo
           Expanded(
-            child: ListaInscritosWidget(
-              inscritos: fechaDetalle!.inscritos,
-              totalInscritos: fechaDetalle!.totalInscritos,
-              capacidadMaxima: fechaDetalle!.capacidadMaxima,
+            child: Column(
+              children: [
+                // E003-HU-003: Widget dedicado con BLoC propio y realtime
+                InscritosListWidget(
+                  fechaId: fechaId,
+                  habilitarRealtime: true,
+                  expandible: false, // En desktop, siempre expandido
+                  capacidadMaxima: fechaDetalle!.capacidadMaxima > 0
+                      ? fechaDetalle!.capacidadMaxima
+                      : null,
+                ),
+
+                const SizedBox(height: DesignTokens.spacingM),
+
+                // E003-HU-006: Ver Mi Equipo
+                // CA-001 a CA-007: Widget para ver equipo asignado
+                BlocProvider(
+                  create: (context) => MiEquipoBloc(
+                    repository: sl(),
+                    supabase: sl(),
+                  ),
+                  child: MiEquipoWidget(
+                    fechaId: fechaId,
+                    habilitarRealtime: true,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -880,7 +1353,7 @@ class _DesktopDetalleView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        fecha.fechaFormato,
+                        '${fecha.fechaFormato} - ${fecha.horaFormato.isNotEmpty ? fecha.horaFormato : "Por definir"}',
                         style: textTheme.titleLarge?.copyWith(
                           fontWeight: DesignTokens.fontWeightBold,
                         ),
@@ -1246,7 +1719,7 @@ class _DesktopDetalleView extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: DesignTokens.spacingM),
-            _DialogInfoRow(icon: Icons.calendar_today, text: fecha.fechaFormato),
+            _DialogInfoRow(icon: Icons.calendar_today, text: '${fecha.fechaFormato} - ${fecha.horaFormato}'),
             _DialogInfoRow(icon: Icons.location_on, text: fecha.lugar),
             _DialogInfoRow(
               icon: Icons.attach_money,
@@ -1274,39 +1747,20 @@ class _DesktopDetalleView extends StatelessWidget {
     );
   }
 
+  /// E003-HU-007: Dialogo de confirmacion para cancelar inscripcion (Desktop)
+  /// CA-001: Visible solo si usuario esta inscrito
+  /// CA-002: Mensaje de confirmacion
+  /// CA-005: Si fecha cerrada, mostrar mensaje
   void _confirmarCancelacion(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: Icon(
-          Icons.warning_amber_rounded,
-          color: Theme.of(context).colorScheme.error,
-          size: 48,
-        ),
-        title: const Text('Cancelar inscripcion'),
-        content: const Text(
-          'Si cancelas tu inscripcion, la deuda asociada sera anulada.\n\n'
-          'Estas seguro de que quieres cancelar?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Volver'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              context.read<InscripcionBloc>().add(
-                CancelarInscripcionEvent(fechaId: fechaId),
-              );
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Si, cancelar'),
-          ),
-        ],
-      ),
+    CancelarInscripcionDialog.show(
+      context,
+      fechaDetalle: fechaDetalle!,
+      onSuccess: () {
+        // Recargar detalle despues de cancelar
+        context.read<InscripcionBloc>().add(
+          CargarFechaDetalleEvent(fechaId: fechaId),
+        );
+      },
     );
   }
 
