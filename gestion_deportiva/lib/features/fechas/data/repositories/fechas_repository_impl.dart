@@ -20,6 +20,8 @@ import '../models/asignar_equipo_response_model.dart';
 import '../models/confirmar_equipos_response_model.dart';
 import '../models/mi_equipo_model.dart';
 import '../models/equipos_fecha_model.dart';
+import '../models/listar_fechas_por_rol_response_model.dart';
+import '../models/finalizar_fecha_response_model.dart';
 
 /// Implementacion del repositorio de fechas
 /// E003-HU-001: Crear Fecha
@@ -30,6 +32,7 @@ import '../models/equipos_fecha_model.dart';
 /// E003-HU-006: Ver Mi Equipo
 /// E003-HU-007: Cancelar Inscripcion
 /// E003-HU-008: Editar Fecha
+/// E003-HU-009: Listar Fechas por Rol
 class FechasRepositoryImpl implements FechasRepository {
   final FechasRemoteDataSource remoteDataSource;
 
@@ -392,6 +395,66 @@ class FechasRepositoryImpl implements FechasRepository {
     } catch (e) {
       return Left(ServerFailure(
         message: 'Error inesperado al obtener equipos: ${e.toString()}',
+      ));
+    }
+  }
+
+  // ==================== E003-HU-009: Listar Fechas por Rol ====================
+
+  @override
+  Future<Either<Failure, ListarFechasPorRolResponseModel>> listarFechasPorRol({
+    String seccion = 'proximas',
+    String? filtroEstado,
+    DateTime? fechaDesde,
+    DateTime? fechaHasta,
+  }) async {
+    try {
+      final result = await remoteDataSource.listarFechasPorRol(
+        seccion: seccion,
+        filtroEstado: filtroEstado,
+        fechaDesde: fechaDesde,
+        fechaHasta: fechaHasta,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado al listar fechas por rol: ${e.toString()}',
+      ));
+    }
+  }
+
+  // ==================== E003-HU-010: Finalizar Fecha ====================
+
+  @override
+  Future<Either<Failure, FinalizarFechaResponseModel>> finalizarFecha({
+    required String fechaId,
+    String? comentarios,
+    bool huboIncidente = false,
+    String? descripcionIncidente,
+  }) async {
+    try {
+      final result = await remoteDataSource.finalizarFecha(
+        fechaId: fechaId,
+        comentarios: comentarios,
+        huboIncidente: huboIncidente,
+        descripcionIncidente: descripcionIncidente,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado al finalizar fecha: ${e.toString()}',
       ));
     }
   }

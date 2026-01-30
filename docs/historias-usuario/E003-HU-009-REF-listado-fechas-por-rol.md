@@ -2,7 +2,7 @@
 
 ## Informacion General
 - **Epica**: E003 - Gestion de Fechas/Jornadas
-- **Estado**: En Desarrollo (DEV)
+- **Estado**: Completado (COM)
 - **Prioridad**: Alta
 - **Story Points**: 5 pts
 

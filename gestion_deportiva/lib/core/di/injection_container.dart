@@ -44,6 +44,8 @@ import '../../features/fechas/presentation/bloc/cerrar_inscripciones/cerrar_insc
 import '../../features/fechas/presentation/bloc/cancelar_inscripcion/cancelar_inscripcion_bloc.dart';
 import '../../features/fechas/presentation/bloc/asignaciones/asignaciones_bloc.dart';
 import '../../features/fechas/presentation/bloc/mi_equipo/mi_equipo_bloc.dart';
+import '../../features/fechas/presentation/bloc/fechas_por_rol/fechas_por_rol_bloc.dart';
+import '../../features/fechas/presentation/bloc/finalizar_fecha/finalizar_fecha_bloc.dart';
 
 // Solicitudes Feature (E001-HU-006: Gestionar Solicitudes de Registro)
 import '../../features/solicitudes/data/datasources/solicitudes_remote_datasource.dart';
@@ -154,6 +156,10 @@ Future<void> initializeDependencies() async {
   sl.registerFactory(() => AsignacionesBloc(repository: sl()));
   // E003-HU-006: Ver Mi Equipo
   sl.registerFactory(() => MiEquipoBloc(repository: sl(), supabase: sl()));
+  // E003-HU-009: Listar Fechas por Rol
+  sl.registerFactory(() => FechasPorRolBloc(repository: sl()));
+  // E003-HU-010: Finalizar Fecha
+  sl.registerFactory(() => FinalizarFechaBloc(repository: sl()));
 
   // Repository
   sl.registerLazySingleton<FechasRepository>(

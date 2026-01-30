@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase_lib;
 
 import '../../../../core/errors/exceptions.dart';
@@ -14,9 +15,12 @@ import '../models/cancelar_inscripcion_response_model.dart';
 import '../models/verificar_cancelar_response_model.dart';
 import '../models/obtener_asignaciones_response_model.dart';
 import '../models/asignar_equipo_response_model.dart';
+import '../models/desasignar_equipo_response_model.dart';
 import '../models/confirmar_equipos_response_model.dart';
 import '../models/mi_equipo_model.dart';
 import '../models/equipos_fecha_model.dart';
+import '../models/listar_fechas_por_rol_response_model.dart';
+import '../models/finalizar_fecha_response_model.dart';
 
 /// Interface del DataSource remoto de fechas
 /// E003-HU-001: Crear Fecha
@@ -27,6 +31,7 @@ import '../models/equipos_fecha_model.dart';
 /// E003-HU-006: Ver Mi Equipo
 /// E003-HU-007: Cancelar Inscripcion
 /// E003-HU-008: Editar Fecha
+/// E003-HU-009: Listar Fechas por Rol
 abstract class FechasRemoteDataSource {
   /// Crea una nueva fecha de pichanga
   /// RPC: crear_fecha(p_fecha_hora_inicio, p_duracion_horas, p_lugar)
@@ -126,6 +131,14 @@ abstract class FechasRemoteDataSource {
     required String equipo,
   });
 
+  /// Desasigna un jugador de su equipo (lo devuelve a Sin Asignar)
+  /// RPC: desasignar_equipo(p_fecha_id, p_usuario_id)
+  /// RN-001, RN-002, RN-008
+  Future<DesasignarEquipoResponseModel> desasignarEquipo({
+    required String fechaId,
+    required String usuarioId,
+  });
+
   /// Confirma las asignaciones de equipos de una fecha
   /// RPC: confirmar_equipos(p_fecha_id)
   /// CA-006, CA-007, RN-001, RN-002, RN-005, RN-006, RN-007
@@ -142,6 +155,31 @@ abstract class FechasRemoteDataSource {
   /// RPC: obtener_equipos_fecha(p_fecha_id)
   /// CA-004, RN-002
   Future<EquiposFechaResponseModel> obtenerEquiposFecha(String fechaId);
+
+  // ==================== E003-HU-009: Listar Fechas por Rol ====================
+
+  /// Lista fechas filtradas segun el rol del usuario
+  /// RPC: listar_fechas_por_rol(p_seccion, p_filtro_estado, p_fecha_desde, p_fecha_hasta)
+  /// Jugador: Solo sus fechas inscritas/disponibles
+  /// Admin: Todas las fechas con filtros opcionales
+  Future<ListarFechasPorRolResponseModel> listarFechasPorRol({
+    String seccion = 'proximas',
+    String? filtroEstado,
+    DateTime? fechaDesde,
+    DateTime? fechaHasta,
+  });
+
+  // ==================== E003-HU-010: Finalizar Fecha ====================
+
+  /// Finaliza una fecha de pichanga
+  /// RPC: finalizar_fecha(p_fecha_id, p_comentarios, p_hubo_incidente, p_descripcion_incidente)
+  /// CA-001 a CA-010, RN-001 a RN-007
+  Future<FinalizarFechaResponseModel> finalizarFecha({
+    required String fechaId,
+    String? comentarios,
+    bool huboIncidente = false,
+    String? descripcionIncidente,
+  });
 }
 
 /// Implementacion del DataSource remoto de fechas
@@ -629,6 +667,43 @@ class FechasRemoteDataSourceImpl implements FechasRemoteDataSource {
   }
 
   @override
+  Future<DesasignarEquipoResponseModel> desasignarEquipo({
+    required String fechaId,
+    required String usuarioId,
+  }) async {
+    try {
+      // RPC: desasignar_equipo(p_fecha_id, p_usuario_id)
+      // Devuelve jugador a "Sin Asignar"
+      final response = await supabase.rpc(
+        'desasignar_equipo',
+        params: {
+          'p_fecha_id': fechaId,
+          'p_usuario_id': usuarioId,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return DesasignarEquipoResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al desasignar equipo',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al desasignar equipo: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
   Future<ConfirmarEquiposResponseModel> confirmarEquipos(String fechaId) async {
     try {
       // RPC: confirmar_equipos(p_fecha_id)
@@ -719,6 +794,108 @@ class FechasRemoteDataSourceImpl implements FechasRemoteDataSource {
     } catch (e) {
       throw ServerException(
         message: 'Error de conexion al obtener equipos: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== E003-HU-009: Listar Fechas por Rol ====================
+
+  @override
+  Future<ListarFechasPorRolResponseModel> listarFechasPorRol({
+    String seccion = 'proximas',
+    String? filtroEstado,
+    DateTime? fechaDesde,
+    DateTime? fechaHasta,
+  }) async {
+    try {
+      // DEBUG: Verificar estado de autenticacion antes de llamar RPC
+      final currentUser = supabase.auth.currentUser;
+      final session = supabase.auth.currentSession;
+      debugPrint('[listarFechasPorRol] currentUser: ${currentUser?.id}');
+      debugPrint('[listarFechasPorRol] session: ${session != null ? "ACTIVA" : "NULL"}');
+      debugPrint('[listarFechasPorRol] accessToken: ${session?.accessToken != null ? "PRESENTE (${session!.accessToken.length} chars)" : "NULL"}');
+
+      // RPC: listar_fechas_por_rol(p_seccion, p_filtro_estado, p_fecha_desde, p_fecha_hasta)
+      // Construir parametros (solo enviar los que tienen valor)
+      final params = <String, dynamic>{
+        'p_seccion': seccion,
+      };
+
+      if (filtroEstado != null) {
+        params['p_filtro_estado'] = filtroEstado;
+      }
+      if (fechaDesde != null) {
+        params['p_fecha_desde'] = fechaDesde.toUtc().toIso8601String();
+      }
+      if (fechaHasta != null) {
+        params['p_fecha_hasta'] = fechaHasta.toUtc().toIso8601String();
+      }
+
+      final response = await supabase.rpc(
+        'listar_fechas_por_rol',
+        params: params,
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return ListarFechasPorRolResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al listar fechas',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al listar fechas: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== E003-HU-010: Finalizar Fecha ====================
+
+  @override
+  Future<FinalizarFechaResponseModel> finalizarFecha({
+    required String fechaId,
+    String? comentarios,
+    bool huboIncidente = false,
+    String? descripcionIncidente,
+  }) async {
+    try {
+      // RPC: finalizar_fecha(p_fecha_id, p_comentarios, p_hubo_incidente, p_descripcion_incidente)
+      // CA-001 a CA-010, RN-001 a RN-007
+      final response = await supabase.rpc(
+        'finalizar_fecha',
+        params: {
+          'p_fecha_id': fechaId,
+          'p_comentarios': comentarios,
+          'p_hubo_incidente': huboIncidente,
+          'p_descripcion_incidente': descripcionIncidente,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return FinalizarFechaResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al finalizar la fecha',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al finalizar fecha: ${e.toString()}',
       );
     }
   }

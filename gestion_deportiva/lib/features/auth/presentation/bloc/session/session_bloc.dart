@@ -45,15 +45,38 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     final currentUser = supabase.auth.currentUser;
 
     if (currentUser != null) {
-      // Hay sesion activa - verificar datos del usuario
-      // Por ahora emitimos autenticado con datos basicos
-      // En implementacion completa, podriamos consultar datos del usuario
-      emit(SessionAuthenticated(
-        usuarioId: currentUser.id,
-        nombreCompleto: currentUser.userMetadata?['nombre_completo'] ?? '',
-        email: currentUser.email ?? '',
-        rol: currentUser.userMetadata?['rol'] ?? 'jugador',
-      ));
+      // Hay sesion activa - consultar datos actualizados del usuario
+      // desde la tabla usuarios via RPC para obtener el rol correcto
+      try {
+        final response = await supabase.rpc('obtener_perfil_propio');
+        final responseMap = response as Map<String, dynamic>;
+
+        if (responseMap['success'] == true) {
+          final data = responseMap['data'] as Map<String, dynamic>;
+          emit(SessionAuthenticated(
+            usuarioId: data['usuario_id'] ?? currentUser.id,
+            nombreCompleto: data['nombre_completo'] ?? '',
+            email: data['email'] ?? currentUser.email ?? '',
+            rol: data['rol'] ?? 'jugador',
+          ));
+        } else {
+          // Si falla el RPC, usar datos basicos del metadata
+          emit(SessionAuthenticated(
+            usuarioId: currentUser.id,
+            nombreCompleto: currentUser.userMetadata?['nombre_completo'] ?? '',
+            email: currentUser.email ?? '',
+            rol: currentUser.userMetadata?['rol'] ?? 'jugador',
+          ));
+        }
+      } catch (e) {
+        // En caso de error de conexion, usar datos del metadata como fallback
+        emit(SessionAuthenticated(
+          usuarioId: currentUser.id,
+          nombreCompleto: currentUser.userMetadata?['nombre_completo'] ?? '',
+          email: currentUser.email ?? '',
+          rol: currentUser.userMetadata?['rol'] ?? 'jugador',
+        ));
+      }
     } else {
       // No hay sesion activa
       emit(const SessionUnauthenticated());

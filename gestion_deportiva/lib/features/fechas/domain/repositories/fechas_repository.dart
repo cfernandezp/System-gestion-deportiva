@@ -14,9 +14,12 @@ import '../../data/models/cancelar_inscripcion_response_model.dart';
 import '../../data/models/verificar_cancelar_response_model.dart';
 import '../../data/models/obtener_asignaciones_response_model.dart';
 import '../../data/models/asignar_equipo_response_model.dart';
+import '../../data/models/desasignar_equipo_response_model.dart';
 import '../../data/models/confirmar_equipos_response_model.dart';
 import '../../data/models/mi_equipo_model.dart';
 import '../../data/models/equipos_fecha_model.dart';
+import '../../data/models/listar_fechas_por_rol_response_model.dart';
+import '../../data/models/finalizar_fecha_response_model.dart';
 
 /// Interface del repositorio de fechas
 /// E003-HU-001: Crear Fecha
@@ -27,6 +30,7 @@ import '../../data/models/equipos_fecha_model.dart';
 /// E003-HU-006: Ver Mi Equipo
 /// E003-HU-007: Cancelar Inscripcion
 /// E003-HU-008: Editar Fecha
+/// E003-HU-009: Listar Fechas por Rol
 abstract class FechasRepository {
   /// Crea una nueva fecha de pichanga
   /// CA-001 a CA-007, RN-001 a RN-007
@@ -134,6 +138,14 @@ abstract class FechasRepository {
     required String equipo,
   });
 
+  /// Desasigna un jugador de su equipo (lo devuelve a Sin Asignar)
+  /// RN-001, RN-002, RN-008
+  /// Returns: `Either<Failure, DesasignarEquipoResponseModel>`
+  Future<Either<Failure, DesasignarEquipoResponseModel>> desasignarEquipo({
+    required String fechaId,
+    required String usuarioId,
+  });
+
   /// Confirma las asignaciones de equipos de una fecha
   /// CA-006, CA-007, RN-001, RN-002, RN-005, RN-006, RN-007
   /// Returns: `Either<Failure, ConfirmarEquiposResponseModel>`
@@ -153,4 +165,29 @@ abstract class FechasRepository {
   /// Returns: `Either<Failure, EquiposFechaResponseModel>`
   Future<Either<Failure, EquiposFechaResponseModel>> obtenerEquiposFecha(
       String fechaId);
+
+  // ==================== E003-HU-009: Listar Fechas por Rol ====================
+
+  /// Lista fechas filtradas segun el rol del usuario
+  /// Jugador: Solo sus fechas inscritas/disponibles
+  /// Admin: Todas las fechas con filtros opcionales
+  /// Returns: `Either<Failure, ListarFechasPorRolResponseModel>`
+  Future<Either<Failure, ListarFechasPorRolResponseModel>> listarFechasPorRol({
+    String seccion = 'proximas',
+    String? filtroEstado,
+    DateTime? fechaDesde,
+    DateTime? fechaHasta,
+  });
+
+  // ==================== E003-HU-010: Finalizar Fecha ====================
+
+  /// Finaliza una fecha de pichanga
+  /// CA-001 a CA-010, RN-001 a RN-007
+  /// Returns: `Either<Failure, FinalizarFechaResponseModel>`
+  Future<Either<Failure, FinalizarFechaResponseModel>> finalizarFecha({
+    required String fechaId,
+    String? comentarios,
+    bool huboIncidente,
+    String? descripcionIncidente,
+  });
 }

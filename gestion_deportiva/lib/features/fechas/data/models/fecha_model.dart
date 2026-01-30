@@ -75,6 +75,7 @@ class FechaModel extends Equatable {
   final DateTime fechaHoraInicio;
   final DateTime? fechaHoraLocal;
   final String fechaFormato;
+  final String horaFormato;
   final int duracionHoras;
   final String lugar;
   final int numEquipos;
@@ -91,6 +92,7 @@ class FechaModel extends Equatable {
     required this.fechaHoraInicio,
     this.fechaHoraLocal,
     required this.fechaFormato,
+    required this.horaFormato,
     required this.duracionHoras,
     required this.lugar,
     required this.numEquipos,
@@ -105,9 +107,15 @@ class FechaModel extends Equatable {
 
   /// Crea instancia desde JSON del backend
   /// Mapeo: snake_case -> camelCase
+  /// Nota: El backend puede devolver 'id' o 'fecha_id' segun el contexto
   factory FechaModel.fromJson(Map<String, dynamic> json) {
+    // Obtener creador (puede venir como objeto o como strings separados)
+    final creador = json['creador'] as Map<String, dynamic>?;
+    final createdBy = creador?['id'] ?? json['created_by'] ?? '';
+    final createdByNombre = creador?['nombre'] ?? json['created_by_nombre'] ?? '';
+
     return FechaModel(
-      fechaId: json['fecha_id'] ?? '',
+      fechaId: json['id'] ?? json['fecha_id'] ?? '',
       fechaHoraInicio: json['fecha_hora_inicio'] != null
           ? DateTime.parse(json['fecha_hora_inicio']).toLocal()
           : DateTime.now(),
@@ -115,6 +123,7 @@ class FechaModel extends Equatable {
           ? DateTime.parse(json['fecha_hora_local'])
           : null,
       fechaFormato: json['fecha_formato'] ?? '',
+      horaFormato: json['hora_formato'] ?? '',
       duracionHoras: json['duracion_horas'] ?? 1,
       lugar: json['lugar'] ?? '',
       numEquipos: json['num_equipos'] ?? 2,
@@ -122,8 +131,8 @@ class FechaModel extends Equatable {
       costoFormato: json['costo_formato'] ?? 'S/ 0.00',
       estado: EstadoFecha.fromString(json['estado'] ?? 'abierta'),
       formatoJuego: json['formato_juego'] ?? '',
-      createdBy: json['created_by'] ?? '',
-      createdByNombre: json['created_by_nombre'] ?? '',
+      createdBy: createdBy,
+      createdByNombre: createdByNombre,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at']).toLocal()
           : null,
@@ -161,6 +170,7 @@ class FechaModel extends Equatable {
         fechaHoraInicio,
         fechaHoraLocal,
         fechaFormato,
+        horaFormato,
         duracionHoras,
         lugar,
         numEquipos,

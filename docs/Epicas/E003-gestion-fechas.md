@@ -36,13 +36,16 @@ Permitir a los administradores organizar las pichangas semanales y a los jugador
 
 | ID | Titulo | Estado | Descripcion |
 |----|--------|--------|-------------|
-| E003-HU-001 | Crear Fecha | 🟡 PEN | Como admin, quiero crear una nueva jornada de pichanga |
-| E003-HU-002 | Inscribirse a Fecha | 🟡 PEN | Como jugador, quiero anotarme para la proxima pichanga |
-| E003-HU-003 | Ver Inscritos | 🟡 PEN | Como usuario, quiero ver quienes se anotaron |
-| E003-HU-004 | Cerrar Inscripciones | 🟡 PEN | Como admin, quiero cerrar las inscripciones |
-| E003-HU-005 | Asignar Equipos | 🟡 PEN | Como admin, quiero distribuir jugadores en equipos |
-| E003-HU-006 | Ver Mi Equipo | 🟡 PEN | Como jugador, quiero saber a que equipo/color pertenezco |
-| E003-HU-007 | Cancelar Inscripcion | 🟡 PEN | Como jugador, quiero cancelar mi asistencia |
+| E003-HU-001 | Crear Fecha | ✅ COM | Como admin, quiero crear una nueva jornada de pichanga |
+| E003-HU-002 | Inscribirse a Fecha | ✅ COM | Como jugador, quiero anotarme para la proxima pichanga |
+| E003-HU-003 | Ver Inscritos | 🟢 REF | Como usuario, quiero ver quienes se anotaron |
+| E003-HU-004 | Cerrar Inscripciones | 🟢 REF | Como admin, quiero cerrar las inscripciones |
+| E003-HU-005 | Asignar Equipos | 🟢 REF | Como admin, quiero distribuir jugadores en equipos |
+| E003-HU-006 | Ver Mi Equipo | 🟢 REF | Como jugador, quiero saber a que equipo/color pertenezco |
+| E003-HU-007 | Cancelar Inscripcion | 🟢 REF | Como jugador, quiero cancelar mi asistencia |
+| E003-HU-008 | Editar Fecha | 🟢 REF | Como admin, quiero editar una fecha de pichanga existente |
+| E003-HU-009 | Listado Fechas por Rol | 🟢 REF | Como usuario, quiero ver fechas segun mi rol y participacion |
+| E003-HU-010 | Finalizar Fecha | DRF | Como admin, quiero finalizar una pichanga para registrarla en historial |
 
 ## Dependencias
 - E001: Login de Usuario

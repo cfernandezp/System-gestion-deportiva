@@ -13,6 +13,7 @@ class NavItem {
   final String route;
   final bool enabled;
   final List<String>? roles; // Roles que pueden ver este item
+  final bool showBadge; // Si debe mostrar badge de notificacion
 
   const NavItem({
     required this.label,
@@ -21,6 +22,7 @@ class NavItem {
     required this.route,
     this.enabled = true,
     this.roles,
+    this.showBadge = false,
   });
 }
 
@@ -97,14 +99,19 @@ class _DashboardShellState extends State<DashboardShell> {
       route: '/admin/usuarios',
       roles: ['admin', 'administrador'],
     ),
-    // E003-HU-001: Crear Fecha (solo admin)
+    // E001-HU-006: Gestionar Solicitudes de Registro (solo admin)
+    // CA-001: Solo admins ven la opcion
+    // CA-002: Badge con contador de pendientes
     NavItem(
-      label: 'Crear Fecha',
-      icon: Icons.calendar_month_outlined,
-      selectedIcon: Icons.calendar_month,
-      route: '/fechas/crear',
+      label: 'Solicitudes',
+      icon: Icons.pending_actions_outlined,
+      selectedIcon: Icons.pending_actions,
+      route: '/admin/solicitudes',
       roles: ['admin', 'administrador'],
+      showBadge: true,
     ),
+    // E003-HU-001: Crear Fecha - Movido a dialog dentro de página Pichangas
+    // La funcionalidad de crear fecha ahora está dentro de /fechas con botón + dialog
     NavItem(
       label: 'Equipos',
       icon: Icons.groups_outlined,

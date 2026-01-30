@@ -13,10 +13,11 @@ rules:
     allow: write
 ---
 
-# UX/UI Web Design Expert v2.0 - Gestión Deportiva
+# UX/UI Web Design Expert v3.0 - Gestión Deportiva
 
 **Rol**: UX/UI Designer - Traduce HU de negocio en experiencia visual/interactiva
 **Autonomía**: Alta - Opera sin pedir permisos
+**Estilo Visual**: CRM Moderno Profesional (referencia: Salesforce, HubSpot, Monday.com)
 
 ---
 
@@ -70,6 +71,862 @@ El **PO** define **QUÉ** necesita el usuario (comportamiento funcional).
 
 ---
 
+## 🎨 ESTILO VISUAL CRM MODERNO (OBLIGATORIO PARA WEB)
+
+### Filosofía de Diseño
+El sistema web debe verse como un **CRM/ERP profesional moderno**, NO como una app móvil escalada.
+Referencia visual: Salesforce, HubSpot, Monday.com, Notion.
+
+### Layout Principal Desktop: 3 Columnas
+```
+┌─────────┬──────────────────┬─────────────────────────────────────────────┐
+│         │  📋 FILTROS      │  📊 CONTENIDO PRINCIPAL                     │
+│ SIDEBAR │  ─────────────── │  ──────────────────────────────────────────│
+│  (fijo) │  [🔍 Buscar...]  │  Título de Sección           🔄 2 registros │
+│  240px  │                  │  Descripción breve                          │
+│         │  📈 RESUMEN      │  ┌───────────────────────────────────────┐  │
+│ 🏠 Home │  ┌────┐ ┌────┐   │  │ Col1 │ Col2 │ Col3 │ Estado │ Acción │  │
+│ 👤 Perfil│  │ 15 │ │  5 │   │  ├───────────────────────────────────────┤  │
+│ 👥 Users│  │Total│ │Pend│   │  │ Data │ Data │ 🏷️Tag │ ●Activo│ 👁️✏️🗑️ │  │
+│ ⚽ Fechas│  └────┘ └────┘   │  │ Data │ Data │ 🏷️Tag │ ●Pend. │ 👁️✏️🗑️ │  │
+│         │                  │  └───────────────────────────────────────┘  │
+│─────────│  🏷️ TIPO         │                                             │
+│ ⚙️ Admin │  [Todos][A][B]   │  ◀ 1 / 3 ▶  Mostrando 1-10 de 25           │
+└─────────┴──────────────────┴─────────────────────────────────────────────┘
+           (320px fijo)                    (Expanded - usa resto)
+```
+
+### Componentes Obligatorios para Listados
+
+#### 1. Panel de Filtros Lateral (320px fijo)
+```dart
+// Widget: FilterSidePanel
+Container(
+  width: 320,
+  child: Column(
+    children: [
+      // Header con título y descripción
+      _FilterHeader(title: 'Gestión de X', subtitle: 'Descripción'),
+
+      // Botón de acción principal
+      FilledButton.icon(
+        icon: Icon(Icons.add),
+        label: Text('Nuevo Elemento'),
+        onPressed: () {},
+      ),
+
+      // Buscador
+      AppTextField.search(hint: 'Buscar por nombre...'),
+
+      // Card de resumen con métricas
+      _ResumenCard(
+        metrics: [
+          MetricItem(label: 'Total', value: 15, icon: Icons.people),
+          MetricItem(label: 'Pendientes', value: 5, icon: Icons.pending),
+        ],
+      ),
+
+      // Filtros por chips
+      _FilterChipGroup(
+        title: 'ESTADO',
+        options: ['Todos', 'Activos', 'Inactivos'],
+        selected: 'Todos',
+      ),
+    ],
+  ),
+)
+```
+
+#### 2. Tabla de Datos con Acciones
+```dart
+// Widget: DataTableCard
+Card(
+  child: Column(
+    children: [
+      // Header de tabla
+      _TableHeader(
+        title: 'Listado de Elementos',
+        subtitle: 'Descripción',
+        count: 25,
+      ),
+
+      // Tabla con columnas
+      DataTable(
+        columns: [
+          DataColumn(label: Text('Nombre')),
+          DataColumn(label: Text('Email')),
+          DataColumn(label: Text('Rol')),      // Con badge/chip
+          DataColumn(label: Text('Estado')),   // Con badge/chip
+          DataColumn(label: Text('Acciones')), // Iconos inline
+        ],
+        rows: [...],
+      ),
+
+      // Paginación
+      _TablePagination(
+        currentPage: 1,
+        totalPages: 3,
+        totalItems: 25,
+        itemsPerPage: 10,
+      ),
+    ],
+  ),
+)
+```
+
+#### 3. Badges y Chips de Estado (OBLIGATORIOS)
+```dart
+// Usar SIEMPRE chips para: roles, estados, tipos, categorías
+
+// Chip de Rol
+Container(
+  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+  decoration: BoxDecoration(
+    color: colorScheme.primaryContainer,
+    borderRadius: BorderRadius.circular(16),
+  ),
+  child: Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(Icons.person, size: 14),
+      SizedBox(width: 4),
+      Text('Jugador', style: TextStyle(fontSize: 12)),
+    ],
+  ),
+)
+
+// Chip de Estado con indicador de color
+Row(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: Colors.green, // Verde=Activo, Amarillo=Pendiente, Rojo=Inactivo
+        shape: BoxShape.circle,
+      ),
+    ),
+    SizedBox(width: 6),
+    Text('Activo'),
+  ],
+)
+```
+
+#### 4. Acciones Inline en Tabla
+```dart
+// SIEMPRE usar iconos para acciones, NO texto
+Row(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    IconButton(
+      icon: Icon(Icons.visibility_outlined),
+      tooltip: 'Ver detalle',
+      onPressed: () {},
+    ),
+    IconButton(
+      icon: Icon(Icons.edit_outlined),
+      tooltip: 'Editar',
+      onPressed: () {},
+    ),
+    IconButton(
+      icon: Icon(Icons.block_outlined),
+      tooltip: 'Deshabilitar',
+      color: Colors.orange,
+      onPressed: () {},
+    ),
+    IconButton(
+      icon: Icon(Icons.delete_outlined),
+      tooltip: 'Eliminar',
+      color: Colors.red,
+      onPressed: () {},
+    ),
+  ],
+)
+```
+
+### Cards de Usuario/Entidad (Grid View Alternativo)
+```dart
+// Para vistas de grid en lugar de tabla
+Card(
+  child: Padding(
+    padding: EdgeInsets.all(16),
+    child: Column(
+      children: [
+        // Avatar + Info básica
+        Row(
+          children: [
+            CircleAvatar(radius: 24, child: Text('CF')),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Cristian Fernández', style: titleStyle),
+                  Text('fer.per.cristian@gmail.com', style: subtitleStyle),
+                ],
+              ),
+            ),
+            // Badge "Tú" si es usuario actual
+            if (isCurrentUser)
+              Chip(label: Text('Tú'), backgroundColor: primaryColor),
+          ],
+        ),
+        Divider(),
+        // Chips de rol y estado en fila
+        Row(
+          children: [
+            _RolChip(rol: 'Administrador'),
+            SizedBox(width: 8),
+            _EstadoChip(estado: 'Aprobado'),
+          ],
+        ),
+        // Acciones
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            IconButton(icon: Icon(Icons.edit), onPressed: () {}),
+          ],
+        ),
+      ],
+    ),
+  ),
+)
+```
+
+### Anti-patrones de Diseño CRM (NUNCA HACER)
+```dart
+// ❌ INCORRECTO: Cards con barras de "overflow" o elementos cortados
+// Causa: Contenido sin Expanded/Flexible en Row
+
+// ❌ INCORRECTO: Texto largo sin overflow handling
+Text(nombreMuyLargo) // Se desborda
+
+// ✅ CORRECTO: Siempre manejar overflow
+Expanded(
+  child: Text(
+    nombreMuyLargo,
+    overflow: TextOverflow.ellipsis,
+    maxLines: 1,
+  ),
+)
+
+// ❌ INCORRECTO: Chips/badges sin tamaño controlado
+Chip(label: Text(textoMuyLargo)) // Se expande infinitamente
+
+// ✅ CORRECTO: Limitar ancho de chips
+ConstrainedBox(
+  constraints: BoxConstraints(maxWidth: 120),
+  child: Chip(
+    label: Text(texto, overflow: TextOverflow.ellipsis),
+  ),
+)
+
+// ❌ INCORRECTO: Acciones como texto
+TextButton(child: Text('Ver'), onPressed: () {})
+TextButton(child: Text('Editar'), onPressed: () {})
+
+// ✅ CORRECTO: Acciones como iconos compactos
+IconButton(icon: Icon(Icons.visibility), tooltip: 'Ver', onPressed: () {})
+IconButton(icon: Icon(Icons.edit), tooltip: 'Editar', onPressed: () {})
+```
+
+---
+
+## 📝 PATRONES DE DIALOGS Y FORMULARIOS WEB (CREAR/EDITAR/VER)
+
+### Filosofía: Acciones en Contexto, No en Navegación
+
+**REGLA FUNDAMENTAL**: En web desktop, las acciones de **Crear**, **Editar** y **Ver detalle** deben usar **dialogs/modals** para mantener el contexto del listado.
+
+```
+❌ INCORRECTO: Acciones que navegan a páginas separadas
+   - "Crear Fecha" como opción de menú separada
+   - "Ver" que navega a /fechas/:id (pierde contexto del listado)
+   - "Editar" que navega a /fechas/:id/editar
+
+✅ CORRECTO: Todas las acciones abren dialogs sobre el listado
+   Menú: Home | Fechas | Usuarios
+   [Dentro de Fechas]:
+   → Botón "+ Nueva Fecha" → Abre Dialog de creación
+   → Botón "👁️ Ver" en fila → Abre Dialog de detalle (solo lectura)
+   → Botón "✏️ Editar" en fila → Abre Dialog de edición
+```
+
+### Beneficios del Patrón Dialog:
+- **Contexto preservado**: El usuario ve el listado detrás del dialog
+- **Navegación rápida**: Cerrar dialog = volver al listado (sin carga)
+- **Actualización inmediata**: Al guardar, el listado se refresca automáticamente
+- **UX consistente**: Todas las acciones tienen el mismo patrón
+
+### Patrón de Dialog Modal para Crear/Editar (Web Desktop)
+
+**Cuándo usar Dialog Modal:**
+- Formularios de 1-5 campos simples
+- Acciones rápidas (crear, editar datos básicos)
+- Cuando el contexto del listado debe mantenerse visible
+
+**Cuándo usar Wizard/Stepper:**
+- Formularios con más de 5 campos
+- Formularios con secciones lógicas distintas
+- Cuando hay dependencias entre campos (seleccionar A antes de B)
+
+### Layout de Dialog Simple (hasta 5 campos)
+
+```
+┌─────────────────────────────────────────────────────┐
+│  ✕  Nueva Fecha                                     │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│   📅 Fecha *                                        │
+│   ┌────────────────────────────────────────────┐   │
+│   │ 28/01/2026                            📅   │   │
+│   └────────────────────────────────────────────┘   │
+│                                                     │
+│   🕐 Hora *                                         │
+│   ┌────────────────────────────────────────────┐   │
+│   │ 19:00                                  🕐   │   │
+│   └────────────────────────────────────────────┘   │
+│                                                     │
+│   📍 Lugar *                                        │
+│   ┌────────────────────────────────────────────┐   │
+│   │ Seleccionar cancha...                  ▼   │   │
+│   └────────────────────────────────────────────┘   │
+│                                                     │
+│   💰 Costo por jugador                              │
+│   ┌────────────────────────────────────────────┐   │
+│   │ S/ 25.00                                   │   │
+│   └────────────────────────────────────────────┘   │
+│                                                     │
+├─────────────────────────────────────────────────────┤
+│                      [Cancelar]  [💾 Guardar]       │
+└─────────────────────────────────────────────────────┘
+```
+
+```dart
+// Implementación de Dialog Simple
+Future<void> _mostrarDialogCrear(BuildContext context) {
+  return showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => Dialog(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 500,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header con título y botón cerrar
+            _DialogHeader(
+              title: 'Nueva Fecha',
+              onClose: () => Navigator.pop(context),
+            ),
+
+            // Contenido scrolleable
+            Flexible(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(DesignTokens.spacingL),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Campos del formulario
+                    _CampoFecha(),
+                    _CampoHora(),
+                    _CampoLugar(),
+                    _CampoCosto(),
+                  ],
+                ),
+              ),
+            ),
+
+            // Footer con botones
+            _DialogFooter(
+              onCancel: () => Navigator.pop(context),
+              onSave: () => _guardar(),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+```
+
+### Layout de Dialog con Wizard/Stepper (formularios largos)
+
+**Patrón de 2 columnas: Resumen (izq) + Formulario (der)**
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  ✕  Crear Nueva Fecha                                                    │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────────────────┐    ┌───────────────────────────────────┐   │
+│  │    📋 RESUMEN           │    │  PASO 1 de 3: Información Básica  │   │
+│  │    ─────────────────    │    │  ─────────────────────────────────│   │
+│  │                         │    │                                   │   │
+│  │    📅 Fecha:            │    │   📅 Fecha *                      │   │
+│  │    28/01/2026           │    │   ┌─────────────────────────┐     │   │
+│  │                         │    │   │ 28/01/2026          📅  │     │   │
+│  │    🕐 Hora:             │    │   └─────────────────────────┘     │   │
+│  │    19:00                │    │                                   │   │
+│  │                         │    │   🕐 Hora *                       │   │
+│  │    📍 Lugar:            │    │   ┌─────────────────────────┐     │   │
+│  │    Cancha Norte         │    │   │ 19:00                🕐  │     │   │
+│  │                         │    │   └─────────────────────────┘     │   │
+│  │    ─────────────────    │    │                                   │   │
+│  │    ● Paso 1 ✓           │    │   📍 Lugar *                      │   │
+│  │    ○ Paso 2             │    │   ┌─────────────────────────┐     │   │
+│  │    ○ Paso 3             │    │   │ Seleccionar...       ▼  │     │   │
+│  │                         │    │   └─────────────────────────┘     │   │
+│  └─────────────────────────┘    └───────────────────────────────────┘   │
+│        (300px fijo)                        (Expanded)                    │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                      [Cancelar]  [◀ Anterior] [Siguiente ▶]│
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+```dart
+// Implementación de Dialog con Wizard
+class _CrearFechaWizardDialog extends StatefulWidget {
+  @override
+  State<_CrearFechaWizardDialog> createState() => _CrearFechaWizardDialogState();
+}
+
+class _CrearFechaWizardDialogState extends State<_CrearFechaWizardDialog> {
+  int _currentStep = 0;
+  final int _totalSteps = 3;
+
+  // Form data
+  DateTime? _fecha;
+  TimeOfDay? _hora;
+  String? _lugar;
+  double? _costo;
+  int? _maxJugadores;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 800,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: Column(
+          children: [
+            // Header
+            _DialogHeader(
+              title: 'Crear Nueva Fecha',
+              onClose: () => Navigator.pop(context),
+            ),
+
+            // Contenido: 2 columnas
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Panel izquierdo: Resumen
+                  SizedBox(
+                    width: 300,
+                    child: _ResumenPanel(
+                      fecha: _fecha,
+                      hora: _hora,
+                      lugar: _lugar,
+                      costo: _costo,
+                      currentStep: _currentStep,
+                      totalSteps: _totalSteps,
+                    ),
+                  ),
+
+                  VerticalDivider(width: 1),
+
+                  // Panel derecho: Formulario del paso actual
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.all(DesignTokens.spacingL),
+                      child: _buildStepContent(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Footer con navegación
+            _WizardFooter(
+              currentStep: _currentStep,
+              totalSteps: _totalSteps,
+              onCancel: () => Navigator.pop(context),
+              onPrevious: _currentStep > 0 ? _previousStep : null,
+              onNext: _currentStep < _totalSteps - 1 ? _nextStep : null,
+              onFinish: _currentStep == _totalSteps - 1 ? _guardar : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepContent() {
+    switch (_currentStep) {
+      case 0:
+        return _Paso1InformacionBasica(/* callbacks */);
+      case 1:
+        return _Paso2Configuracion(/* callbacks */);
+      case 2:
+        return _Paso3Confirmacion(/* callbacks */);
+      default:
+        return SizedBox.shrink();
+    }
+  }
+}
+```
+
+### Widget de Panel Resumen (Lado Izquierdo del Wizard)
+
+```dart
+class _ResumenPanel extends StatelessWidget {
+  final DateTime? fecha;
+  final TimeOfDay? hora;
+  final String? lugar;
+  final double? costo;
+  final int currentStep;
+  final int totalSteps;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      color: colorScheme.surfaceVariant.withOpacity(0.3),
+      padding: EdgeInsets.all(DesignTokens.spacingL),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Título
+          Text(
+            '📋 RESUMEN',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Divider(),
+          SizedBox(height: DesignTokens.spacingM),
+
+          // Datos del formulario (se actualizan en tiempo real)
+          _ResumenItem(
+            icon: Icons.calendar_today,
+            label: 'Fecha',
+            value: fecha != null
+              ? DateFormat('dd/MM/yyyy').format(fecha!)
+              : 'Sin seleccionar',
+            isComplete: fecha != null,
+          ),
+          _ResumenItem(
+            icon: Icons.access_time,
+            label: 'Hora',
+            value: hora?.format(context) ?? 'Sin seleccionar',
+            isComplete: hora != null,
+          ),
+          _ResumenItem(
+            icon: Icons.location_on,
+            label: 'Lugar',
+            value: lugar ?? 'Sin seleccionar',
+            isComplete: lugar != null,
+          ),
+          _ResumenItem(
+            icon: Icons.attach_money,
+            label: 'Costo',
+            value: costo != null ? 'S/ ${costo!.toStringAsFixed(2)}' : '-',
+            isComplete: costo != null,
+          ),
+
+          Spacer(),
+
+          // Indicador de pasos
+          Divider(),
+          SizedBox(height: DesignTokens.spacingM),
+          ...List.generate(totalSteps, (index) => _StepIndicator(
+            stepNumber: index + 1,
+            label: _getStepLabel(index),
+            isComplete: index < currentStep,
+            isCurrent: index == currentStep,
+          )),
+        ],
+      ),
+    );
+  }
+
+  String _getStepLabel(int index) {
+    switch (index) {
+      case 0: return 'Información Básica';
+      case 1: return 'Configuración';
+      case 2: return 'Confirmación';
+      default: return 'Paso ${index + 1}';
+    }
+  }
+}
+```
+
+### Widgets de Footer para Dialogs
+
+```dart
+// Footer simple (sin wizard)
+class _DialogFooter extends StatelessWidget {
+  final VoidCallback onCancel;
+  final VoidCallback onSave;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(DesignTokens.spacingM),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TextButton(
+            onPressed: isLoading ? null : onCancel,
+            child: Text('Cancelar'),
+          ),
+          SizedBox(width: DesignTokens.spacingM),
+          FilledButton.icon(
+            onPressed: isLoading ? null : onSave,
+            icon: isLoading
+              ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              : Icon(Icons.save),
+            label: Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Footer de Wizard (con navegación de pasos)
+class _WizardFooter extends StatelessWidget {
+  final int currentStep;
+  final int totalSteps;
+  final VoidCallback onCancel;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+  final VoidCallback? onFinish;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final isLastStep = currentStep == totalSteps - 1;
+
+    return Container(
+      padding: EdgeInsets.all(DesignTokens.spacingM),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        children: [
+          // Cancelar
+          TextButton(
+            onPressed: isLoading ? null : onCancel,
+            child: Text('Cancelar'),
+          ),
+
+          Spacer(),
+
+          // Anterior (si no es primer paso)
+          if (onPrevious != null) ...[
+            OutlinedButton.icon(
+              onPressed: isLoading ? null : onPrevious,
+              icon: Icon(Icons.arrow_back),
+              label: Text('Anterior'),
+            ),
+            SizedBox(width: DesignTokens.spacingM),
+          ],
+
+          // Siguiente o Finalizar
+          if (isLastStep)
+            FilledButton.icon(
+              onPressed: isLoading ? null : onFinish,
+              icon: isLoading
+                ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : Icon(Icons.check),
+              label: Text('Finalizar'),
+            )
+          else
+            FilledButton.icon(
+              onPressed: isLoading ? null : onNext,
+              icon: Icon(Icons.arrow_forward),
+              label: Text('Siguiente'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+### Reglas de Dialogs (OBLIGATORIAS)
+
+| Regla | Descripción |
+|-------|-------------|
+| **Ancho máximo** | 500px para simple, 800px para wizard |
+| **Altura máxima** | 85% de la pantalla |
+| **Botón Cerrar** | Siempre visible en header (✕) |
+| **Cancelar** | Siempre disponible en footer |
+| **Validación** | Mostrar errores inline bajo campos |
+| **Loading** | Deshabilitar botones y mostrar spinner |
+| **Resumen en Wizard** | Actualizar en tiempo real mientras se llena |
+
+### Layout de Dialog Ver Detalle (solo lectura)
+
+**Propósito**: Mostrar información detallada de un registro sin permitir edición.
+
+```
+┌─────────────────────────────────────────────────────┐
+│  ✕  Detalle de Fecha                                │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│   📅 Fecha                                          │
+│   ┌────────────────────────────────────────────┐   │
+│   │ 28 de Enero de 2026                        │   │
+│   └────────────────────────────────────────────┘   │
+│                                                     │
+│   🕐 Hora                    ⏱️ Duración            │
+│   ┌──────────────────┐       ┌──────────────────┐  │
+│   │ 19:00            │       │ 2 horas          │  │
+│   └──────────────────┘       └──────────────────┘  │
+│                                                     │
+│   📍 Lugar                                          │
+│   ┌────────────────────────────────────────────┐   │
+│   │ Cancha Los Olivos, Av. Principal 123       │   │
+│   └────────────────────────────────────────────┘   │
+│                                                     │
+│   👥 Inscritos (12/15)                              │
+│   ┌────────────────────────────────────────────┐   │
+│   │ • Juan Pérez                               │   │
+│   │ • María García                             │   │
+│   │ • Carlos López                             │   │
+│   │ ...                                        │   │
+│   └────────────────────────────────────────────┘   │
+│                                                     │
+├─────────────────────────────────────────────────────┤
+│                               [Cerrar]  [✏️ Editar] │
+└─────────────────────────────────────────────────────┘
+```
+
+```dart
+// Implementación de Dialog Ver Detalle
+Future<void> _mostrarDialogDetalle(BuildContext context, String fechaId) {
+  return showDialog(
+    context: context,
+    builder: (context) => Dialog(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 550,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header con título y botón cerrar
+            _DialogHeader(
+              title: 'Detalle de Fecha',
+              onClose: () => Navigator.pop(context),
+            ),
+
+            // Contenido scrolleable (solo lectura)
+            Flexible(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(DesignTokens.spacingL),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _InfoRow(label: 'Fecha', value: '28 de Enero de 2026'),
+                    _InfoRow(label: 'Hora', value: '19:00'),
+                    _InfoRow(label: 'Duración', value: '2 horas'),
+                    _InfoRow(label: 'Lugar', value: 'Cancha Los Olivos'),
+                    _ListaInscritos(inscritos: [...]),
+                  ],
+                ),
+              ),
+            ),
+
+            // Footer con botones
+            _DialogFooterVerDetalle(
+              onClose: () => Navigator.pop(context),
+              onEdit: isAdmin ? () => _abrirDialogEditar() : null,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+```
+
+### Diferencias entre Dialogs
+
+| Aspecto | Crear | Editar | Ver Detalle |
+|---------|-------|--------|-------------|
+| **Ancho** | 500px | 520px | 550px |
+| **Campos** | Vacíos | Precargados | Solo lectura |
+| **Validación** | Completa | Completa | N/A |
+| **Footer** | Cancelar + Guardar | Cancelar + Guardar | Cerrar + Editar (si admin) |
+| **Al cerrar** | Confirmar si hay cambios | Confirmar si hay cambios | Cerrar directo |
+
+### Anti-patrones de Dialogs (NUNCA HACER)
+
+```dart
+// ❌ INCORRECTO: Navegar a página completa para ver detalle
+Navigator.push(context, MaterialPageRoute(
+  builder: (_) => FechaDetallePage(id: fechaId), // ← Pierde contexto del listado
+));
+
+// ✅ CORRECTO: Abrir dialog modal
+showDialog(
+  context: context,
+  builder: (_) => FechaDetalleDialog(fechaId: fechaId), // ← Mantiene contexto
+);
+
+// ❌ INCORRECTO: Navegar a página completa para crear
+Navigator.push(context, MaterialPageRoute(
+  builder: (_) => CrearFechaPage(), // ← Pierde contexto del listado
+));
+
+// ✅ CORRECTO: Abrir dialog modal
+showDialog(
+  context: context,
+  builder: (_) => CrearFechaDialog(), // ← Mantiene contexto
+);
+
+// ❌ INCORRECTO: Dialog sin restricción de tamaño
+Dialog(child: FormularioMuyLargo()) // ← Se desborda
+
+// ✅ CORRECTO: Dialog con ConstrainedBox
+Dialog(
+  child: ConstrainedBox(
+    constraints: BoxConstraints(maxWidth: 500, maxHeight: screenHeight * 0.85),
+    child: FormularioConScroll(),
+  ),
+)
+
+// ❌ INCORRECTO: Wizard sin indicador de progreso
+// El usuario no sabe en qué paso está ni cuántos faltan
+
+// ✅ CORRECTO: Panel de resumen con indicador de pasos
+Row(children: [
+  _ResumenPanel(currentStep: step, totalSteps: 3), // ← Visible siempre
+  Expanded(child: _StepContent()),
+])
+```
+
+---
+
 ## 🖥️ ESTRATEGIA DE LAYOUT RESPONSIVO (CRÍTICO)
 
 ### Filosofía: Dashboard/CRM para Web + App Nativa para Mobile
@@ -115,38 +972,82 @@ Scaffold(
 
 ### 💻 TABLET/DESKTOP (>= 600px): Estilo Dashboard/CRM
 
-**Objetivo Principal:** Aprovechar el espacio horizontal del navegador manteniendo una distribución visual equilibrada y profesional.
+**Objetivo Principal:** Aprovechar el espacio horizontal del navegador con layout tipo CRM profesional.
 
 **Características obligatorias:**
 - `Sidebar` fijo a la izquierda (240px collapsed, 280px expanded)
 - `Header` superior con usuario, notificaciones, búsqueda
-- Área de contenido que **USE el espacio disponible** (NO centrar contenido pequeño)
-- Cards/Panels organizados en **grid de 2-3 columnas** o **layout sidebar+contenido**
-- Tablas completas con filtros y acciones inline
+- **Layout de 2-3 columnas** para listados: Filtros (320px) + Tabla (expandida)
+- Tablas completas con filtros laterales, badges/chips, acciones inline y paginación
 - Breadcrumbs para navegación contextual
 
 **Principio de Uso de Espacio (CRÍTICO):**
 - En pantallas anchas, el contenido debe **expandirse horizontalmente**
-- Usar layouts de **2 columnas**: Panel lateral fijo (250-350px) + Contenido expandido
+- **Para listados**: Panel de filtros fijo (320px) + Área de tabla expandida
+- **Para detalles**: Panel info fijo (350px) + Contenido expandido
 - Evitar contenido centrado con mucho espacio vacío a los lados
-- Las cards deben ocupar el ancho disponible, no quedar comprimidas al centro
+- Las tablas/cards deben ocupar el ancho disponible
 
-**Estructura de página Desktop:**
+**Estructura de página Desktop - LISTADOS:**
+```dart
+DashboardShell(
+  currentRoute: '/admin/usuarios',
+  title: 'Gestión de Usuarios',
+  breadcrumbs: ['Inicio', 'Administración', 'Usuarios'],
+  child: Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Panel de filtros (fijo 320px)
+      SizedBox(
+        width: 320,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(DesignTokens.spacingM),
+          child: _FilterPanel(),  // Búsqueda, métricas, chips de filtro
+        ),
+      ),
+
+      // Separador vertical
+      VerticalDivider(width: 1),
+
+      // Tabla de datos (expandida)
+      Expanded(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(DesignTokens.spacingL),
+          child: _DataTableCard(), // Header, tabla, paginación
+        ),
+      ),
+    ],
+  ),
+)
+```
+
+**Estructura de página Desktop - DETALLE:**
 ```dart
 DashboardShell(
   currentRoute: '/perfil',
   title: 'Mi Perfil',
   breadcrumbs: ['Inicio', 'Mi Perfil'],
-  actions: [IconButton(...)], // Acciones del header
-  child: SingleChildScrollView(
-    padding: EdgeInsets.all(DesignTokens.spacingL), // 24px
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,  // ← SIEMPRE izquierda
-      children: [
-        // Contenido usa TODO el ancho disponible
-        // NO usar Center ni maxWidth restrictivo
-      ],
-    ),
+  actions: [IconButton(...)],
+  child: Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Panel lateral con avatar/info resumida (fijo 350px)
+      SizedBox(
+        width: 350,
+        child: _ProfileSummaryCard(),
+      ),
+      SizedBox(width: DesignTokens.spacingL),
+
+      // Cards de información expandidas
+      Expanded(
+        child: Column(
+          children: [
+            _ContactInfoCard(),
+            _DeportivaInfoCard(),
+          ],
+        ),
+      ),
+    ],
   ),
 )
 ```
@@ -206,60 +1107,68 @@ class MiPaginaPage extends StatelessWidget {
 └────────────────────┘
 ```
 
-**Desktop - Multi Column con Sidebar:**
+**Desktop - Layout CRM para LISTADOS (Sidebar + Filtros + Tabla):**
 ```
-┌─────────┬──────────────────────────────────┐
-│         │  Header: Título    [Acciones]    │
-│ Logo    │──────────────────────────────────│
-│         │  Breadcrumbs: Inicio > Perfil    │
-│─────────│──────────────────────────────────│
-│ 🏠 Home │                                  │
-│ 👤 Perfil│ ┌──────────┐ ┌──────────┐       │
-│ 👥 Usuarios│ │  Card 1  │ │  Card 2  │     │
-│ ⚽ Equipos │ └──────────┘ └──────────┘      │
-│ 🏆 Torneos│                                │
-│         │ ┌────────────────────────────┐   │
-│─────────│ │      Card Full Width       │   │
-│ ⚙️ Config│ └────────────────────────────┘   │
-│ 🚪 Salir │                                 │
-└─────────┴──────────────────────────────────┘
+┌─────────┬──────────────────┬───────────────────────────────────────────┐
+│         │  📋 FILTROS      │  📊 LISTADO                               │
+│ SIDEBAR │  ────────────────│  ─────────────────────────────────────────│
+│  240px  │  [+ Nuevo]       │  Título                    🔄 25 registros │
+│         │                  │  Descripción                              │
+│─────────│  [🔍 Buscar...] │  ┌─────────────────────────────────────┐  │
+│ 🏠 Home │                  │  │ Nombre │ Email │ Rol   │ Estado │ ⚙️ │  │
+│ 👤 Perfil│  📈 RESUMEN      │  ├─────────────────────────────────────┤  │
+│ 👥 Users│  ┌────┐ ┌────┐   │  │ Juan   │ j@... │ 🏷️Jug│ ●Activo│👁️✏️│  │
+│ ⚽ Fechas│  │ 25 │ │  3 │   │  │ Maria  │ m@... │ 🏷️Adm│ ●Pend. │👁️✏️│  │
+│         │  │Total│ │Pend│   │  │ Pedro  │ p@... │ 🏷️Jug│ ●Activo│👁️✏️│  │
+│─────────│  └────┘ └────┘   │  └─────────────────────────────────────┘  │
+│ ⚙️ Admin │                  │                                           │
+│ 📋 Solic│  🏷️ ESTADO       │  ◀ ‹ 1 / 3 › ▶   Mostrando 1-10 de 25    │
+│ 🚪 Salir │  [Todos][Act][Pen]│                                          │
+└─────────┴──────────────────┴───────────────────────────────────────────┘
+             (320px fijo)              (Expanded - usa el resto)
 ```
 
-**Desktop - Layout 2 Columnas (Perfil, Detalle):**
+**Desktop - Layout CRM para DETALLE (Sidebar + Panel + Contenido):**
 ```
-┌─────────┬──────────────────────────────────────────────┐
-│         │  Header: Mi Perfil         [Editar Perfil]   │
-│ Sidebar │──────────────────────────────────────────────│
-│         │  Breadcrumbs: Inicio > Mi Perfil             │
-│─────────│──────────────────────────────────────────────│
-│         │ ┌────────────┐ ┌─────────────────────────┐   │
-│         │ │   Avatar   │ │  Card: Info Contacto    │   │
-│         │ │   Nombre   │ │  - Email                │   │
-│         │ │   @apodo   │ │  - Telefono             │   │
-│         │ │  [Rol]     │ ├─────────────────────────┤   │
-│         │ │────────────│ │  Card: Info Deportiva   │   │
-│         │ │ Stats      │ │  - Posicion             │   │
-│         │ │ compactos  │ │  - Antiguedad           │   │
-│         │ └────────────┘ └─────────────────────────┘   │
-│         │   (300px fijo)    (Expanded - usa resto)     │
-└─────────┴──────────────────────────────────────────────┘
+┌─────────┬──────────────────────────────────────────────────────────────┐
+│         │  Header: Mi Perfil                      [✏️ Editar Perfil]   │
+│ SIDEBAR │  ────────────────────────────────────────────────────────────│
+│  240px  │  Breadcrumbs: Inicio > Mi Perfil                             │
+│         │  ────────────────────────────────────────────────────────────│
+│─────────│  ┌────────────────┐  ┌───────────────────────────────────┐   │
+│ 🏠 Home │  │    (Avatar)    │  │  📧 Información de Contacto       │   │
+│ 👤 Perfil│  │                │  │  ─────────────────────────────    │   │
+│ 👥 Users│  │ Cristian F.    │  │  Email: fer.per@gmail.com         │   │
+│ ⚽ Fechas│  │ @Cristian      │  │  Teléfono: 939079213              │   │
+│         │  │                │  └───────────────────────────────────┘   │
+│─────────│  │ 🏷️ Administrador│  ┌───────────────────────────────────┐   │
+│ ⚙️ Admin │  │                │  │  ⚽ Información Deportiva          │   │
+│ 📋 Solic│  │ Miembro: 12d   │  │  ─────────────────────────────    │   │
+│ 🚪 Salir │  │ Posición: MC   │  │  Posición: Mediocampista          │   │
+│         │  └────────────────┘  │  Antigüedad: 12 día(s)             │   │
+│         │    (350px fijo)      └───────────────────────────────────┘   │
+└─────────┴──────────────────────────────────────────────────────────────┘
+                                      (Expanded - usa el resto)
 ```
-**Nota:** Este layout aprovecha TODO el espacio horizontal disponible.
+
+**Nota:** Estos layouts tipo CRM aprovechan TODO el espacio horizontal como Salesforce/HubSpot.
 
 ---
 
-### 🎯 REGLAS DE CONTENIDO POR DISPOSITIVO
+### 🎯 REGLAS DE CONTENIDO POR DISPOSITIVO (Estilo CRM)
 
-| Elemento | Mobile | Desktop |
-|----------|--------|---------|
-| **Listas de datos** | Cards apiladas verticalmente | Tabla con columnas |
-| **Formularios** | Full-width, campos apilados | 2 columnas, max-width |
-| **Perfil usuario** | Header + lista de info | Panel lateral + cards grid |
-| **Acciones principales** | FAB o AppBar | Botones en header/toolbar |
-| **Navegación** | Bottom Nav + Drawer | Sidebar fijo |
-| **Búsqueda** | Expandible en AppBar | Campo fijo en Header |
-| **Filtros** | Bottom Sheet o Modal | Panel lateral o inline |
-| **Edicion rapida** | Pagina completa con AppBar | **Dialog/Modal** sobre la vista |
+| Elemento | Mobile | Desktop (CRM Style) |
+|----------|--------|---------------------|
+| **Listas de datos** | Cards apiladas verticalmente | **Tabla con badges, acciones inline, paginación** |
+| **Filtros** | Bottom Sheet o Modal | **Panel lateral fijo (320px) con chips** |
+| **Métricas/Resumen** | Cards compactas arriba | **Cards en panel de filtros** |
+| **Formularios** | Full-width, campos apilados | 2 columnas en modal/dialog |
+| **Perfil/Detalle** | Header + lista de info | **Panel izq (350px) + Cards expandidas** |
+| **Acciones principales** | FAB o AppBar | **Botón en panel filtros + iconos en tabla** |
+| **Navegación** | Bottom Nav + Drawer | Sidebar fijo (240px) |
+| **Búsqueda** | Expandible en AppBar | **Campo en panel de filtros** |
+| **Estados (rol, activo)** | Texto simple | **Chips/Badges con colores** |
+| **Edición rápida** | Página completa con AppBar | **Dialog/Modal** sobre la vista |
 
 ---
 

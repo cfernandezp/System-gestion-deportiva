@@ -4,29 +4,18 @@
 -- Descripcion: Implementacion de tabla asignaciones_equipos y funciones RPC
 --              para permitir a jugadores ver su equipo asignado y companeros
 -- ============================================
+--
+-- ORDEN DE EJECUCION EN SUPABASE CLOUD:
+-- 1. Ejecutar PRIMERO: 2026-01-28_E003-HU-006_PASO1_enum.sql
+-- 2. Ejecutar DESPUES: Este archivo (2026-01-28_E003-HU-006_ver_mi_equipo.sql)
+--
+-- ============================================
 
 -- ============================================
--- PARTE 1: TIPO ENUM PARA COLORES DE EQUIPO
+-- PARTE 1: TABLA ASIGNACIONES_EQUIPOS
 -- ============================================
-
--- Tipo ENUM para colores de equipo (RN-005)
--- Colores predefinidos del design system
-DO $$ BEGIN
-    CREATE TYPE color_equipo AS ENUM (
-        'naranja',   -- #FF9800
-        'verde',     -- #4CAF50
-        'azul',      -- #2196F3
-        'rojo',      -- #F44336
-        'amarillo',  -- #FFEB3B
-        'blanco'     -- #FFFFFF (con borde gris)
-    );
-EXCEPTION
-    WHEN duplicate_object THEN NULL;
-END $$;
-
--- ============================================
--- PARTE 2: TABLA ASIGNACIONES_EQUIPOS
--- ============================================
+-- PREREQUISITO: El tipo ENUM 'color_equipo' debe existir
+-- Ejecutar 2026-01-28_E003-HU-006_PASO1_enum.sql primero
 
 -- Tabla: asignaciones_equipos
 -- Almacena la asignacion de jugadores a equipos para cada fecha
@@ -60,7 +49,7 @@ CREATE TRIGGER trigger_asignaciones_equipos_updated_at
     EXECUTE FUNCTION actualizar_updated_at();
 
 -- ============================================
--- PARTE 3: HABILITAR REALTIME (RN-004)
+-- PARTE 2: HABILITAR REALTIME (RN-004)
 -- ============================================
 
 -- Habilitar Supabase Realtime para actualizaciones en tiempo real
@@ -68,7 +57,7 @@ CREATE TRIGGER trigger_asignaciones_equipos_updated_at
 ALTER PUBLICATION supabase_realtime ADD TABLE asignaciones_equipos;
 
 -- ============================================
--- PARTE 4: FUNCION RPC obtener_mi_equipo
+-- PARTE 3: FUNCION RPC obtener_mi_equipo
 -- ============================================
 
 -- ============================================
@@ -278,7 +267,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================
--- PARTE 5: FUNCION RPC obtener_equipos_fecha
+-- PARTE 4: FUNCION RPC obtener_equipos_fecha
 -- ============================================
 
 -- ============================================
@@ -475,14 +464,14 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================
--- PARTE 6: PERMISOS
+-- PARTE 5: PERMISOS
 -- ============================================
 
 GRANT EXECUTE ON FUNCTION obtener_mi_equipo TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION obtener_equipos_fecha TO authenticated, service_role;
 
 -- ============================================
--- PARTE 7: ROW LEVEL SECURITY (RLS)
+-- PARTE 6: ROW LEVEL SECURITY (RLS)
 -- ============================================
 
 -- Habilitar RLS en tabla asignaciones_equipos
@@ -574,7 +563,7 @@ USING (
 );
 
 -- ============================================
--- PARTE 8: COMENTARIOS DE DOCUMENTACION
+-- PARTE 7: COMENTARIOS DE DOCUMENTACION
 -- ============================================
 
 COMMENT ON TABLE asignaciones_equipos IS 'E003-HU-006: Tabla de asignaciones de jugadores a equipos por fecha';

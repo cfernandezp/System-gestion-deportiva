@@ -13,6 +13,11 @@ Facilitar el control del tiempo de partidos y el registro de goles en tiempo rea
 - Score actualizado (ej: Naranja 2 - Verde 1)
 - Sistema de rotacion para 3 equipos
 
+## Relacion con Fechas (E003)
+- Una **Fecha** (E003) puede tener multiples **Partidos** (E004)
+- Los partidos solo existen cuando la fecha esta en estado `en_juego`
+- Jerarquia: Fecha → Partidos → Goles
+
 ## Formatos de Partido
 
 | Formato | Equipos | Partidos | Duracion/Partido |
@@ -38,19 +43,20 @@ Facilitar el control del tiempo de partidos y el registro de goles en tiempo rea
 
 | ID | Titulo | Estado | Descripcion |
 |----|--------|--------|-------------|
-| E004-HU-001 | Iniciar Partido | 🟡 PEN | Como admin, quiero iniciar un partido con temporizador |
-| E004-HU-002 | Temporizador con Alarma | 🟡 PEN | Como usuario, quiero que suene alarma al terminar el tiempo |
-| E004-HU-003 | Registrar Gol | 🟡 PEN | Como admin, quiero anotar quien hizo gol |
-| E004-HU-004 | Ver Score en Vivo | 🟡 PEN | Como usuario, quiero ver el marcador actual |
-| E004-HU-005 | Finalizar Partido | 🟡 PEN | Como admin, quiero terminar el partido y registrar resultado |
-| E004-HU-006 | Rotacion de Equipos | 🟡 PEN | Como admin, quiero gestionar que equipo entra/sale |
-| E004-HU-007 | Resumen de Jornada | 🟡 PEN | Como usuario, quiero ver resumen de todos los partidos |
+| E004-HU-001 | Iniciar Partido | 🟢 REF | Como admin, quiero iniciar un partido con temporizador |
+| E004-HU-002 | Temporizador con Alarma | 🟢 REF | Como usuario, quiero que suene alarma al terminar el tiempo |
+| E004-HU-003 | Registrar Gol | 🟢 REF | Como admin, quiero anotar quien hizo gol |
+| E004-HU-004 | Ver Score en Vivo | 🟢 REF | Como usuario, quiero ver el marcador actual |
+| E004-HU-005 | Finalizar Partido | 🟢 REF | Como admin, quiero terminar el partido y registrar resultado |
+| E004-HU-006 | Rotacion de Equipos | 🟢 REF | Como admin, quiero gestionar que equipo entra/sale |
+| E004-HU-007 | Resumen de Jornada | 🟢 REF | Como usuario, quiero ver resumen de todos los partidos |
 
 ## Dependencias
 - E001: Login de Usuario
 - E002: Gestion de Jugadores
-- E003: Gestion de Fechas
+- E003: Gestion de Fechas (estado `en_juego`)
 
 ---
-**Version**: 1.0
-**Estado**: 🟡 En Definicion
+**Version**: 1.1
+**Estado**: 🟢 Refinada
+**Refinado**: 2026-01-29

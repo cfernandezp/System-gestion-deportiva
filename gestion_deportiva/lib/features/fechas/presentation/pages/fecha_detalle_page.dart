@@ -12,6 +12,7 @@ import '../../data/models/fecha_model.dart';
 import '../bloc/inscripcion/inscripcion.dart';
 import '../bloc/mi_equipo/mi_equipo.dart';
 import '../widgets/widgets.dart';
+import '../widgets/finalizar_fecha_dialog.dart';
 
 /// Pagina de detalle de fecha con opcion de inscripcion y edicion
 /// E003-HU-002: Inscribirse a Fecha
@@ -194,6 +195,9 @@ class _MobileDetalleView extends StatelessWidget {
           // E003-HU-008 CA-001: Boton "Editar" solo visible para admin
           if (fechaDetalle != null)
             _buildEditarButton(context),
+          // E003-HU-010: Boton "Finalizar" visible para admin si estado = 'cerrada' o 'en_juego'
+          if (fechaDetalle != null)
+            _buildFinalizarButton(context),
         ],
       ),
       body: _buildContent(context),
@@ -403,6 +407,56 @@ class _MobileDetalleView extends StatelessWidget {
         backgroundColor: Theme.of(context).colorScheme.secondary,
         behavior: SnackBarBehavior.floating,
       ),
+    );
+  }
+
+  /// E003-HU-010: Boton para finalizar fecha
+  /// Solo visible para admin si estado = 'cerrada' o 'en_juego'
+  Widget _buildFinalizarButton(BuildContext context) {
+    return BlocBuilder<SessionBloc, SessionState>(
+      builder: (context, sessionState) {
+        // Solo mostrar si es admin
+        if (sessionState is! SessionAuthenticated) {
+          return const SizedBox.shrink();
+        }
+
+        final isAdmin = sessionState.rol.toLowerCase() == 'admin' ||
+            sessionState.rol.toLowerCase() == 'administrador';
+
+        if (!isAdmin) {
+          return const SizedBox.shrink();
+        }
+
+        final estado = fechaDetalle!.fecha.estado;
+
+        // Solo mostrar si estado = 'cerrada' o 'en_juego'
+        if (estado != EstadoFecha.cerrada && estado != EstadoFecha.enJuego) {
+          return const SizedBox.shrink();
+        }
+
+        return IconButton(
+          onPressed: () => _abrirFinalizarDialog(context),
+          icon: const Icon(
+            Icons.check_circle,
+            color: Color(0xFF9E9E9E),
+          ),
+          tooltip: 'Finalizar pichanga',
+        );
+      },
+    );
+  }
+
+  /// Abre el dialog de finalizar fecha
+  void _abrirFinalizarDialog(BuildContext context) {
+    FinalizarFechaDialog.show(
+      context,
+      fechaDetalle: fechaDetalle!,
+      onSuccess: () {
+        // Recargar detalle despues de finalizar
+        context.read<InscripcionBloc>().add(
+          CargarFechaDetalleEvent(fechaId: fechaId),
+        );
+      },
     );
   }
 
@@ -1013,6 +1067,9 @@ class _DesktopDetalleView extends StatelessWidget {
         // E003-HU-008 CA-001: Boton "Editar" solo visible para admin
         if (fechaDetalle != null)
           _buildEditarButton(context),
+        // E003-HU-010: Boton "Finalizar" visible para admin si estado = 'cerrada' o 'en_juego'
+        if (fechaDetalle != null)
+          _buildFinalizarButton(context),
         OutlinedButton.icon(
           onPressed: () {
             context.read<InscripcionBloc>().add(
@@ -1239,6 +1296,59 @@ class _DesktopDetalleView extends StatelessWidget {
         backgroundColor: Theme.of(context).colorScheme.secondary,
         behavior: SnackBarBehavior.floating,
       ),
+    );
+  }
+
+  /// E003-HU-010: Boton para finalizar fecha (Desktop)
+  /// Solo visible para admin si estado = 'cerrada' o 'en_juego'
+  Widget _buildFinalizarButton(BuildContext context) {
+    return BlocBuilder<SessionBloc, SessionState>(
+      builder: (context, sessionState) {
+        // Solo mostrar si es admin
+        if (sessionState is! SessionAuthenticated) {
+          return const SizedBox.shrink();
+        }
+
+        final isAdmin = sessionState.rol.toLowerCase() == 'admin' ||
+            sessionState.rol.toLowerCase() == 'administrador';
+
+        if (!isAdmin) {
+          return const SizedBox.shrink();
+        }
+
+        final estado = fechaDetalle!.fecha.estado;
+
+        // Solo mostrar si estado = 'cerrada' o 'en_juego'
+        if (estado != EstadoFecha.cerrada && estado != EstadoFecha.enJuego) {
+          return const SizedBox.shrink();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(right: DesignTokens.spacingS),
+          child: FilledButton.icon(
+            onPressed: () => _abrirFinalizarDialog(context),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF9E9E9E),
+            ),
+            icon: const Icon(Icons.check_circle),
+            label: const Text('Finalizar Pichanga'),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Abre el dialog de finalizar fecha
+  void _abrirFinalizarDialog(BuildContext context) {
+    FinalizarFechaDialog.show(
+      context,
+      fechaDetalle: fechaDetalle!,
+      onSuccess: () {
+        // Recargar detalle despues de finalizar
+        context.read<InscripcionBloc>().add(
+          CargarFechaDetalleEvent(fechaId: fechaId),
+        );
+      },
     );
   }
 

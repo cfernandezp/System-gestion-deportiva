@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reglamento Pisada Imperial FC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&family=Oswald:wght@500;700&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        h1,
+        h2,
+        h3 {
+            font-family: 'Oswald', sans-serif;
+        }
+
+        /* Fondo marca de agua optimizado para imagen */
+        .watermark-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('https://images.unsplash.com/photo-1551958219-acbc608c6377?q=80&w=2069&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.1;
+            filter: grayscale(100%);
+            z-index: -1;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid rgba(15, 23, 42, 0.1);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+        }
+
+        .logo-container {
+            position: relative;
+            width: 180px;
+            height: 180px;
+            margin: 0 auto;
+        }
+
+        .logo-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* Ajuste para que parezca una pieza de diseño única */
+        .main-container {
+            max-width: 500px;
+            /* Ancho ideal para capturas de pantalla de móvil */
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+            border-left: 1px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+
+<body class="text-slate-900 relative">
+
+    <!-- Fondo Marca de Agua -->
+    <div class="watermark-bg"></div>
+
+    <div class="main-container px-6 py-10 relative z-10 shadow-2xl">
+
+        <!-- Encabezado con Logo -->
+        <header class="text-center mb-8">
+            <div class="logo-container mb-4">
+                <img src="Logo_PisadaImperial.jpg" alt="Logo Pisada Imperial FC" class="logo-img">
+            </div>
+            <h1 class="text-4xl font-bold text-slate-900 uppercase tracking-tighter leading-none">Pisada Imperial FC
+            </h1>
+            <div class="flex items-center justify-center gap-3 text-blue-900 mt-2">
+                <div class="h-px w-8 bg-blue-900"></div>
+                <p class="text-sm font-bold tracking-[0.3em] uppercase">Reglamento Oficial</p>
+                <div class="h-px w-8 bg-blue-900"></div>
+            </div>
+        </header>
+
+        <!-- Principio Fundamental -->
+        <div class="glass-card rounded-xl p-5 mb-6 border-l-[8px] border-blue-900 bg-blue-50/30">
+            <div class="flex items-start gap-4">
+                <i data-lucide="shield-check" class="w-8 h-8 text-blue-900 shrink-0"></i>
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900 uppercase">Camaradería y Respeto</h2>
+                    <p class="text-sm leading-tight text-slate-700 mt-1">
+                        En este grupo prima el buen trato. La directiva sancionará cualquier conducta antideportiva.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Listado Vertical de Reglas para mejor lectura en imagen -->
+        <div class="space-y-4">
+
+            <!-- Regla 1 y 2 combinadas por espacio -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="glass-card p-4 rounded-xl">
+                    <h3 class="text-sm font-bold uppercase text-blue-900 mb-1">1. No Anotado</h3>
+                    <p class="text-[12px] leading-tight text-slate-600">Entras como <span
+                            class="font-bold">suplente</span> con riesgo de no jugar.</p>
+                </div>
+                <div class="glass-card p-4 rounded-xl">
+                    <h3 class="text-sm font-bold uppercase text-blue-900 mb-1">2. Tarde</h3>
+                    <p class="text-[12px] leading-tight text-slate-600">Un suplente toma tu lugar hasta que llegues.</p>
+                </div>
+            </div>
+
+            <!-- Regla 3 -->
+            <div class="glass-card p-4 rounded-xl">
+                <h3 class="text-sm font-bold uppercase text-blue-900 mb-2 flex items-center gap-2">
+                    <i data-lucide="git-compare" class="w-4 h-4"></i> 3. Relevo de Suplente
+                </h3>
+                <p class="text-[12px] text-slate-600 leading-tight">Al llegar el titular, el suplente pasa a banca o se
+                    reubica si otro equipo necesita gente.</p>
+            </div>
+
+            <!-- Deudas e Inasistencia -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="glass-card p-4 rounded-xl border-t-4 border-red-600">
+                    <h3 class="text-sm font-bold uppercase text-red-700 mb-1">4. Deudas</h3>
+                    <p class="text-[12px] text-slate-600 leading-tight">Sin lista hasta regularizar pagos.</p>
+                </div>
+                <div class="glass-card p-4 rounded-xl border-t-4 border-red-600">
+                    <h3 class="text-sm font-bold uppercase text-red-700 mb-1">5. Faltas</h3>
+                    <p class="text-[12px] text-slate-600 leading-tight font-bold">1h: S/ 8 | 2h: S/ 10</p>
+                </div>
+            </div>
+
+            <!-- Regla 7: Prioridad -->
+            <div class="glass-card p-4 rounded-xl border-l-4 border-slate-900">
+                <h3 class="text-sm font-bold uppercase text-slate-900 mb-2 flex items-center gap-2">
+                    <i data-lucide="calendar-check" class="w-4 h-4"></i> 7. Prioridad de Miembros
+                </h3>
+                <div class="flex justify-between text-[11px] gap-2">
+                    <div class="bg-blue-50 p-2 rounded flex-1"><span class="font-bold block text-blue-800">LUNES</span>
+                        Miembros desplazan invitados.</div>
+                    <div class="bg-slate-50 p-2 rounded flex-1"><span
+                            class="font-bold block text-slate-800">MARTES+</span> Se respeta al invitado.</div>
+                </div>
+            </div>
+
+            <!-- Regla 8: Formato -->
+            <div class="glass-card p-5 rounded-xl bg-slate-900 text-white border-none shadow-lg">
+                <h3 class="text-lg font-bold uppercase tracking-widest text-blue-400 mb-3 flex items-center gap-2">
+                    <i data-lucide="users" class="w-5 h-5"></i> Formato de Juego
+                </h3>
+                <div class="grid grid-cols-2 gap-4 text-center">
+                    <div>
+                        <p class="text-xs font-bold text-slate-300 uppercase">1 Hora</p>
+                        <p class="text-sm font-bold">12-14 Jugadores</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-300 uppercase">2 Horas</p>
+                        <p class="text-sm font-bold">18-21 Jugadores</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <footer class="mt-8 text-center">
+            <p class="text-[10px] text-slate-400 tracking-widest uppercase font-bold">© 2026 Directiva Pisada Imperial
+                FC</p>
+        </footer>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

@@ -26,9 +26,16 @@ import '../../features/fechas/presentation/bloc/crear_fecha/crear_fecha.dart';
 import '../../features/fechas/presentation/pages/crear_fecha_page.dart';
 // E003-HU-002: Inscribirse a Fecha
 import '../../features/fechas/presentation/bloc/inscripcion/inscripcion.dart';
-import '../../features/fechas/presentation/bloc/fechas_disponibles/fechas_disponibles.dart';
+// E003-HU-009: Listar Fechas por Rol
+import '../../features/fechas/presentation/bloc/fechas_por_rol/fechas_por_rol.dart';
 import '../../features/fechas/presentation/pages/fechas_disponibles_page.dart';
 import '../../features/fechas/presentation/pages/fecha_detalle_page.dart';
+// E003-HU-005: Asignar Equipos
+import '../../features/fechas/presentation/bloc/asignaciones/asignaciones.dart';
+import '../../features/fechas/presentation/pages/asignar_equipos_page.dart';
+// E001-HU-006: Gestionar Solicitudes de Registro
+import '../../features/solicitudes/presentation/bloc/solicitudes/solicitudes.dart';
+import '../../features/solicitudes/presentation/pages/solicitudes_pendientes_page.dart';
 
 /// Notificador que escucha cambios en el SessionBloc y notifica al GoRouter
 /// Esto resuelve la race condition entre login exitoso y la redireccion
@@ -98,6 +105,10 @@ class AppRouter {
   // E003-HU-002: Inscribirse a Fecha
   static const String fechasDisponibles = '/fechas';
   static const String fechaDetalle = '/fechas/:id';
+  // E003-HU-005: Asignar Equipos (solo admin)
+  static const String asignarEquipos = '/fechas/:id/equipos';
+  // E001-HU-006: Gestionar Solicitudes de Registro (solo admin)
+  static const String adminSolicitudes = '/admin/solicitudes';
 
   /// Rutas publicas (no requieren autenticacion)
   static const List<String> _publicRoutes = [
@@ -297,19 +308,38 @@ class AppRouter {
         ),
       ),
 
-      // E003-HU-002: Lista de Fechas Disponibles
-      // CA-001: Mostrar lista con fecha, hora, lugar, duracion, costo, inscritos
+      // E003-HU-009: Lista de Fechas por Rol
+      // Reemplaza FechasDisponiblesBloc por FechasPorRolBloc
+      // para mostrar fechas segun el rol del usuario (jugador/admin)
       GoRoute(
         path: '/fechas',
         name: 'fechasDisponibles',
         pageBuilder: (context, state) => _buildPageWithFadeTransition(
           key: state.pageKey,
           child: BlocProvider(
-            create: (context) => sl<FechasDisponiblesBloc>()
-              ..add(const CargarFechasDisponiblesEvent()),
+            create: (context) => sl<FechasPorRolBloc>()
+              ..add(const CargarFechasPorRolEvent(seccion: 'proximas')),
             child: const FechasDisponiblesPage(),
           ),
         ),
+      ),
+
+      // E003-HU-005: Asignar Equipos
+      // CA-001 a CA-008: Asignar jugadores a equipos con drag-drop o selector
+      GoRoute(
+        path: '/fechas/:id/equipos',
+        name: 'asignarEquipos',
+        pageBuilder: (context, state) {
+          final fechaId = state.pathParameters['id'] ?? '';
+          return _buildPageWithFadeTransition(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (context) => sl<AsignacionesBloc>()
+                ..add(CargarAsignacionesEvent(fechaId: fechaId)),
+              child: AsignarEquiposPage(fechaId: fechaId),
+            ),
+          );
+        },
       ),
 
       // E003-HU-002: Detalle de Fecha con inscripcion
@@ -328,6 +358,21 @@ class AppRouter {
             ),
           );
         },
+      ),
+
+      // E001-HU-006: Gestionar Solicitudes de Registro
+      // CA-001: Solo administradores (validado en sidebar y backend)
+      GoRoute(
+        path: '/admin/solicitudes',
+        name: 'adminSolicitudes',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: BlocProvider(
+            create: (context) => sl<SolicitudesBloc>()
+              ..add(const CargarSolicitudesEvent()),
+            child: const SolicitudesPendientesPage(),
+          ),
+        ),
       ),
     ],
 

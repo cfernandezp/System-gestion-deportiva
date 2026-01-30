@@ -5,8 +5,11 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../data/models/usuario_admin_model.dart';
 
-/// Card para mostrar informacion de un usuario en la lista de gestion
+/// Card para mostrar informacion de un usuario en la lista de gestion (Mobile)
 /// HU-005: CA-001 - Lista de usuarios con rol actual
+///
+/// Disenada para usarse en ListView mobile, con altura flexible
+/// que evita overflow en los badges.
 class UsuarioCard extends StatelessWidget {
   const UsuarioCard({
     super.key,
@@ -35,80 +38,92 @@ class UsuarioCard extends StatelessWidget {
 
     return AppCard(
       variant: AppCardVariant.outlined,
-      child: Row(
+      padding: const EdgeInsets.all(DesignTokens.spacingM),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar con inicial
-          _buildAvatar(colorScheme),
-          const SizedBox(width: DesignTokens.spacingM),
+          // Fila superior: Avatar + Info + Boton
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Avatar con inicial
+              _buildAvatar(colorScheme),
+              const SizedBox(width: DesignTokens.spacingM),
 
-          // Informacion del usuario
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Nombre
-                Row(
+              // Informacion del usuario (nombre + email)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: Text(
-                        usuario.nombreCompleto,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: DesignTokens.fontWeightSemiBold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                    if (isCurrentUser)
-                      Container(
-                        margin: const EdgeInsets.only(left: DesignTokens.spacingXs),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: DesignTokens.spacingS,
-                          vertical: DesignTokens.spacingXxs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
-                        ),
-                        child: Text(
-                          'Tu',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onPrimaryContainer,
+                    // Nombre + badge "Tu"
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            usuario.nombreCompleto,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: DesignTokens.fontWeightSemiBold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
                         ),
+                        if (isCurrentUser) ...[
+                          const SizedBox(width: DesignTokens.spacingXs),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: DesignTokens.spacingS,
+                              vertical: DesignTokens.spacingXxs,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+                            ),
+                            child: Text(
+                              'Tu',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: DesignTokens.spacingXxs),
+
+                    // Email
+                    Text(
+                      usuario.email,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                       ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
                   ],
                 ),
-                const SizedBox(height: DesignTokens.spacingXxs),
+              ),
 
-                // Email
-                Text(
-                  usuario.email,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-                const SizedBox(height: DesignTokens.spacingS),
+              const SizedBox(width: DesignTokens.spacingS),
 
-                // Badges de rol y estado
-                Wrap(
-                  spacing: DesignTokens.spacingS,
-                  runSpacing: DesignTokens.spacingXs,
-                  children: [
-                    _buildRolBadge(),
-                    _buildEstadoBadge(),
-                  ],
-                ),
-              ],
-            ),
+              // Boton de cambiar rol
+              _buildCambiarRolButton(context, colorScheme),
+            ],
           ),
 
-          const SizedBox(width: DesignTokens.spacingS),
+          const SizedBox(height: DesignTokens.spacingM),
 
-          // Boton de cambiar rol
-          _buildCambiarRolButton(context, colorScheme),
+          // Fila inferior: Badges de rol y estado
+          Row(
+            children: [
+              _buildRolBadge(),
+              const SizedBox(width: DesignTokens.spacingS),
+              _buildEstadoBadge(),
+              const Spacer(),
+            ],
+          ),
         ],
       ),
     );
@@ -120,14 +135,14 @@ class UsuarioCard extends StatelessWidget {
         : '?';
 
     return CircleAvatar(
-      radius: 24,
+      radius: 22,
       backgroundColor: _getAvatarColor(colorScheme),
       child: Text(
         inicial,
         style: TextStyle(
           color: Colors.white,
           fontWeight: DesignTokens.fontWeightBold,
-          fontSize: DesignTokens.fontSizeL,
+          fontSize: DesignTokens.fontSizeM,
         ),
       ),
     );
@@ -232,6 +247,12 @@ class UsuarioCard extends StatelessWidget {
           color: enabled
               ? colorScheme.primary
               : colorScheme.onSurface.withValues(alpha: DesignTokens.opacityDisabled),
+        ),
+        iconSize: DesignTokens.iconSizeM,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(
+          minWidth: 40,
+          minHeight: 40,
         ),
       ),
     );
