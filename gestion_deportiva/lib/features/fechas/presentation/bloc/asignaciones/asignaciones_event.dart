@@ -46,6 +46,26 @@ class AsignarEquipoEvent extends AsignacionesEvent {
   List<Object?> get props => [fechaId, usuarioId, equipo];
 }
 
+/// Evento para desasignar un jugador de su equipo (devolverlo a Sin Asignar)
+/// RN-001: Solo admin aprobado
+/// RN-002: Solo fechas con estado 'cerrada'
+/// RN-008: Permite modificar antes de iniciar
+class DesasignarEquipoEvent extends AsignacionesEvent {
+  /// ID de la fecha (p_fecha_id)
+  final String fechaId;
+
+  /// ID del usuario a desasignar (p_usuario_id)
+  final String usuarioId;
+
+  const DesasignarEquipoEvent({
+    required this.fechaId,
+    required this.usuarioId,
+  });
+
+  @override
+  List<Object?> get props => [fechaId, usuarioId];
+}
+
 /// CA-007: Evento para confirmar todas las asignaciones
 /// RN-005: Todos los jugadores deben tener equipo
 /// RN-006: Valida balance de equipos (advertencia)

@@ -1,7 +1,8 @@
 -- ============================================
--- SEED: Crear 20 usuarios de prueba
--- Fecha: 2026-01-29
--- Descripcion: Inserta usuarios ficticios para testing
+-- SEED: Crear 21 usuarios de prueba
+-- Fecha: 2026-01-30
+-- Descripcion: Inserta 21 jugadores ficticios para testing
+--              (14 para 2 equipos, 21 para 3 equipos)
 -- ============================================
 --
 -- IMPORTANTE: Este script es SOLO para desarrollo/testing
@@ -11,30 +12,21 @@
 -- ============================================
 
 -- ============================================
--- PARTE 1: Crear usuarios en auth.users (Supabase Auth)
+-- PARTE 1: Crear 21 jugadores de prueba
 -- ============================================
-
--- Nota: Los usuarios creados aqui NO podran hacer login real
--- porque no tienen password hash valido. Son solo para testing de datos.
 
 DO $$
 DECLARE
-    v_nombres TEXT[] := ARRAY[
-        'Carlos Rodriguez', 'Miguel Torres', 'Jose Garcia', 'Luis Martinez',
-        'Pedro Sanchez', 'Juan Perez', 'Diego Flores', 'Andres Lopez',
-        'Ricardo Vargas', 'Fernando Castro', 'Pablo Mendoza', 'Oscar Ruiz',
-        'Eduardo Diaz', 'Roberto Silva', 'Marco Gonzalez', 'Daniel Herrera',
-        'Alejandro Reyes', 'Victor Morales', 'Sergio Jimenez', 'Antonio Romero'
-    ];
     v_nombre TEXT;
     v_email TEXT;
     v_auth_user_id UUID;
-    v_contador INTEGER := 0;
+    v_contador INTEGER;
 BEGIN
-    FOREACH v_nombre IN ARRAY v_nombres
+    FOR v_contador IN 1..21
     LOOP
-        v_contador := v_contador + 1;
-        v_email := 'jugador' || v_contador || '@test.local';
+        -- Formato: "Jugador 01", "Jugador 02", etc.
+        v_nombre := 'Jugador ' || LPAD(v_contador::TEXT, 2, '0');
+        v_email := 'jugador' || LPAD(v_contador::TEXT, 2, '0') || '@test.local';
 
         -- Verificar si ya existe el email
         IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = v_email) THEN
@@ -66,7 +58,7 @@ BEGIN
             )
             RETURNING id INTO v_auth_user_id;
 
-            -- Crear usuario en tabla usuarios
+            -- Crear usuario en tabla usuarios (estado = aprobado para poder inscribir)
             INSERT INTO usuarios (
                 auth_user_id,
                 nombre_completo,
@@ -89,7 +81,7 @@ BEGIN
         END IF;
     END LOOP;
 
-    RAISE NOTICE '=== Proceso completado: % usuarios procesados ===', v_contador;
+    RAISE NOTICE '=== Proceso completado: 21 jugadores creados ===';
 END $$;
 
 -- ============================================
@@ -104,33 +96,34 @@ SELECT
     u.estado,
     u.created_at::date as fecha_creacion
 FROM usuarios u
-ORDER BY u.created_at DESC
-LIMIT 25;
+WHERE u.email LIKE '%@test.local'
+ORDER BY u.nombre_completo;
 
 -- ============================================
--- PARTE 3 (OPCIONAL): Inscribir todos a una fecha
--- Descomenta y modifica el UUID de la fecha si quieres
+-- PARTE 3: Inscribir jugadores a una fecha
+-- Modifica TU_FECHA_ID_AQUI con el UUID real
 -- ============================================
 
 /*
--- Reemplaza 'TU_FECHA_ID_AQUI' con el UUID de la fecha real
 DO $$
 DECLARE
     v_fecha_id UUID := 'TU_FECHA_ID_AQUI';
     v_usuario RECORD;
+    v_inscripcion_id UUID;
     v_contador INTEGER := 0;
 BEGIN
-    -- Verificar que la fecha existe
-    IF NOT EXISTS (SELECT 1 FROM fechas WHERE id = v_fecha_id) THEN
-        RAISE EXCEPTION 'Fecha no encontrada: %', v_fecha_id;
+    -- Verificar que la fecha existe y esta abierta
+    IF NOT EXISTS (SELECT 1 FROM fechas WHERE id = v_fecha_id AND estado = 'abierta') THEN
+        RAISE EXCEPTION 'Fecha no encontrada o no esta abierta: %', v_fecha_id;
     END IF;
 
-    -- Inscribir cada usuario de prueba
+    -- Inscribir cada jugador de prueba
     FOR v_usuario IN
-        SELECT id, nombre_completo
-        FROM usuarios
-        WHERE email LIKE '%@test.local'
-        AND estado = 'aprobado'
+        SELECT u.id, u.nombre_completo
+        FROM usuarios u
+        WHERE u.email LIKE '%@test.local'
+        AND u.estado = 'aprobado'
+        ORDER BY u.nombre_completo
     LOOP
         -- Solo inscribir si no esta ya inscrito
         IF NOT EXISTS (
@@ -141,11 +134,12 @@ BEGIN
         ) THEN
             -- Crear inscripcion
             INSERT INTO inscripciones (fecha_id, usuario_id, estado)
-            VALUES (v_fecha_id, v_usuario.id, 'inscrito');
+            VALUES (v_fecha_id, v_usuario.id, 'inscrito')
+            RETURNING id INTO v_inscripcion_id;
 
-            -- Crear deuda
-            INSERT INTO pagos (fecha_id, usuario_id, monto, estado)
-            SELECT v_fecha_id, v_usuario.id, f.costo_por_jugador, 'pendiente'
+            -- Crear deuda (pago pendiente)
+            INSERT INTO pagos (inscripcion_id, fecha_id, usuario_id, monto, estado)
+            SELECT v_inscripcion_id, v_fecha_id, v_usuario.id, f.costo_por_jugador, 'pendiente'
             FROM fechas f WHERE f.id = v_fecha_id;
 
             v_contador := v_contador + 1;
@@ -158,19 +152,110 @@ END $$;
 */
 
 -- ============================================
--- PARTE 4: Consulta para obtener ID de fechas
+-- PARTE 4: Asignar jugadores a equipos
+-- Para 2 equipos: 7 jugadores por equipo (naranja, verde)
+-- Para 3 equipos: 7 jugadores por equipo (naranja, verde, azul)
+-- Modifica TU_FECHA_ID_AQUI con el UUID real
 -- ============================================
 
+/*
+DO $$
+DECLARE
+    v_fecha_id UUID := 'TU_FECHA_ID_AQUI';
+    v_fecha RECORD;
+    v_usuario RECORD;
+    v_contador INTEGER := 0;
+    v_equipo color_equipo;
+    v_equipos color_equipo[];
+    v_jugadores_por_equipo INTEGER := 7;
+    v_equipo_actual INTEGER := 1;
+    v_contador_equipo INTEGER := 0;
+BEGIN
+    -- Obtener datos de la fecha
+    SELECT id, num_equipos, estado INTO v_fecha
+    FROM fechas WHERE id = v_fecha_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Fecha no encontrada: %', v_fecha_id;
+    END IF;
+
+    -- La fecha debe estar 'cerrada' para asignar equipos
+    IF v_fecha.estado != 'cerrada' THEN
+        RAISE EXCEPTION 'La fecha debe estar cerrada para asignar equipos. Estado actual: %', v_fecha.estado;
+    END IF;
+
+    -- Definir equipos segun num_equipos
+    IF v_fecha.num_equipos = 2 THEN
+        v_equipos := ARRAY['naranja', 'verde']::color_equipo[];
+    ELSE
+        v_equipos := ARRAY['naranja', 'verde', 'azul']::color_equipo[];
+    END IF;
+
+    -- Asignar jugadores inscritos a equipos
+    FOR v_usuario IN
+        SELECT u.id, u.nombre_completo
+        FROM usuarios u
+        JOIN inscripciones i ON i.usuario_id = u.id
+        WHERE i.fecha_id = v_fecha_id
+        AND i.estado = 'inscrito'
+        ORDER BY u.nombre_completo
+    LOOP
+        -- Determinar equipo actual
+        v_equipo := v_equipos[v_equipo_actual];
+
+        -- Insertar o actualizar asignacion
+        INSERT INTO asignaciones_equipos (fecha_id, usuario_id, equipo)
+        VALUES (v_fecha_id, v_usuario.id, v_equipo)
+        ON CONFLICT (fecha_id, usuario_id)
+        DO UPDATE SET equipo = v_equipo, updated_at = NOW();
+
+        v_contador := v_contador + 1;
+        v_contador_equipo := v_contador_equipo + 1;
+        RAISE NOTICE 'Asignado: % -> %', v_usuario.nombre_completo, v_equipo;
+
+        -- Rotar al siguiente equipo cada 7 jugadores
+        IF v_contador_equipo >= v_jugadores_por_equipo THEN
+            v_equipo_actual := v_equipo_actual + 1;
+            v_contador_equipo := 0;
+            IF v_equipo_actual > array_length(v_equipos, 1) THEN
+                v_equipo_actual := 1; -- Volver al primer equipo si hay mas jugadores
+            END IF;
+        END IF;
+    END LOOP;
+
+    RAISE NOTICE '=== Total asignados: % jugadores ===', v_contador;
+END $$;
+*/
+
+-- ============================================
+-- PARTE 5: Consultas utiles
+-- ============================================
+
+-- Ver fechas disponibles
 SELECT
     id,
     TO_CHAR(fecha_hora_inicio AT TIME ZONE 'America/Lima', 'DD/MM/YYYY HH24:MI') as fecha,
     lugar,
     estado,
+    num_equipos,
     (SELECT COUNT(*) FROM inscripciones i WHERE i.fecha_id = f.id AND i.estado = 'inscrito') as inscritos
 FROM fechas f
-WHERE estado IN ('abierta', 'cerrada')
 ORDER BY fecha_hora_inicio DESC
-LIMIT 5;
+LIMIT 10;
+
+-- Ver inscritos en una fecha (reemplaza TU_FECHA_ID_AQUI)
+/*
+SELECT
+    u.nombre_completo,
+    ae.equipo,
+    i.created_at::date as fecha_inscripcion
+FROM usuarios u
+JOIN inscripciones i ON i.usuario_id = u.id
+LEFT JOIN asignaciones_equipos ae ON ae.usuario_id = u.id AND ae.fecha_id = i.fecha_id
+WHERE i.fecha_id = 'TU_FECHA_ID_AQUI'
+AND i.estado = 'inscrito'
+ORDER BY ae.equipo, u.nombre_completo;
+*/
 
 -- ============================================
 -- LIMPIEZA (solo si necesitas eliminar los de prueba)
@@ -179,16 +264,16 @@ LIMIT 5;
 /*
 -- CUIDADO: Esto elimina TODOS los usuarios de prueba y sus datos relacionados
 
--- 1. Eliminar inscripciones de usuarios de prueba
-DELETE FROM inscripciones
+-- 1. Eliminar asignaciones de usuarios de prueba
+DELETE FROM asignaciones_equipos
 WHERE usuario_id IN (SELECT id FROM usuarios WHERE email LIKE '%@test.local');
 
 -- 2. Eliminar pagos de usuarios de prueba
 DELETE FROM pagos
 WHERE usuario_id IN (SELECT id FROM usuarios WHERE email LIKE '%@test.local');
 
--- 3. Eliminar asignaciones de usuarios de prueba
-DELETE FROM asignaciones_equipos
+-- 3. Eliminar inscripciones de usuarios de prueba
+DELETE FROM inscripciones
 WHERE usuario_id IN (SELECT id FROM usuarios WHERE email LIKE '%@test.local');
 
 -- 4. Eliminar notificaciones de usuarios de prueba

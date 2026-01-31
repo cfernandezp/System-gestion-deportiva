@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/design_tokens.dart';
@@ -764,10 +765,10 @@ class _FilterPanel extends StatelessWidget {
 }
 
 // ============================================
-// PANEL DE DATOS (Tabla)
+// PANEL DE DATOS (Tabla con Paginacion)
 // ============================================
 
-class _DataTablePanel extends StatelessWidget {
+class _DataTablePanel extends StatefulWidget {
   final List<UsuarioAdminModel> usuarios;
   final int total;
   final String? busquedaActual;
@@ -791,6 +792,80 @@ class _DataTablePanel extends StatelessWidget {
     required this.onClearSearch,
     required this.onCambiarRol,
   });
+
+  @override
+  State<_DataTablePanel> createState() => _DataTablePanelState();
+}
+
+class _DataTablePanelState extends State<_DataTablePanel> {
+  int _currentPage = 1;
+  int _itemsPerPage = 15;
+  String? _previousBusqueda;
+
+  // Opciones disponibles para items por pagina
+  static const List<int> _itemsPerPageOptions = [10, 15, 25, 50];
+
+  @override
+  void didUpdateWidget(_DataTablePanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Resetear pagina cuando cambian los filtros
+    if (widget.busquedaActual != _previousBusqueda) {
+      _currentPage = 1;
+      _previousBusqueda = widget.busquedaActual;
+    }
+  }
+
+  // Calcular usuarios paginados
+  List<UsuarioAdminModel> get _paginatedUsuarios {
+    final startIndex = (_currentPage - 1) * _itemsPerPage;
+    final endIndex = (startIndex + _itemsPerPage).clamp(0, widget.usuarios.length);
+    if (startIndex >= widget.usuarios.length) {
+      return [];
+    }
+    return widget.usuarios.sublist(startIndex, endIndex);
+  }
+
+  int get _totalPages => (widget.usuarios.length / _itemsPerPage).ceil();
+
+  void _goToPage(int page) {
+    if (page >= 1 && page <= _totalPages) {
+      setState(() {
+        _currentPage = page;
+      });
+    }
+  }
+
+  void _changeItemsPerPage(int? value) {
+    if (value != null) {
+      setState(() {
+        _itemsPerPage = value;
+        _currentPage = 1; // Resetear a primera pagina
+      });
+    }
+  }
+
+  /// Formatea fecha como "15 Ene 2026" o "Hace X dias" si es reciente
+  String _formatMiembroDesde(DateTime? fecha) {
+    if (fecha == null) return '-';
+
+    final now = DateTime.now();
+    final difference = now.difference(fecha);
+
+    if (difference.inDays == 0) {
+      return 'Hoy';
+    } else if (difference.inDays == 1) {
+      return 'Ayer';
+    } else if (difference.inDays < 7) {
+      return 'Hace ${difference.inDays} dias';
+    } else if (difference.inDays < 30) {
+      final weeks = (difference.inDays / 7).floor();
+      return 'Hace $weeks sem.';
+    } else {
+      // Formato: "15 Ene 2026"
+      final formatter = DateFormat("dd MMM yyyy", 'es_PE');
+      return formatter.format(fecha);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -860,7 +935,7 @@ class _DataTablePanel extends StatelessWidget {
                     ),
                     const SizedBox(width: DesignTokens.spacingXs),
                     Text(
-                      '${usuarios.length} registro${usuarios.length != 1 ? 's' : ''}',
+                      '${widget.usuarios.length} registro${widget.usuarios.length != 1 ? 's' : ''}',
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: colorScheme.primary,
                         fontWeight: DesignTokens.fontWeightMedium,
@@ -883,31 +958,32 @@ class _DataTablePanel extends StatelessWidget {
 
   Widget _buildTableContent(BuildContext context, String? currentUserId) {
     final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
 
     // Estado de carga inicial
-    if (isLoading && usuarios.isEmpty) {
+    if (widget.isLoading && widget.usuarios.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
     // Error sin datos previos
-    if (hasError && usuarios.isEmpty) {
+    if (widget.hasError && widget.usuarios.isEmpty) {
       return Center(
         child: EmptyStateWidget.error(
           title: 'Error al cargar usuarios',
-          description: errorMessage ?? 'Ocurrio un error inesperado',
+          description: widget.errorMessage ?? 'Ocurrio un error inesperado',
           actionLabel: 'Reintentar',
-          onAction: onRefresh,
+          onAction: widget.onRefresh,
         ),
       );
     }
 
     // Estado vacio
-    if (usuarios.isEmpty) {
-      if (busquedaActual != null && busquedaActual!.isNotEmpty) {
+    if (widget.usuarios.isEmpty) {
+      if (widget.busquedaActual != null && widget.busquedaActual!.isNotEmpty) {
         return Center(
           child: EmptyStateWidget.noResults(
-            description: 'No se encontraron usuarios para "$busquedaActual"',
-            onAction: onClearSearch,
+            description: 'No se encontraron usuarios para "${widget.busquedaActual}"',
+            onAction: widget.onClearSearch,
           ),
         );
       }
@@ -920,134 +996,286 @@ class _DataTablePanel extends StatelessWidget {
       );
     }
 
+    // Obtener usuarios paginados
+    final usuariosPaginados = _paginatedUsuarios;
+    final startIndex = (_currentPage - 1) * _itemsPerPage + 1;
+    final endIndex = (startIndex + usuariosPaginados.length - 1).clamp(1, widget.usuarios.length);
+
     // Tabla con datos
     return Stack(
       children: [
-        SingleChildScrollView(
-          padding: const EdgeInsets.all(DesignTokens.spacingL),
-          child: AppCard(
-            variant: AppCardVariant.outlined,
-            padding: EdgeInsets.zero,
-            margin: EdgeInsets.zero,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minWidth: MediaQuery.of(context).size.width - 320 - 280 - DesignTokens.spacingL * 2,
-                  ),
-                  child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(
-                      colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                    ),
-                    columns: const [
-                      DataColumn(label: Text('Usuario')),
-                      DataColumn(label: Text('Rol')),
-                      DataColumn(label: Text('Estado')),
-                      DataColumn(label: Text('Acciones')),
-                    ],
-                    rows: usuarios.map((usuario) {
-                      final isCurrentUser = usuario.id == currentUserId;
-                      final isLoadingRol = usuarioIdCambiando == usuario.id;
+        Column(
+          children: [
+            // Tabla expandida
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(DesignTokens.spacingL),
+                child: AppCard(
+                  variant: AppCardVariant.outlined,
+                  padding: EdgeInsets.zero,
+                  margin: EdgeInsets.zero,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: DataTable(
+                        columnSpacing: DesignTokens.spacingM,
+                        headingRowColor: WidgetStateProperty.all(
+                          colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        ),
+                        columns: const [
+                          DataColumn(label: Expanded(child: Text('Usuario'))),
+                          DataColumn(label: SizedBox(width: 120, child: Text('Rol'))),
+                          DataColumn(label: SizedBox(width: 120, child: Text('Estado'))),
+                          DataColumn(label: SizedBox(width: 140, child: Text('Miembro desde'))),
+                          DataColumn(label: SizedBox(width: 100, child: Text('Acciones'))),
+                        ],
+                        rows: usuariosPaginados.map((usuario) {
+                          final isCurrentUser = usuario.id == currentUserId;
+                          final isLoadingRol = widget.usuarioIdCambiando == usuario.id;
 
-                      return DataRow(
-                        cells: [
-                          // Columna: Usuario (Avatar + Nombre + Email)
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _buildAvatar(usuario, colorScheme),
-                                const SizedBox(width: DesignTokens.spacingM),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                          return DataRow(
+                            cells: [
+                              // Columna: Usuario (Avatar + Nombre + Email)
+                              DataCell(
+                                Row(
                                   children: [
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        ConstrainedBox(
-                                          constraints: const BoxConstraints(maxWidth: 200),
-                                          child: Text(
-                                            usuario.nombreCompleto,
-                                            style: const TextStyle(
-                                              fontWeight: DesignTokens.fontWeightMedium,
+                                    _buildAvatar(usuario, colorScheme),
+                                    const SizedBox(width: DesignTokens.spacingM),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  usuario.nombreCompleto,
+                                                  style: const TextStyle(
+                                                    fontWeight: DesignTokens.fontWeightMedium,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              if (isCurrentUser) ...[
+                                                const SizedBox(width: DesignTokens.spacingXs),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: DesignTokens.spacingS,
+                                                    vertical: DesignTokens.spacingXxs,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: colorScheme.primaryContainer,
+                                                    borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+                                                  ),
+                                                  child: Text(
+                                                    'Tu',
+                                                    style: TextStyle(
+                                                      fontSize: DesignTokens.fontSizeXs - 1,
+                                                      color: colorScheme.onPrimaryContainer,
+                                                      fontWeight: DesignTokens.fontWeightMedium,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                          const SizedBox(height: DesignTokens.spacingXxs),
+                                          Text(
+                                            usuario.email,
+                                            style: TextStyle(
+                                              fontSize: DesignTokens.fontSizeXs,
+                                              color: colorScheme.onSurfaceVariant,
                                             ),
                                             overflow: TextOverflow.ellipsis,
                                           ),
-                                        ),
-                                        if (isCurrentUser) ...[
-                                          const SizedBox(width: DesignTokens.spacingXs),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: DesignTokens.spacingS,
-                                              vertical: DesignTokens.spacingXxs,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: colorScheme.primaryContainer,
-                                              borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
-                                            ),
-                                            child: Text(
-                                              'Tu',
-                                              style: TextStyle(
-                                                fontSize: DesignTokens.fontSizeXs - 1,
-                                                color: colorScheme.onPrimaryContainer,
-                                                fontWeight: DesignTokens.fontWeightMedium,
-                                              ),
-                                            ),
-                                          ),
                                         ],
-                                      ],
-                                    ),
-                                    const SizedBox(height: DesignTokens.spacingXxs),
-                                    ConstrainedBox(
-                                      constraints: const BoxConstraints(maxWidth: 200),
-                                      child: Text(
-                                        usuario.email,
-                                        style: TextStyle(
-                                          fontSize: DesignTokens.fontSizeXs,
-                                          color: colorScheme.onSurfaceVariant,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
-                          ),
+                              ),
 
-                          // Columna: Rol (Chip con color)
-                          DataCell(
-                            _buildRolChip(usuario),
-                          ),
+                              // Columna: Rol (Chip con color)
+                              DataCell(
+                                SizedBox(
+                                  width: 120,
+                                  child: _buildRolChip(usuario),
+                                ),
+                              ),
 
-                          // Columna: Estado (Chip con indicador)
-                          DataCell(
-                            _buildEstadoChip(usuario),
-                          ),
+                              // Columna: Estado (Chip con indicador)
+                              DataCell(
+                                SizedBox(
+                                  width: 120,
+                                  child: _buildEstadoChip(usuario),
+                                ),
+                              ),
 
-                          // Columna: Acciones (IconButtons)
-                          DataCell(
-                            _buildAcciones(
-                              context,
-                              usuario,
-                              isCurrentUser,
-                              isLoadingRol,
-                              colorScheme,
-                            ),
-                          ),
-                        ],
-                      );
-                    }).toList(),
+                              // Columna: Miembro desde
+                              DataCell(
+                                SizedBox(
+                                  width: 140,
+                                  child: Text(
+                                    _formatMiembroDesde(usuario.createdAt),
+                                    style: TextStyle(
+                                      fontSize: DesignTokens.fontSizeXs,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              // Columna: Acciones (IconButtons)
+                              DataCell(
+                                SizedBox(
+                                  width: 100,
+                                  child: _buildAcciones(
+                                    context,
+                                    usuario,
+                                    isCurrentUser,
+                                    isLoadingRol,
+                                    colorScheme,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+
+            // Controles de paginacion
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spacingL,
+                vertical: DesignTokens.spacingM,
+              ),
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                border: Border(
+                  top: BorderSide(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  // Selector de items por pagina
+                  Row(
+                    children: [
+                      Text(
+                        'Mostrar:',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(width: DesignTokens.spacingS),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: DesignTokens.spacingS,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: colorScheme.outline),
+                          borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            value: _itemsPerPage,
+                            isDense: true,
+                            items: _itemsPerPageOptions.map((value) {
+                              return DropdownMenuItem<int>(
+                                value: value,
+                                child: Text(
+                                  value.toString(),
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: _changeItemsPerPage,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const Spacer(),
+
+                  // Info de registros mostrados
+                  Text(
+                    'Mostrando $startIndex-$endIndex de ${widget.usuarios.length} registros',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  // Botones de navegacion
+                  Row(
+                    children: [
+                      // Boton anterior
+                      IconButton(
+                        onPressed: _currentPage > 1
+                            ? () => _goToPage(_currentPage - 1)
+                            : null,
+                        icon: const Icon(Icons.chevron_left),
+                        tooltip: 'Anterior',
+                        iconSize: DesignTokens.iconSizeM,
+                        style: IconButton.styleFrom(
+                          foregroundColor: colorScheme.primary,
+                          disabledForegroundColor: colorScheme.onSurface.withValues(
+                            alpha: DesignTokens.opacityDisabled,
+                          ),
+                        ),
+                      ),
+
+                      // Indicador de pagina
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: DesignTokens.spacingM,
+                          vertical: DesignTokens.spacingXs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+                        ),
+                        child: Text(
+                          'Pagina $_currentPage de ${_totalPages == 0 ? 1 : _totalPages}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: DesignTokens.fontWeightMedium,
+                          ),
+                        ),
+                      ),
+
+                      // Boton siguiente
+                      IconButton(
+                        onPressed: _currentPage < _totalPages
+                            ? () => _goToPage(_currentPage + 1)
+                            : null,
+                        icon: const Icon(Icons.chevron_right),
+                        tooltip: 'Siguiente',
+                        iconSize: DesignTokens.iconSizeM,
+                        style: IconButton.styleFrom(
+                          foregroundColor: colorScheme.primary,
+                          disabledForegroundColor: colorScheme.onSurface.withValues(
+                            alpha: DesignTokens.opacityDisabled,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        if (isLoading)
+        if (widget.isLoading)
           const Positioned(
             top: 0,
             left: 0,
@@ -1169,7 +1397,7 @@ class _DataTablePanel extends StatelessWidget {
               ? 'No puedes cambiar tu propio rol'
               : 'Cambiar rol',
           child: IconButton(
-            onPressed: isCurrentUser ? null : () => onCambiarRol(context, usuario),
+            onPressed: isCurrentUser ? null : () => widget.onCambiarRol(context, usuario),
             icon: Icon(
               Icons.edit_outlined,
               color: isCurrentUser

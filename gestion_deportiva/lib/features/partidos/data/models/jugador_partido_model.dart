@@ -1,25 +1,26 @@
 import 'package:equatable/equatable.dart';
 
-/// Modelo de Jugador dentro de un equipo de partido
+/// Modelo de jugador dentro de un equipo de partido
 /// E004-HU-001: Iniciar Partido
+/// Representa un jugador asignado a un equipo en el partido
 class JugadorPartidoModel extends Equatable {
   final String id;
-  final String nombre;
-  final String? urlFoto;
+  final String nombreCompleto;
+  final String? apodo;
 
   const JugadorPartidoModel({
     required this.id,
-    required this.nombre,
-    this.urlFoto,
+    required this.nombreCompleto,
+    this.apodo,
   });
 
-  /// Crea instancia desde JSON del backend
-  /// Mapeo: snake_case -> camelCase
+  /// Factory desde JSON del backend
+  /// Mapea snake_case a camelCase
   factory JugadorPartidoModel.fromJson(Map<String, dynamic> json) {
     return JugadorPartidoModel(
-      id: json['id'] ?? '',
-      nombre: json['nombre'] ?? '',
-      urlFoto: json['url_foto'],
+      id: json['id'] as String,
+      nombreCompleto: json['nombre_completo'] as String,
+      apodo: json['apodo'] as String?,
     );
   }
 
@@ -27,11 +28,14 @@ class JugadorPartidoModel extends Equatable {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'nombre': nombre,
-      'url_foto': urlFoto,
+      'nombre_completo': nombreCompleto,
+      'apodo': apodo,
     };
   }
 
+  /// Nombre para mostrar (apodo si existe, sino nombre completo)
+  String get displayName => apodo ?? nombreCompleto;
+
   @override
-  List<Object?> get props => [id, nombre, urlFoto];
+  List<Object?> get props => [id, nombreCompleto, apodo];
 }

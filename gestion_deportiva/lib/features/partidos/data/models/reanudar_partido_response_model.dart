@@ -42,14 +42,17 @@ class ReanudarPartidoResponseModel extends Equatable {
   factory ReanudarPartidoResponseModel.fromJson(Map<String, dynamic> json) {
     final data = json['data'] as Map<String, dynamic>? ?? {};
     return ReanudarPartidoResponseModel(
-      success: json['success'] ?? false,
-      partidoId: data['partido_id'] ?? '',
-      estado: EstadoPartido.fromString(data['estado'] ?? 'en_curso'),
-      horaFinEstimadaFormato: data['hora_fin_estimada_formato'],
-      tiempoRestanteSegundos: data['tiempo_restante_segundos'] ?? 0,
-      tiempoPausaActualSegundos: data['tiempo_pausa_actual_segundos'] ?? 0,
-      tiempoPausadoTotalSegundos: data['tiempo_pausado_total_segundos'] ?? 0,
-      message: json['message'] ?? '',
+      success: json['success'] as bool? ?? false,
+      partidoId: data['partido_id'] as String? ?? '',
+      estado:
+          EstadoPartido.fromString(data['estado'] as String? ?? 'en_curso'),
+      horaFinEstimadaFormato: data['hora_fin_estimada_formato'] as String?,
+      tiempoRestanteSegundos: data['tiempo_restante_segundos'] as int? ?? 0,
+      tiempoPausaActualSegundos:
+          data['tiempo_pausa_actual_segundos'] as int? ?? 0,
+      tiempoPausadoTotalSegundos:
+          data['tiempo_pausado_total_segundos'] as int? ?? 0,
+      message: json['message'] as String? ?? '',
     );
   }
 

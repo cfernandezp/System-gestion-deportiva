@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../network/supabase_client.dart';
+import '../services/alarm_service.dart';
 
 // Auth Feature
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
@@ -53,6 +54,18 @@ import '../../features/solicitudes/data/repositories/solicitudes_repository_impl
 import '../../features/solicitudes/domain/repositories/solicitudes_repository.dart';
 import '../../features/solicitudes/presentation/bloc/solicitudes/solicitudes_bloc.dart';
 
+// Partidos Feature (E004-HU-001: Iniciar Partido, E004-HU-003: Registrar Gol, E004-HU-004: Ver Score en Vivo)
+import '../../features/partidos/data/datasources/partidos_remote_datasource.dart';
+import '../../features/partidos/data/repositories/partidos_repository_impl.dart';
+import '../../features/partidos/domain/repositories/partidos_repository.dart';
+import '../../features/partidos/presentation/bloc/partido/partido_bloc.dart';
+// E004-HU-003: Registrar Gol
+import '../../features/partidos/presentation/bloc/goles/goles_bloc.dart';
+// E004-HU-004: Ver Score en Vivo
+import '../../features/partidos/presentation/bloc/score/score_bloc.dart';
+// E004-HU-005: Finalizar Partido
+import '../../features/partidos/presentation/bloc/finalizar_partido/finalizar_partido_bloc.dart';
+
 /// Service Locator global
 final sl = GetIt.instance;
 
@@ -63,6 +76,9 @@ Future<void> initializeDependencies() async {
 
   // Supabase Client
   sl.registerLazySingleton<SupabaseClient>(() => SupabaseConfig.client);
+
+  // E004-HU-002: Servicio de alarmas para temporizador
+  sl.registerLazySingleton<AlarmService>(() => AlarmService());
 
   // ==================== Features ====================
 
@@ -185,5 +201,27 @@ Future<void> initializeDependencies() async {
   // DataSource
   sl.registerLazySingleton<SolicitudesRemoteDataSource>(
     () => SolicitudesRemoteDataSourceImpl(supabase: sl()),
+  );
+
+  // -------------------- Partidos (E004-HU-001: Iniciar Partido, E004-HU-003: Registrar Gol, E004-HU-004: Ver Score en Vivo, E004-HU-005: Finalizar Partido) --------------------
+
+  // Blocs
+  // E004-HU-001: Iniciar Partido
+  sl.registerFactory(() => PartidoBloc(repository: sl()));
+  // E004-HU-003: Registrar Gol
+  sl.registerFactory(() => GolesBloc(repository: sl()));
+  // E004-HU-004: Ver Score en Vivo
+  sl.registerFactory(() => ScoreBloc(repository: sl(), supabase: sl()));
+  // E004-HU-005: Finalizar Partido
+  sl.registerFactory(() => FinalizarPartidoBloc(repository: sl()));
+
+  // Repository
+  sl.registerLazySingleton<PartidosRepository>(
+    () => PartidosRepositoryImpl(remoteDataSource: sl()),
+  );
+
+  // DataSource
+  sl.registerLazySingleton<PartidosRemoteDataSource>(
+    () => PartidosRemoteDataSourceImpl(supabase: sl()),
   );
 }

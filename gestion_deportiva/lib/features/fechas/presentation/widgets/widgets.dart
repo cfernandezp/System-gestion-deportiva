@@ -1,5 +1,5 @@
 /// Barrel file para widgets de fechas
-/// E003-HU-001, E003-HU-002, E003-HU-003, E003-HU-004, E003-HU-006, E003-HU-007, E003-HU-008
+/// E003-HU-001, E003-HU-002, E003-HU-003, E003-HU-004, E003-HU-006, E003-HU-007, E003-HU-008, E003-HU-010
 library;
 
 export 'fecha_card.dart';
@@ -19,3 +19,6 @@ export 'jugador_asignacion_tile.dart';
 export 'equipo_container_widget.dart';
 export 'selector_equipo_bottom_sheet.dart';
 export 'confirmar_equipos_dialog.dart';
+
+// E003-HU-010: Finalizar Fecha
+export 'finalizar_fecha_dialog.dart';

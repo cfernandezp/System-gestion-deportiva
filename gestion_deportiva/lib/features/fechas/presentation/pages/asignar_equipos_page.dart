@@ -526,6 +526,16 @@ class _MobileAsignarView extends StatelessWidget {
               ),
             );
       },
+      onDesasignar: jugador.equipo != null
+          ? () {
+              context.read<AsignacionesBloc>().add(
+                    DesasignarEquipoEvent(
+                      fechaId: fechaId,
+                      usuarioId: jugador.usuarioId,
+                    ),
+                  );
+            }
+          : null,
     );
   }
 
@@ -1066,33 +1076,62 @@ class _DesktopAsignarView extends StatelessWidget {
   }
 
   void _removerDeEquipo(BuildContext context, JugadorAsignacionModel jugador) {
-    // En desktop, mostrar dropdown con colores disponibles
-    // Por ahora, abrir dialog para seleccionar nuevo equipo
+    // En desktop, mostrar dropdown con colores disponibles y opcion Sin Asignar
+    final colorScheme = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('Reasignar ${jugador.displayName}'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: data!.coloresDisponibles.map((color) {
-            return ListTile(
-              leading: Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: color.color,
-                  borderRadius: BorderRadius.circular(DesignTokens.radiusS),
-                  border: Border.all(color: color.borderColor),
+          children: [
+            // Opcion Sin Asignar (solo si ya tiene equipo)
+            if (jugador.equipo != null)
+              ListTile(
+                leading: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+                    border: Border.all(color: colorScheme.outline),
+                  ),
+                  child: Icon(
+                    Icons.person_remove,
+                    size: 16,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
+                title: const Text('Sin Asignar'),
+                subtitle: const Text('Devolver a lista de espera'),
+                onTap: () {
+                  Navigator.of(dialogContext).pop();
+                  _desasignarEquipo(context, jugador);
+                },
               ),
-              title: Text(color.displayName),
-              selected: jugador.equipo == color,
-              onTap: () {
-                Navigator.of(dialogContext).pop();
-                _asignarEquipo(context, jugador, color);
-              },
-            );
-          }).toList(),
+            if (jugador.equipo != null)
+              const Divider(),
+            // Opciones de equipos
+            ...data!.coloresDisponibles.map((color) {
+              return ListTile(
+                leading: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: color.color,
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+                    border: Border.all(color: color.borderColor),
+                  ),
+                ),
+                title: Text(color.displayName),
+                selected: jugador.equipo == color,
+                onTap: () {
+                  Navigator.of(dialogContext).pop();
+                  _asignarEquipo(context, jugador, color);
+                },
+              );
+            }),
+          ],
         ),
         actions: [
           TextButton(
@@ -1102,6 +1141,15 @@ class _DesktopAsignarView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _desasignarEquipo(BuildContext context, JugadorAsignacionModel jugador) {
+    context.read<AsignacionesBloc>().add(
+          DesasignarEquipoEvent(
+            fechaId: fechaId,
+            usuarioId: jugador.usuarioId,
+          ),
+        );
   }
 
   void _mostrarDialogConfirmacion(BuildContext context) {

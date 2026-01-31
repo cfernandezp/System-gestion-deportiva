@@ -25,9 +25,9 @@ class IniciarPartidoResponseModel extends Equatable {
   factory IniciarPartidoResponseModel.fromJson(Map<String, dynamic> json) {
     final data = json['data'] as Map<String, dynamic>?;
     return IniciarPartidoResponseModel(
-      success: json['success'] ?? false,
+      success: json['success'] as bool? ?? false,
       partido: data != null ? PartidoModel.fromJson(data) : null,
-      message: json['message'] ?? '',
+      message: json['message'] as String? ?? '',
     );
   }
 

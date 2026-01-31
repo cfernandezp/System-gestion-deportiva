@@ -17,6 +17,7 @@ import '../models/cancelar_inscripcion_response_model.dart';
 import '../models/verificar_cancelar_response_model.dart';
 import '../models/obtener_asignaciones_response_model.dart';
 import '../models/asignar_equipo_response_model.dart';
+import '../models/desasignar_equipo_response_model.dart';
 import '../models/confirmar_equipos_response_model.dart';
 import '../models/mi_equipo_model.dart';
 import '../models/equipos_fecha_model.dart';
@@ -336,6 +337,30 @@ class FechasRepositoryImpl implements FechasRepository {
     } catch (e) {
       return Left(ServerFailure(
         message: 'Error inesperado al asignar equipo: ${e.toString()}',
+      ));
+    }
+  }
+
+  @override
+  Future<Either<Failure, DesasignarEquipoResponseModel>> desasignarEquipo({
+    required String fechaId,
+    required String usuarioId,
+  }) async {
+    try {
+      final result = await remoteDataSource.desasignarEquipo(
+        fechaId: fechaId,
+        usuarioId: usuarioId,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado al desasignar equipo: ${e.toString()}',
       ));
     }
   }

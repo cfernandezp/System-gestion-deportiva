@@ -17,11 +17,15 @@ class SelectorEquipoBottomSheet extends StatelessWidget {
   /// Callback al seleccionar un equipo
   final void Function(ColorEquipo equipo) onSeleccionar;
 
+  /// Callback al desasignar (devolver a Sin Asignar)
+  final void Function()? onDesasignar;
+
   const SelectorEquipoBottomSheet({
     super.key,
     required this.jugador,
     required this.coloresDisponibles,
     required this.onSeleccionar,
+    this.onDesasignar,
   });
 
   /// Muestra el bottom sheet
@@ -30,6 +34,7 @@ class SelectorEquipoBottomSheet extends StatelessWidget {
     required JugadorAsignacionModel jugador,
     required List<ColorEquipo> coloresDisponibles,
     required void Function(ColorEquipo equipo) onSeleccionar,
+    void Function()? onDesasignar,
   }) async {
     await showModalBottomSheet(
       context: context,
@@ -42,6 +47,12 @@ class SelectorEquipoBottomSheet extends StatelessWidget {
           Navigator.of(context).pop();
           onSeleccionar(equipo);
         },
+        onDesasignar: onDesasignar != null
+            ? () {
+                Navigator.of(context).pop();
+                onDesasignar();
+              }
+            : null,
       ),
     );
   }
@@ -142,6 +153,27 @@ class SelectorEquipoBottomSheet extends StatelessWidget {
                 ),
               ),
             ),
+
+          // Boton Sin Asignar (solo si tiene equipo y callback disponible)
+          if (jugador.equipo != null && onDesasignar != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spacingM,
+              ),
+              child: OutlinedButton.icon(
+                onPressed: onDesasignar,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 48),
+                  foregroundColor: colorScheme.error,
+                  side: BorderSide(color: colorScheme.error.withValues(alpha: 0.5)),
+                ),
+                icon: const Icon(Icons.person_remove),
+                label: const Text('Devolver a Sin Asignar'),
+              ),
+            ),
+
+          if (jugador.equipo != null && onDesasignar != null)
+            const SizedBox(height: DesignTokens.spacingM),
 
           // Titulo
           Padding(

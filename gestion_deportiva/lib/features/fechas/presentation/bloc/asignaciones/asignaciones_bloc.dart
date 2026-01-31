@@ -35,6 +35,7 @@ class AsignacionesBloc extends Bloc<AsignacionesEvent, AsignacionesState> {
       : super(const AsignacionesInitial()) {
     on<CargarAsignacionesEvent>(_onCargarAsignaciones);
     on<AsignarEquipoEvent>(_onAsignarEquipo);
+    on<DesasignarEquipoEvent>(_onDesasignarEquipo);
     on<ConfirmarEquiposEvent>(_onConfirmarEquipos);
     on<ResetAsignacionesEvent>(_onReset);
   }
@@ -155,6 +156,99 @@ class AsignacionesBloc extends Bloc<AsignacionesEvent, AsignacionesState> {
       emit(EquipoAsignado(
         data: currentData,
         asignacion: response.data!,
+        message: response.message,
+      ));
+    }
+  }
+
+  /// Desasignar jugador de equipo (devolverlo a Sin Asignar)
+  /// RN-001, RN-002, RN-008: Validaciones en backend
+  Future<void> _onDesasignarEquipo(
+    DesasignarEquipoEvent event,
+    Emitter<AsignacionesState> emit,
+  ) async {
+    // Obtener datos actuales
+    final currentState = state;
+    late final ObtenerAsignacionesDataModel currentData;
+
+    if (currentState is AsignacionesLoaded) {
+      currentData = currentState.data;
+    } else if (currentState is EquipoAsignado) {
+      currentData = currentState.data;
+    } else if (currentState is EquipoDesasignado) {
+      currentData = currentState.data;
+    } else if (currentState is AsignarEquipoError) {
+      currentData = currentState.data;
+    } else if (currentState is DesasignarEquipoError) {
+      currentData = currentState.data;
+    } else if (currentState is DesasignandoEquipo) {
+      currentData = currentState.data;
+    } else {
+      emit(const AsignacionesError(
+        message: 'Estado invalido para desasignar equipo',
+      ));
+      return;
+    }
+
+    // Emitir estado de carga manteniendo datos
+    emit(DesasignandoEquipo(
+      data: currentData,
+      usuarioId: event.usuarioId,
+    ));
+
+    final result = await repository.desasignarEquipo(
+      fechaId: event.fechaId,
+      usuarioId: event.usuarioId,
+    );
+
+    // Usar patron imperativo para evitar emit dentro de callbacks async
+    if (result.isLeft()) {
+      final failure = result.fold((l) => l, (r) => null)!;
+      final serverFailure = failure is ServerFailure ? failure : null;
+      emit(DesasignarEquipoError(
+        data: currentData,
+        message: failure.message,
+        hint: serverFailure?.hint,
+      ));
+      return;
+    }
+
+    final response = result.fold((l) => null, (r) => r)!;
+    if (!response.success || response.data == null) {
+      emit(DesasignarEquipoError(
+        data: currentData,
+        message: 'Error inesperado al desasignar equipo',
+      ));
+      return;
+    }
+
+    // Recargar asignaciones para obtener datos actualizados
+    final reloadResult = await repository.obtenerAsignaciones(event.fechaId);
+
+    if (reloadResult.isLeft()) {
+      // Si falla recarga, mostrar exito con datos anteriores
+      emit(EquipoDesasignado(
+        data: currentData,
+        usuarioNombre: response.data!.usuarioNombre,
+        equipoAnterior: response.data!.equipoAnterior,
+        message: response.message,
+      ));
+      return;
+    }
+
+    final reloadResponse = reloadResult.fold((l) => null, (r) => r)!;
+    if (reloadResponse.success && reloadResponse.data != null) {
+      emit(EquipoDesasignado(
+        data: reloadResponse.data!,
+        usuarioNombre: response.data!.usuarioNombre,
+        equipoAnterior: response.data!.equipoAnterior,
+        message: response.message,
+      ));
+    } else {
+      emit(EquipoDesasignado(
+        data: currentData,
+        usuarioNombre: response.data!.usuarioNombre,
+        equipoAnterior: response.data!.equipoAnterior,
         message: response.message,
       ));
     }

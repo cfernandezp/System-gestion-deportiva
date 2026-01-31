@@ -46,18 +46,19 @@ class ObtenerPartidoActivoResponseModel extends Equatable {
   ///   },
   ///   "message": "No hay partido activo en esta fecha"
   /// }
-  factory ObtenerPartidoActivoResponseModel.fromJson(Map<String, dynamic> json) {
+  factory ObtenerPartidoActivoResponseModel.fromJson(
+      Map<String, dynamic> json) {
     final data = json['data'] as Map<String, dynamic>? ?? {};
     final partidoData = data['partido'] as Map<String, dynamic>?;
 
     return ObtenerPartidoActivoResponseModel(
-      success: json['success'] ?? false,
-      partidoActivo: data['partido_activo'] ?? false,
+      success: json['success'] as bool? ?? false,
+      partidoActivo: data['partido_activo'] as bool? ?? false,
       partido: partidoData != null ? PartidoModel.fromJson(partidoData) : null,
-      puedePausar: data['puede_pausar'] ?? false,
-      puedeReanudar: data['puede_reanudar'] ?? false,
-      puedeIniciarPartido: data['puede_iniciar_partido'] ?? false,
-      message: json['message'] ?? '',
+      puedePausar: data['puede_pausar'] as bool? ?? false,
+      puedeReanudar: data['puede_reanudar'] as bool? ?? false,
+      puedeIniciarPartido: data['puede_iniciar_partido'] as bool? ?? false,
+      message: json['message'] as String? ?? '',
     );
   }
 

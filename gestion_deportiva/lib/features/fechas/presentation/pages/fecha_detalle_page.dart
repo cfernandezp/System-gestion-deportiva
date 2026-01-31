@@ -7,6 +7,9 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/widgets/dashboard_shell.dart';
 import '../../../../core/widgets/responsive_layout.dart';
 import '../../../auth/presentation/bloc/session/session.dart';
+import '../../../partidos/presentation/bloc/partido/partido.dart';
+import '../../../partidos/presentation/widgets/widgets.dart';
+import '../../data/models/color_equipo.dart';
 import '../../data/models/fecha_detalle_model.dart';
 import '../../data/models/fecha_model.dart';
 import '../bloc/inscripcion/inscripcion.dart';
@@ -492,6 +495,10 @@ class _MobileDetalleView extends StatelessWidget {
             _buildInfoCard(context),
 
             const SizedBox(height: DesignTokens.spacingM),
+
+            // E004-HU-001: Widget de partido en vivo (si estado = en_juego)
+            if (fechaDetalle!.fecha.estado == EstadoFecha.enJuego)
+              _buildPartidoSection(context),
 
             // E003-HU-003: Lista de inscritos con realtime
             // CA-001 a CA-006: Widget dedicado con BLoC propio
@@ -1028,6 +1035,143 @@ class _MobileDetalleView extends StatelessWidget {
       ),
     );
   }
+
+  /// E004-HU-001: Seccion de partido en vivo
+  /// Muestra widget de partido activo o boton para iniciar
+  Widget _buildPartidoSection(BuildContext context) {
+    return BlocProvider(
+      create: (context) => PartidoBloc(repository: sl())
+        ..add(CargarPartidoActivoEvent(fechaId: fechaId)),
+      child: BlocBuilder<SessionBloc, SessionState>(
+        builder: (context, sessionState) {
+          final isAdmin = sessionState is SessionAuthenticated &&
+              (sessionState.rol.toLowerCase() == 'admin' ||
+                  sessionState.rol.toLowerCase() == 'administrador');
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Widget de partido en vivo
+              PartidoEnVivoWidget(
+                esAdmin: isAdmin,
+                onEstadoCambiado: () {
+                  // Recargar detalle de fecha
+                  context.read<InscripcionBloc>().add(
+                        CargarFechaDetalleEvent(fechaId: fechaId),
+                      );
+                },
+              ),
+
+              // Boton para iniciar partido (solo admin, si no hay partido activo)
+              if (isAdmin)
+                BlocBuilder<PartidoBloc, PartidoState>(
+                  builder: (context, partidoState) {
+                    if (partidoState is SinPartidoActivo &&
+                        partidoState.puedeIniciarPartido) {
+                      return _buildIniciarPartidoButton(context);
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+
+              const SizedBox(height: DesignTokens.spacingM),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Boton para iniciar un nuevo partido
+  Widget _buildIniciarPartidoButton(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+        side: BorderSide(
+          color: colorScheme.primary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: InkWell(
+        onTap: () => _mostrarDialogoIniciarPartido(context),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+        child: Padding(
+          padding: const EdgeInsets.all(DesignTokens.spacingM),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(DesignTokens.spacingS),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+                ),
+                child: Icon(
+                  Icons.sports_soccer,
+                  color: colorScheme.onPrimaryContainer,
+                  size: DesignTokens.iconSizeM,
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spacingM),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Iniciar Partido',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: DesignTokens.fontWeightSemiBold,
+                          ),
+                    ),
+                    Text(
+                      'Selecciona los equipos y comienza',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.play_circle,
+                color: colorScheme.primary,
+                size: DesignTokens.iconSizeL,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Muestra el dialogo para iniciar partido
+  void _mostrarDialogoIniciarPartido(BuildContext context) {
+    // Obtener equipos disponibles segun el numero de equipos de la fecha
+    final numEquipos = fechaDetalle!.fecha.numEquipos;
+    final equiposDisponibles = <ColorEquipo>[
+      ColorEquipo.naranja,
+      ColorEquipo.verde,
+      if (numEquipos >= 3) ColorEquipo.azul,
+    ];
+
+    // Calcular duracion segun formato (RN-004)
+    // 2 equipos = 20 min, 3 equipos = 10 min
+    final duracionMinutos = numEquipos == 2 ? 20 : 10;
+
+    IniciarPartidoDialog.show(
+      context,
+      fechaDetalle: fechaDetalle!,
+      equiposDisponibles: equiposDisponibles,
+      duracionMinutos: duracionMinutos,
+      onSuccess: () {
+        // Recargar partido activo
+        context.read<PartidoBloc>().add(
+              CargarPartidoActivoEvent(fechaId: fechaId),
+            );
+      },
+    );
+  }
 }
 
 // ============================================
@@ -1374,7 +1518,7 @@ class _DesktopDetalleView extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Columna izquierda: Info principal + Accion
+          // Columna izquierda: Info principal + Accion + Partido
           SizedBox(
             width: 400,
             child: Column(
@@ -1382,6 +1526,11 @@ class _DesktopDetalleView extends StatelessWidget {
                 _buildInfoCard(context),
                 const SizedBox(height: DesignTokens.spacingM),
                 _buildActionCard(context),
+                // E004-HU-001: Widget de partido en vivo (si estado = en_juego)
+                if (fechaDetalle!.fecha.estado == EstadoFecha.enJuego) ...[
+                  const SizedBox(height: DesignTokens.spacingM),
+                  _buildPartidoSection(context),
+                ],
               ],
             ),
           ),
@@ -1899,6 +2048,130 @@ class _DesktopDetalleView extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// E004-HU-001: Seccion de partido en vivo (Desktop)
+  /// Muestra widget de partido activo o boton para iniciar
+  Widget _buildPartidoSection(BuildContext context) {
+    return BlocProvider(
+      create: (context) => PartidoBloc(repository: sl())
+        ..add(CargarPartidoActivoEvent(fechaId: fechaId)),
+      child: BlocBuilder<SessionBloc, SessionState>(
+        builder: (context, sessionState) {
+          final isAdmin = sessionState is SessionAuthenticated &&
+              (sessionState.rol.toLowerCase() == 'admin' ||
+                  sessionState.rol.toLowerCase() == 'administrador');
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Widget de partido en vivo
+              PartidoEnVivoWidget(
+                esAdmin: isAdmin,
+                onEstadoCambiado: () {
+                  // Recargar detalle de fecha
+                  context.read<InscripcionBloc>().add(
+                        CargarFechaDetalleEvent(fechaId: fechaId),
+                      );
+                },
+              ),
+
+              // Boton para iniciar partido (solo admin, si no hay partido activo)
+              if (isAdmin)
+                BlocBuilder<PartidoBloc, PartidoState>(
+                  builder: (context, partidoState) {
+                    if (partidoState is SinPartidoActivo &&
+                        partidoState.puedeIniciarPartido) {
+                      return _buildIniciarPartidoButton(context);
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Boton para iniciar un nuevo partido (Desktop)
+  Widget _buildIniciarPartidoButton(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+        side: BorderSide(
+          color: colorScheme.primary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: InkWell(
+        onTap: () => _mostrarDialogoIniciarPartido(context),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+        child: Padding(
+          padding: const EdgeInsets.all(DesignTokens.spacingL),
+          child: Column(
+            children: [
+              Icon(
+                Icons.sports_soccer,
+                color: colorScheme.primary,
+                size: DesignTokens.iconSizeXl,
+              ),
+              const SizedBox(height: DesignTokens.spacingM),
+              Text(
+                'Iniciar Partido',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: DesignTokens.fontWeightSemiBold,
+                    ),
+              ),
+              const SizedBox(height: DesignTokens.spacingXs),
+              Text(
+                'Selecciona los equipos y comienza el temporizador',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: DesignTokens.spacingM),
+              FilledButton.icon(
+                onPressed: () => _mostrarDialogoIniciarPartido(context),
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('Comenzar'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Muestra el dialogo para iniciar partido (Desktop)
+  void _mostrarDialogoIniciarPartido(BuildContext context) {
+    // Obtener equipos disponibles segun el numero de equipos de la fecha
+    final numEquipos = fechaDetalle!.fecha.numEquipos;
+    final equiposDisponibles = <ColorEquipo>[
+      ColorEquipo.naranja,
+      ColorEquipo.verde,
+      if (numEquipos >= 3) ColorEquipo.azul,
+    ];
+
+    // Calcular duracion segun formato (RN-004)
+    // 2 equipos = 20 min, 3 equipos = 10 min
+    final duracionMinutos = numEquipos == 2 ? 20 : 10;
+
+    IniciarPartidoDialog.show(
+      context,
+      fechaDetalle: fechaDetalle!,
+      equiposDisponibles: equiposDisponibles,
+      duracionMinutos: duracionMinutos,
+      onSuccess: () {
+        // Recargar partido activo
+        context.read<PartidoBloc>().add(
+              CargarPartidoActivoEvent(fechaId: fechaId),
+            );
+      },
     );
   }
 }

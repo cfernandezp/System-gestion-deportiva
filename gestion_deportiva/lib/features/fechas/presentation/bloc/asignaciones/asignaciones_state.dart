@@ -173,6 +173,69 @@ class AsignarEquipoError extends AsignacionesState {
   List<Object?> get props => [data, message, hint];
 }
 
+/// Estado de carga al desasignar equipo
+class DesasignandoEquipo extends AsignacionesState {
+  /// Datos actuales (para mantener UI)
+  final ObtenerAsignacionesDataModel data;
+
+  /// ID del usuario que se esta desasignando
+  final String usuarioId;
+
+  const DesasignandoEquipo({
+    required this.data,
+    required this.usuarioId,
+  });
+
+  @override
+  List<Object?> get props => [data, usuarioId];
+}
+
+/// Estado de exito al desasignar equipo (jugador vuelve a Sin Asignar)
+class EquipoDesasignado extends AsignacionesState {
+  /// Datos actualizados de asignaciones
+  final ObtenerAsignacionesDataModel data;
+
+  /// Nombre del usuario desasignado
+  final String usuarioNombre;
+
+  /// Equipo del que fue removido
+  final String equipoAnterior;
+
+  /// Mensaje de confirmacion
+  final String message;
+
+  const EquipoDesasignado({
+    required this.data,
+    required this.usuarioNombre,
+    required this.equipoAnterior,
+    required this.message,
+  });
+
+  @override
+  List<Object?> get props => [data, usuarioNombre, equipoAnterior, message];
+}
+
+/// Estado de error al desasignar equipo
+class DesasignarEquipoError extends AsignacionesState {
+  /// Datos actuales (para mantener UI)
+  final ObtenerAsignacionesDataModel data;
+
+  /// Mensaje de error
+  final String message;
+
+  /// Hint del backend
+  final String? hint;
+
+  const DesasignarEquipoError({
+    required this.data,
+    required this.message,
+    this.hint,
+  });
+
+  @override
+  List<Object?> get props => [data, message, hint];
+}
+
 /// Estado de carga al confirmar equipos
 class ConfirmandoEquipos extends AsignacionesState {
   /// Datos actuales (para mantener UI)

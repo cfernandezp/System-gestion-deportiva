@@ -1,7 +1,6 @@
-/// Enum para estados del ciclo de vida de un partido
+/// Enum de estados de partido
 /// E004-HU-001: Iniciar Partido
-/// Estados: pendiente -> en_curso <-> pausado -> finalizado
-/// Alternativo: en cualquier momento -> cancelado
+/// Mapea al ENUM estado_partido de la BD
 enum EstadoPartido {
   pendiente,
   enCurso,
@@ -9,8 +8,7 @@ enum EstadoPartido {
   finalizado,
   cancelado;
 
-  /// Convierte string de BD a enum
-  /// BD usa: 'pendiente', 'en_curso', 'pausado', 'finalizado', 'cancelado'
+  /// Convierte string del backend (snake_case) a enum
   static EstadoPartido fromString(String value) {
     switch (value) {
       case 'pendiente':
@@ -28,8 +26,8 @@ enum EstadoPartido {
     }
   }
 
-  /// Convierte enum a string para BD
-  String get valor {
+  /// Convierte enum a string para enviar al backend (snake_case)
+  String toBackend() {
     switch (this) {
       case EstadoPartido.pendiente:
         return 'pendiente';
@@ -44,7 +42,7 @@ enum EstadoPartido {
     }
   }
 
-  /// Nombre para mostrar en UI
+  /// Nombre formateado para mostrar en UI
   String get displayName {
     switch (this) {
       case EstadoPartido.pendiente:
@@ -60,15 +58,13 @@ enum EstadoPartido {
     }
   }
 
-  /// Estados activos (partido jugandose o pausado)
-  bool get esActivo => this == EstadoPartido.enCurso || this == EstadoPartido.pausado;
+  /// Indica si el partido esta activo (en_curso o pausado)
+  bool get esActivo =>
+      this == EstadoPartido.enCurso || this == EstadoPartido.pausado;
 
-  /// Partido en progreso (contando tiempo)
-  bool get esEnCurso => this == EstadoPartido.enCurso;
+  /// Indica si el partido puede ser pausado
+  bool get puedePausar => this == EstadoPartido.enCurso;
 
-  /// Partido pausado temporalmente
-  bool get esPausado => this == EstadoPartido.pausado;
-
-  /// Partido terminado (finalizado o cancelado)
-  bool get esTerminado => this == EstadoPartido.finalizado || this == EstadoPartido.cancelado;
+  /// Indica si el partido puede ser reanudado
+  bool get puedeReanudar => this == EstadoPartido.pausado;
 }

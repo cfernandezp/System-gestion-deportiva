@@ -3,8 +3,11 @@ import 'package:equatable/equatable.dart';
 import 'estado_partido.dart';
 import 'equipo_partido_model.dart';
 
-/// Modelo de Partido en vivo
+/// Modelo de partido
 /// E004-HU-001: Iniciar Partido
+/// E004-HU-002: Temporizador con Alarma
+/// Representa un partido entre 2 equipos con temporizador
+/// Soporta tiempo negativo para tiempo extra (RN-003)
 class PartidoModel extends Equatable {
   final String id;
   final String fechaId;
@@ -15,7 +18,7 @@ class PartidoModel extends Equatable {
   final String? horaInicioFormato;
   final String? horaFinEstimadaFormato;
   final int tiempoRestanteSegundos;
-  final int tiempoPausadoSegundos;
+  final int? tiempoPausadoSegundos;
   final String? tiempoRestanteFormato;
   final String? tiempoTranscurridoFormato;
   final bool tiempoTerminado;
@@ -30,35 +33,32 @@ class PartidoModel extends Equatable {
     this.horaInicioFormato,
     this.horaFinEstimadaFormato,
     required this.tiempoRestanteSegundos,
-    required this.tiempoPausadoSegundos,
+    this.tiempoPausadoSegundos,
     this.tiempoRestanteFormato,
     this.tiempoTranscurridoFormato,
     this.tiempoTerminado = false,
   });
 
-  /// Crea instancia desde JSON del backend
-  /// Mapeo: snake_case -> camelCase
+  /// Factory desde JSON del backend (respuesta de iniciar_partido)
   factory PartidoModel.fromJson(Map<String, dynamic> json) {
     return PartidoModel(
-      id: json['id'] ?? json['partido_id'] ?? '',
-      fechaId: json['fecha_id'] ?? '',
+      id: json['partido_id'] as String? ?? json['id'] as String,
+      fechaId: json['fecha_id'] as String,
       equipoLocal: EquipoPartidoModel.fromJson(
-        json['equipo_local'] as Map<String, dynamic>? ?? {},
+        json['equipo_local'] as Map<String, dynamic>,
       ),
       equipoVisitante: EquipoPartidoModel.fromJson(
-        json['equipo_visitante'] as Map<String, dynamic>? ?? {},
+        json['equipo_visitante'] as Map<String, dynamic>,
       ),
-      duracionMinutos: json['duracion_minutos'] ?? 0,
-      estado: EstadoPartido.fromString(json['estado'] ?? 'pendiente'),
-      horaInicioFormato: json['hora_inicio_formato'],
-      horaFinEstimadaFormato: json['hora_fin_estimada_formato'],
-      tiempoRestanteSegundos: json['tiempo_restante_segundos'] ?? 0,
-      tiempoPausadoSegundos: json['tiempo_pausado_segundos'] ??
-          json['tiempo_pausado_total_segundos'] ??
-          0,
-      tiempoRestanteFormato: json['tiempo_restante_formato'],
-      tiempoTranscurridoFormato: json['tiempo_transcurrido_formato'],
-      tiempoTerminado: json['tiempo_terminado'] ?? false,
+      duracionMinutos: json['duracion_minutos'] as int,
+      estado: EstadoPartido.fromString(json['estado'] as String),
+      horaInicioFormato: json['hora_inicio_formato'] as String?,
+      horaFinEstimadaFormato: json['hora_fin_estimada_formato'] as String?,
+      tiempoRestanteSegundos: json['tiempo_restante_segundos'] as int? ?? 0,
+      tiempoPausadoSegundos: json['tiempo_pausado_segundos'] as int?,
+      tiempoRestanteFormato: json['tiempo_restante_formato'] as String?,
+      tiempoTranscurridoFormato: json['tiempo_transcurrido_formato'] as String?,
+      tiempoTerminado: json['tiempo_terminado'] as bool? ?? false,
     );
   }
 
@@ -70,7 +70,7 @@ class PartidoModel extends Equatable {
       'equipo_local': equipoLocal.toJson(),
       'equipo_visitante': equipoVisitante.toJson(),
       'duracion_minutos': duracionMinutos,
-      'estado': estado.valor,
+      'estado': estado.toBackend(),
       'hora_inicio_formato': horaInicioFormato,
       'hora_fin_estimada_formato': horaFinEstimadaFormato,
       'tiempo_restante_segundos': tiempoRestanteSegundos,
@@ -78,8 +78,8 @@ class PartidoModel extends Equatable {
     };
   }
 
-  /// Crea una copia con tiempo restante actualizado (para countdown local)
-  PartidoModel copyWithTiempoRestante(int nuevoTiempoRestante) {
+  /// Crea copia con tiempo actualizado (para countdown local)
+  PartidoModel copyWithTiempo(int nuevoTiempoRestante) {
     return PartidoModel(
       id: id,
       fechaId: fechaId,
@@ -97,7 +97,7 @@ class PartidoModel extends Equatable {
     );
   }
 
-  /// Crea una copia con nuevo estado
+  /// Crea copia con nuevo estado
   PartidoModel copyWithEstado(EstadoPartido nuevoEstado) {
     return PartidoModel(
       id: id,
@@ -116,17 +116,32 @@ class PartidoModel extends Equatable {
     );
   }
 
-  /// Formatea segundos a MM:SS
+  /// Formatea segundos a MM:SS o -MM:SS para tiempo extra
+  /// E004-HU-002 CA-006, RN-006: Formato tiempo legible
+  /// - Positivo: "05:30" (5 min 30 seg)
+  /// - Cero: "00:00"
+  /// - Negativo: "-01:15" (1 min 15 seg de tiempo extra)
   static String _formatearTiempo(int segundos) {
-    if (segundos < 0) segundos = 0;
-    final minutos = segundos ~/ 60;
-    final segs = segundos % 60;
-    return '${minutos.toString().padLeft(2, '0')}:${segs.toString().padLeft(2, '0')}';
+    final esNegativo = segundos < 0;
+    final segundosAbsolutos = segundos.abs();
+    final minutos = segundosAbsolutos ~/ 60;
+    final segs = segundosAbsolutos % 60;
+    final tiempo =
+        '${minutos.toString().padLeft(2, '0')}:${segs.toString().padLeft(2, '0')}';
+    return esNegativo ? '-$tiempo' : tiempo;
   }
 
-  /// Titulo del partido para UI
-  String get titulo =>
-      '${equipoLocal.displayName} vs ${equipoVisitante.displayName}';
+  /// Tiempo restante formateado (MM:SS o -MM:SS)
+  /// E004-HU-002 CA-001, CA-006: Visualizacion del tiempo
+  String get tiempoRestanteDisplay {
+    // Usar formato local para soportar tiempo negativo
+    return _formatearTiempo(tiempoRestanteSegundos);
+  }
+
+  /// Nombre del enfrentamiento para mostrar
+  String get enfrentamientoDisplay {
+    return '${equipoLocal.color.displayName.toUpperCase()} vs ${equipoVisitante.color.displayName.toUpperCase()}';
+  }
 
   @override
   List<Object?> get props => [
@@ -140,8 +155,6 @@ class PartidoModel extends Equatable {
         horaFinEstimadaFormato,
         tiempoRestanteSegundos,
         tiempoPausadoSegundos,
-        tiempoRestanteFormato,
-        tiempoTranscurridoFormato,
         tiempoTerminado,
       ];
 }

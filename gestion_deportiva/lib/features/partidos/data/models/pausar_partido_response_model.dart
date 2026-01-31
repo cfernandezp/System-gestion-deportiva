@@ -39,13 +39,13 @@ class PausarPartidoResponseModel extends Equatable {
   factory PausarPartidoResponseModel.fromJson(Map<String, dynamic> json) {
     final data = json['data'] as Map<String, dynamic>? ?? {};
     return PausarPartidoResponseModel(
-      success: json['success'] ?? false,
-      partidoId: data['partido_id'] ?? '',
-      estado: EstadoPartido.fromString(data['estado'] ?? 'pausado'),
-      pausadoAtFormato: data['pausado_at_formato'],
-      tiempoRestanteSegundos: data['tiempo_restante_segundos'] ?? 0,
-      pausadoPorNombre: data['pausado_por_nombre'],
-      message: json['message'] ?? '',
+      success: json['success'] as bool? ?? false,
+      partidoId: data['partido_id'] as String? ?? '',
+      estado: EstadoPartido.fromString(data['estado'] as String? ?? 'pausado'),
+      pausadoAtFormato: data['pausado_at_formato'] as String?,
+      tiempoRestanteSegundos: data['tiempo_restante_segundos'] as int? ?? 0,
+      pausadoPorNombre: data['pausado_por_nombre'] as String?,
+      message: json['message'] as String? ?? '',
     );
   }
 

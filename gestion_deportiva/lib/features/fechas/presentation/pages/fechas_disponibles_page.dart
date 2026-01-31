@@ -80,9 +80,13 @@ class _MobileFechasViewState extends State<_MobileFechasView>
   @override
   void initState() {
     super.initState();
+    // Obtener el index inicial desde el bloc
+    final bloc = context.read<FechasPorRolBloc>();
+    final initialIndex = _getIndexPorSeccion(bloc.seccionActual);
     _tabController = TabController(
       length: widget.esAdmin ? 4 : 3,
       vsync: this,
+      initialIndex: initialIndex,
     );
     _tabController.addListener(_onTabChanged);
   }
@@ -94,9 +98,12 @@ class _MobileFechasViewState extends State<_MobileFechasView>
     if (oldWidget.esAdmin != widget.esAdmin) {
       _tabController.removeListener(_onTabChanged);
       _tabController.dispose();
+      final bloc = context.read<FechasPorRolBloc>();
+      final currentIndex = _getIndexPorSeccion(bloc.seccionActual);
       _tabController = TabController(
         length: widget.esAdmin ? 4 : 3,
         vsync: this,
+        initialIndex: currentIndex.clamp(0, (widget.esAdmin ? 4 : 3) - 1),
       );
       _tabController.addListener(_onTabChanged);
     }
@@ -113,6 +120,34 @@ class _MobileFechasViewState extends State<_MobileFechasView>
     if (_tabController.indexIsChanging) return;
     final seccion = _getSeccionPorIndex(_tabController.index);
     context.read<FechasPorRolBloc>().add(CambiarSeccionEvent(seccion: seccion));
+  }
+
+  int _getIndexPorSeccion(String seccion) {
+    if (widget.esAdmin) {
+      switch (seccion) {
+        case 'proximas':
+          return 0;
+        case 'en_curso':
+          return 1;
+        case 'historial':
+          return 2;
+        case 'todas':
+          return 3;
+        default:
+          return 0;
+      }
+    } else {
+      switch (seccion) {
+        case 'proximas':
+          return 0;
+        case 'inscrito':
+          return 1;
+        case 'historial':
+          return 2;
+        default:
+          return 0;
+      }
+    }
   }
 
   String _getSeccionPorIndex(int index) {
@@ -245,9 +280,13 @@ class _DesktopFechasViewState extends State<_DesktopFechasView>
   @override
   void initState() {
     super.initState();
+    // Obtener el index inicial desde el bloc
+    final bloc = context.read<FechasPorRolBloc>();
+    final initialIndex = _getIndexPorSeccion(bloc.seccionActual);
     _tabController = TabController(
       length: widget.esAdmin ? 4 : 3,
       vsync: this,
+      initialIndex: initialIndex,
     );
     _tabController.addListener(_onTabChanged);
   }
@@ -258,9 +297,12 @@ class _DesktopFechasViewState extends State<_DesktopFechasView>
     if (oldWidget.esAdmin != widget.esAdmin) {
       _tabController.removeListener(_onTabChanged);
       _tabController.dispose();
+      final bloc = context.read<FechasPorRolBloc>();
+      final currentIndex = _getIndexPorSeccion(bloc.seccionActual);
       _tabController = TabController(
         length: widget.esAdmin ? 4 : 3,
         vsync: this,
+        initialIndex: currentIndex.clamp(0, (widget.esAdmin ? 4 : 3) - 1),
       );
       _tabController.addListener(_onTabChanged);
     }
@@ -277,6 +319,34 @@ class _DesktopFechasViewState extends State<_DesktopFechasView>
     if (_tabController.indexIsChanging) return;
     final seccion = _getSeccionPorIndex(_tabController.index);
     context.read<FechasPorRolBloc>().add(CambiarSeccionEvent(seccion: seccion));
+  }
+
+  int _getIndexPorSeccion(String seccion) {
+    if (widget.esAdmin) {
+      switch (seccion) {
+        case 'proximas':
+          return 0;
+        case 'en_curso':
+          return 1;
+        case 'historial':
+          return 2;
+        case 'todas':
+          return 3;
+        default:
+          return 0;
+      }
+    } else {
+      switch (seccion) {
+        case 'proximas':
+          return 0;
+        case 'inscrito':
+          return 1;
+        case 'historial':
+          return 2;
+        default:
+          return 0;
+      }
+    }
   }
 
   String _getSeccionPorIndex(int index) {
@@ -974,6 +1044,12 @@ class _FechasTabContent extends StatelessWidget {
                       fecha: fecha,
                       compacta: true,
                       onTap: () => context.push('/fechas/${fecha.id}'),
+                      esAdmin: esAdmin,
+                      onRefresh: () {
+                        context
+                            .read<FechasPorRolBloc>()
+                            .add(const RefrescarFechasEvent());
+                      },
                     );
                   },
                 ),
@@ -1573,6 +1649,7 @@ class _DataTablePanel extends StatelessWidget {
                     headingRowColor: WidgetStateProperty.all(
                       colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                     ),
+                    showCheckboxColumn: false,
                     columns: const [
                       DataColumn(label: Text('Fecha/Hora')),
                       DataColumn(label: Text('Lugar')),
@@ -1584,6 +1661,8 @@ class _DataTablePanel extends StatelessWidget {
                     ],
                     rows: fechas.map((fecha) {
                       return DataRow(
+                        // Hacer toda la fila clickeable para navegar al detalle
+                        onSelectChanged: (_) => context.push('/fechas/${fecha.id}'),
                         cells: [
                           DataCell(_buildFechaHoraCell(context, fecha)),
                           DataCell(_buildLugarCell(context, fecha)),
@@ -1833,7 +1912,7 @@ class _DataTablePanel extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Boton Ver detalle
+        // Boton Ver detalle (siempre visible)
         Tooltip(
           message: 'Ver detalle',
           child: IconButton(
@@ -1845,20 +1924,188 @@ class _DataTablePanel extends StatelessWidget {
             iconSize: DesignTokens.iconSizeS + 2,
           ),
         ),
-        // Boton Editar (solo admin y fecha futura/abierta)
-        if (esAdmin && fecha.estado == EstadoFecha.abierta)
-          Tooltip(
-            message: 'Editar fecha',
-            child: IconButton(
-              onPressed: () => _mostrarDialogEditar(context, fecha),
-              icon: Icon(
-                Icons.edit_outlined,
-                color: DesignTokens.accentColor,
-              ),
-              iconSize: DesignTokens.iconSizeS + 2,
-            ),
+        // Menu de acciones adicionales
+        PopupMenuButton<String>(
+          icon: Icon(
+            Icons.more_vert,
+            color: colorScheme.onSurfaceVariant,
           ),
+          tooltip: 'Mas acciones',
+          onSelected: (value) => _ejecutarAccion(context, value, fecha),
+          itemBuilder: (context) => _buildMenuItems(context, fecha),
+        ),
       ],
+    );
+  }
+
+  /// Construye los items del menu segun el estado y el rol
+  List<PopupMenuEntry<String>> _buildMenuItems(
+      BuildContext context, FechaPorRolModel fecha) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final items = <PopupMenuEntry<String>>[];
+
+    // Editar fecha (solo admin y fecha abierta)
+    if (esAdmin && fecha.estado == EstadoFecha.abierta) {
+      items.add(PopupMenuItem(
+        value: 'editar',
+        child: Row(
+          children: [
+            Icon(Icons.edit_outlined, color: DesignTokens.accentColor, size: 20),
+            const SizedBox(width: DesignTokens.spacingS),
+            const Text('Editar fecha'),
+          ],
+        ),
+      ));
+    }
+
+    // Cerrar inscripciones (solo admin y fecha abierta)
+    if (esAdmin && fecha.estado == EstadoFecha.abierta) {
+      items.add(PopupMenuItem(
+        value: 'cerrar_inscripciones',
+        child: Row(
+          children: [
+            Icon(Icons.lock, color: colorScheme.secondary, size: 20),
+            const SizedBox(width: DesignTokens.spacingS),
+            const Text('Cerrar inscripciones'),
+          ],
+        ),
+      ));
+    }
+
+    // Reabrir inscripciones (solo admin y fecha cerrada)
+    if (esAdmin && fecha.estado == EstadoFecha.cerrada) {
+      items.add(PopupMenuItem(
+        value: 'reabrir_inscripciones',
+        child: Row(
+          children: [
+            Icon(Icons.lock_open, color: colorScheme.primary, size: 20),
+            const SizedBox(width: DesignTokens.spacingS),
+            const Text('Reabrir inscripciones'),
+          ],
+        ),
+      ));
+    }
+
+    // Asignar equipos (solo admin y fecha cerrada)
+    if (esAdmin && fecha.estado == EstadoFecha.cerrada) {
+      items.add(PopupMenuItem(
+        value: 'asignar_equipos',
+        child: Row(
+          children: [
+            Icon(Icons.groups, color: colorScheme.primary, size: 20),
+            const SizedBox(width: DesignTokens.spacingS),
+            const Text('Asignar equipos'),
+          ],
+        ),
+      ));
+    }
+
+    // Finalizar fecha (solo admin y fecha cerrada o en_juego)
+    if (esAdmin &&
+        (fecha.estado == EstadoFecha.cerrada ||
+            fecha.estado == EstadoFecha.enJuego)) {
+      items.add(PopupMenuItem(
+        value: 'finalizar',
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Color(0xFF9E9E9E), size: 20),
+            const SizedBox(width: DesignTokens.spacingS),
+            const Text('Finalizar pichanga'),
+          ],
+        ),
+      ));
+    }
+
+    // Si no hay acciones disponibles, mostrar mensaje
+    if (items.isEmpty) {
+      items.add(const PopupMenuItem(
+        enabled: false,
+        child: Text(
+          'Sin acciones disponibles',
+          style: TextStyle(fontStyle: FontStyle.italic),
+        ),
+      ));
+    }
+
+    return items;
+  }
+
+  /// Ejecuta la accion seleccionada del menu
+  void _ejecutarAccion(
+      BuildContext context, String accion, FechaPorRolModel fecha) {
+    switch (accion) {
+      case 'editar':
+        _mostrarDialogEditar(context, fecha);
+        break;
+      case 'cerrar_inscripciones':
+        _mostrarDialogCerrarInscripciones(context, fecha);
+        break;
+      case 'reabrir_inscripciones':
+        _mostrarDialogReabrirInscripciones(context, fecha);
+        break;
+      case 'asignar_equipos':
+        context.push('/fechas/${fecha.id}/equipos');
+        break;
+      case 'finalizar':
+        _mostrarDialogFinalizar(context, fecha);
+        break;
+    }
+  }
+
+  /// Muestra el dialog para cerrar inscripciones
+  void _mostrarDialogCerrarInscripciones(
+      BuildContext context, FechaPorRolModel fecha) {
+    // Cargamos el detalle de la fecha y luego mostramos el dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => BlocProvider(
+        create: (_) => sl<InscripcionBloc>()
+          ..add(CargarFechaDetalleEvent(fechaId: fecha.id)),
+        child: _CerrarInscripcionesLoaderDialog(
+          fechaId: fecha.id,
+          onSuccess: () {
+            context.read<FechasPorRolBloc>().add(const RefrescarFechasEvent());
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Muestra el dialog para reabrir inscripciones
+  void _mostrarDialogReabrirInscripciones(
+      BuildContext context, FechaPorRolModel fecha) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => BlocProvider(
+        create: (_) => sl<InscripcionBloc>()
+          ..add(CargarFechaDetalleEvent(fechaId: fecha.id)),
+        child: _ReabrirInscripcionesLoaderDialog(
+          fechaId: fecha.id,
+          onSuccess: () {
+            context.read<FechasPorRolBloc>().add(const RefrescarFechasEvent());
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Muestra el dialog para finalizar fecha
+  void _mostrarDialogFinalizar(BuildContext context, FechaPorRolModel fecha) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => BlocProvider(
+        create: (_) => sl<InscripcionBloc>()
+          ..add(CargarFechaDetalleEvent(fechaId: fecha.id)),
+        child: _FinalizarFechaLoaderDialog(
+          fechaId: fecha.id,
+          onSuccess: () {
+            context.read<FechasPorRolBloc>().add(const RefrescarFechasEvent());
+          },
+        ),
+      ),
     );
   }
 
@@ -1913,11 +2160,15 @@ class _FechaPorRolCard extends StatelessWidget {
   final FechaPorRolModel fecha;
   final bool compacta;
   final VoidCallback? onTap;
+  final bool esAdmin;
+  final VoidCallback? onRefresh;
 
   const _FechaPorRolCard({
     required this.fecha,
     this.compacta = false,
     this.onTap,
+    this.esAdmin = false,
+    this.onRefresh,
   });
 
   @override
@@ -1990,6 +2241,9 @@ class _FechaPorRolCard extends StatelessWidget {
 
                   // Badge de estado
                   _buildEstadoBadge(context, indicadorColor),
+
+                  // Menu de acciones (solo si es admin)
+                  if (esAdmin) _buildMenuAcciones(context, colorScheme),
                 ],
               ),
 
@@ -2204,6 +2458,192 @@ class _FechaPorRolCard extends StatelessWidget {
       default:
         return const Color(0xFF9E9E9E);
     }
+  }
+
+  /// Menu de acciones contextual para administradores (Mobile)
+  Widget _buildMenuAcciones(BuildContext context, ColorScheme colorScheme) {
+    return PopupMenuButton<String>(
+      icon: Icon(
+        Icons.more_vert,
+        color: colorScheme.onSurfaceVariant,
+        size: DesignTokens.iconSizeM,
+      ),
+      padding: EdgeInsets.zero,
+      tooltip: 'Acciones',
+      onSelected: (value) => _ejecutarAccion(context, value),
+      itemBuilder: (context) => _buildMenuItems(context),
+    );
+  }
+
+  /// Construye los items del menu segun el estado de la fecha
+  List<PopupMenuEntry<String>> _buildMenuItems(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final items = <PopupMenuEntry<String>>[];
+
+    // Editar fecha (solo fecha abierta)
+    if (fecha.estado == EstadoFecha.abierta) {
+      items.add(PopupMenuItem(
+        value: 'editar',
+        child: Row(
+          children: [
+            Icon(Icons.edit_outlined, color: DesignTokens.accentColor, size: 20),
+            const SizedBox(width: DesignTokens.spacingS),
+            const Text('Editar'),
+          ],
+        ),
+      ));
+    }
+
+    // Cerrar inscripciones (solo fecha abierta)
+    if (fecha.estado == EstadoFecha.abierta) {
+      items.add(PopupMenuItem(
+        value: 'cerrar_inscripciones',
+        child: Row(
+          children: [
+            Icon(Icons.lock, color: colorScheme.secondary, size: 20),
+            const SizedBox(width: DesignTokens.spacingS),
+            const Text('Cerrar inscripciones'),
+          ],
+        ),
+      ));
+    }
+
+    // Reabrir inscripciones (solo fecha cerrada)
+    if (fecha.estado == EstadoFecha.cerrada) {
+      items.add(PopupMenuItem(
+        value: 'reabrir_inscripciones',
+        child: Row(
+          children: [
+            Icon(Icons.lock_open, color: colorScheme.primary, size: 20),
+            const SizedBox(width: DesignTokens.spacingS),
+            const Text('Reabrir inscripciones'),
+          ],
+        ),
+      ));
+    }
+
+    // Asignar equipos (solo fecha cerrada)
+    if (fecha.estado == EstadoFecha.cerrada) {
+      items.add(PopupMenuItem(
+        value: 'asignar_equipos',
+        child: Row(
+          children: [
+            Icon(Icons.groups, color: colorScheme.primary, size: 20),
+            const SizedBox(width: DesignTokens.spacingS),
+            const Text('Asignar equipos'),
+          ],
+        ),
+      ));
+    }
+
+    // Finalizar fecha (fecha cerrada o en_juego)
+    if (fecha.estado == EstadoFecha.cerrada ||
+        fecha.estado == EstadoFecha.enJuego) {
+      items.add(PopupMenuItem(
+        value: 'finalizar',
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Color(0xFF9E9E9E), size: 20),
+            const SizedBox(width: DesignTokens.spacingS),
+            const Text('Finalizar'),
+          ],
+        ),
+      ));
+    }
+
+    // Si no hay acciones disponibles
+    if (items.isEmpty) {
+      items.add(const PopupMenuItem(
+        enabled: false,
+        child: Text(
+          'Sin acciones',
+          style: TextStyle(fontStyle: FontStyle.italic),
+        ),
+      ));
+    }
+
+    return items;
+  }
+
+  /// Ejecuta la accion seleccionada del menu
+  void _ejecutarAccion(BuildContext context, String accion) {
+    switch (accion) {
+      case 'editar':
+        _mostrarDialogEditar(context);
+        break;
+      case 'cerrar_inscripciones':
+        _mostrarDialogCerrarInscripciones(context);
+        break;
+      case 'reabrir_inscripciones':
+        _mostrarDialogReabrirInscripciones(context);
+        break;
+      case 'asignar_equipos':
+        context.push('/fechas/${fecha.id}/equipos');
+        break;
+      case 'finalizar':
+        _mostrarDialogFinalizar(context);
+        break;
+    }
+  }
+
+  void _mostrarDialogEditar(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => BlocProvider(
+        create: (_) => sl<InscripcionBloc>()
+          ..add(CargarFechaDetalleEvent(fechaId: fecha.id)),
+        child: _EditarFechaLoaderDialogGeneric(
+          fechaId: fecha.id,
+          onSuccess: onRefresh,
+        ),
+      ),
+    );
+  }
+
+  void _mostrarDialogCerrarInscripciones(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => BlocProvider(
+        create: (_) => sl<InscripcionBloc>()
+          ..add(CargarFechaDetalleEvent(fechaId: fecha.id)),
+        child: _CerrarInscripcionesLoaderDialogGeneric(
+          fechaId: fecha.id,
+          onSuccess: onRefresh,
+        ),
+      ),
+    );
+  }
+
+  void _mostrarDialogReabrirInscripciones(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => BlocProvider(
+        create: (_) => sl<InscripcionBloc>()
+          ..add(CargarFechaDetalleEvent(fechaId: fecha.id)),
+        child: _ReabrirInscripcionesLoaderDialogGeneric(
+          fechaId: fecha.id,
+          onSuccess: onRefresh,
+        ),
+      ),
+    );
+  }
+
+  void _mostrarDialogFinalizar(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => BlocProvider(
+        create: (_) => sl<InscripcionBloc>()
+          ..add(CargarFechaDetalleEvent(fechaId: fecha.id)),
+        child: _FinalizarFechaLoaderDialogGeneric(
+          fechaId: fecha.id,
+          onSuccess: onRefresh,
+        ),
+      ),
+    );
   }
 }
 
@@ -2851,6 +3291,412 @@ class _EditarFechaLoaderDialog extends StatelessWidget {
         if (state is InscripcionFechaDetalleCargado) {
           Navigator.of(context).pop();
           EditarFechaDialog.show(
+            context,
+            fechaDetalle: state.fechaDetalle,
+            onSuccess: onSuccess,
+          );
+        }
+
+        if (state is InscripcionError) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: DesignTokens.errorColor,
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        return Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(DesignTokens.spacingL),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: DesignTokens.spacingM),
+                Text(
+                  'Cargando fecha...',
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Widget loader para cerrar inscripciones desde la lista
+/// Carga el detalle de la fecha y luego abre el dialog de cerrar inscripciones
+class _CerrarInscripcionesLoaderDialog extends StatelessWidget {
+  final String fechaId;
+  final VoidCallback onSuccess;
+
+  const _CerrarInscripcionesLoaderDialog({
+    required this.fechaId,
+    required this.onSuccess,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return BlocConsumer<InscripcionBloc, InscripcionState>(
+      listener: (context, state) {
+        if (state is InscripcionFechaDetalleCargado) {
+          Navigator.of(context).pop();
+          CerrarInscripcionesDialog.show(
+            context,
+            fechaDetalle: state.fechaDetalle,
+            onSuccess: onSuccess,
+          );
+        }
+
+        if (state is InscripcionError) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: DesignTokens.errorColor,
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        return Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(DesignTokens.spacingL),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: DesignTokens.spacingM),
+                Text(
+                  'Cargando fecha...',
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Widget loader para reabrir inscripciones desde la lista
+/// Carga el detalle de la fecha y luego abre el dialog de reabrir inscripciones
+class _ReabrirInscripcionesLoaderDialog extends StatelessWidget {
+  final String fechaId;
+  final VoidCallback onSuccess;
+
+  const _ReabrirInscripcionesLoaderDialog({
+    required this.fechaId,
+    required this.onSuccess,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return BlocConsumer<InscripcionBloc, InscripcionState>(
+      listener: (context, state) {
+        if (state is InscripcionFechaDetalleCargado) {
+          Navigator.of(context).pop();
+          ReabrirInscripcionesDialog.show(
+            context,
+            fechaDetalle: state.fechaDetalle,
+            onSuccess: onSuccess,
+          );
+        }
+
+        if (state is InscripcionError) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: DesignTokens.errorColor,
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        return Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(DesignTokens.spacingL),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: DesignTokens.spacingM),
+                Text(
+                  'Cargando fecha...',
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Widget loader para finalizar fecha desde la lista
+/// Carga el detalle de la fecha y luego abre el dialog de finalizar
+class _FinalizarFechaLoaderDialog extends StatelessWidget {
+  final String fechaId;
+  final VoidCallback onSuccess;
+
+  const _FinalizarFechaLoaderDialog({
+    required this.fechaId,
+    required this.onSuccess,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return BlocConsumer<InscripcionBloc, InscripcionState>(
+      listener: (context, state) {
+        if (state is InscripcionFechaDetalleCargado) {
+          Navigator.of(context).pop();
+          FinalizarFechaDialog.show(
+            context,
+            fechaDetalle: state.fechaDetalle,
+            onSuccess: onSuccess,
+          );
+        }
+
+        if (state is InscripcionError) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: DesignTokens.errorColor,
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        return Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(DesignTokens.spacingL),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: DesignTokens.spacingM),
+                Text(
+                  'Cargando fecha...',
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ============================================
+// WIDGETS LOADER GENERICOS (para uso desde cards mobile)
+// ============================================
+
+/// Widget loader generico para editar fecha (acepta onSuccess nullable)
+class _EditarFechaLoaderDialogGeneric extends StatelessWidget {
+  final String fechaId;
+  final VoidCallback? onSuccess;
+
+  const _EditarFechaLoaderDialogGeneric({
+    required this.fechaId,
+    this.onSuccess,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return BlocConsumer<InscripcionBloc, InscripcionState>(
+      listener: (context, state) {
+        if (state is InscripcionFechaDetalleCargado) {
+          Navigator.of(context).pop();
+          EditarFechaDialog.show(
+            context,
+            fechaDetalle: state.fechaDetalle,
+            onSuccess: onSuccess,
+          );
+        }
+
+        if (state is InscripcionError) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: DesignTokens.errorColor,
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        return Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(DesignTokens.spacingL),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: DesignTokens.spacingM),
+                Text(
+                  'Cargando fecha...',
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Widget loader generico para cerrar inscripciones (acepta onSuccess nullable)
+class _CerrarInscripcionesLoaderDialogGeneric extends StatelessWidget {
+  final String fechaId;
+  final VoidCallback? onSuccess;
+
+  const _CerrarInscripcionesLoaderDialogGeneric({
+    required this.fechaId,
+    this.onSuccess,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return BlocConsumer<InscripcionBloc, InscripcionState>(
+      listener: (context, state) {
+        if (state is InscripcionFechaDetalleCargado) {
+          Navigator.of(context).pop();
+          CerrarInscripcionesDialog.show(
+            context,
+            fechaDetalle: state.fechaDetalle,
+            onSuccess: onSuccess,
+          );
+        }
+
+        if (state is InscripcionError) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: DesignTokens.errorColor,
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        return Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(DesignTokens.spacingL),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: DesignTokens.spacingM),
+                Text(
+                  'Cargando fecha...',
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Widget loader generico para reabrir inscripciones (acepta onSuccess nullable)
+class _ReabrirInscripcionesLoaderDialogGeneric extends StatelessWidget {
+  final String fechaId;
+  final VoidCallback? onSuccess;
+
+  const _ReabrirInscripcionesLoaderDialogGeneric({
+    required this.fechaId,
+    this.onSuccess,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return BlocConsumer<InscripcionBloc, InscripcionState>(
+      listener: (context, state) {
+        if (state is InscripcionFechaDetalleCargado) {
+          Navigator.of(context).pop();
+          ReabrirInscripcionesDialog.show(
+            context,
+            fechaDetalle: state.fechaDetalle,
+            onSuccess: onSuccess,
+          );
+        }
+
+        if (state is InscripcionError) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: DesignTokens.errorColor,
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        return Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(DesignTokens.spacingL),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: DesignTokens.spacingM),
+                Text(
+                  'Cargando fecha...',
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Widget loader generico para finalizar fecha (acepta onSuccess nullable)
+class _FinalizarFechaLoaderDialogGeneric extends StatelessWidget {
+  final String fechaId;
+  final VoidCallback? onSuccess;
+
+  const _FinalizarFechaLoaderDialogGeneric({
+    required this.fechaId,
+    this.onSuccess,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return BlocConsumer<InscripcionBloc, InscripcionState>(
+      listener: (context, state) {
+        if (state is InscripcionFechaDetalleCargado) {
+          Navigator.of(context).pop();
+          FinalizarFechaDialog.show(
             context,
             fechaDetalle: state.fechaDetalle,
             onSuccess: onSuccess,
