@@ -21,6 +21,8 @@ import '../models/mi_equipo_model.dart';
 import '../models/equipos_fecha_model.dart';
 import '../models/listar_fechas_por_rol_response_model.dart';
 import '../models/finalizar_fecha_response_model.dart';
+import '../models/inscribir_jugador_admin_response_model.dart';
+import '../models/iniciar_fecha_response_model.dart';
 
 /// Interface del DataSource remoto de fechas
 /// E003-HU-001: Crear Fecha
@@ -32,6 +34,8 @@ import '../models/finalizar_fecha_response_model.dart';
 /// E003-HU-007: Cancelar Inscripcion
 /// E003-HU-008: Editar Fecha
 /// E003-HU-009: Listar Fechas por Rol
+/// E003-HU-011: Inscribir Jugador como Admin
+/// E003-HU-012: Iniciar Fecha
 abstract class FechasRemoteDataSource {
   /// Crea una nueva fecha de pichanga
   /// RPC: crear_fecha(p_fecha_hora_inicio, p_duracion_horas, p_lugar)
@@ -180,6 +184,29 @@ abstract class FechasRemoteDataSource {
     bool huboIncidente = false,
     String? descripcionIncidente,
   });
+
+  // ==================== E003-HU-011: Inscribir Jugador como Admin ====================
+
+  /// Lista jugadores disponibles para inscripcion (aprobados, no inscritos a esta fecha)
+  /// RPC: listar_jugadores_disponibles_inscripcion(p_fecha_id)
+  /// CA-002: Selector de jugadores con busqueda
+  Future<ListarJugadoresDisponiblesResponseModel> listarJugadoresDisponiblesInscripcion(
+      String fechaId);
+
+  /// Inscribe un jugador a una fecha como admin/organizador
+  /// RPC: inscribir_jugador_admin(p_fecha_id, p_jugador_id)
+  /// CA-001 a CA-008, RN-001 a RN-008
+  Future<InscribirJugadorAdminResponseModel> inscribirJugadorAdmin({
+    required String fechaId,
+    required String jugadorId,
+  });
+
+  // ==================== E003-HU-012: Iniciar Fecha ====================
+
+  /// Inicia una fecha de pichanga (cambia estado de cerrada a en_juego)
+  /// RPC: iniciar_fecha(p_fecha_id)
+  /// CA-001 a CA-007, RN-001 a RN-007
+  Future<IniciarFechaResponseModel> iniciarFecha(String fechaId);
 }
 
 /// Implementacion del DataSource remoto de fechas
@@ -896,6 +923,111 @@ class FechasRemoteDataSourceImpl implements FechasRemoteDataSource {
     } catch (e) {
       throw ServerException(
         message: 'Error de conexion al finalizar fecha: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== E003-HU-011: Inscribir Jugador como Admin ====================
+
+  @override
+  Future<ListarJugadoresDisponiblesResponseModel>
+      listarJugadoresDisponiblesInscripcion(String fechaId) async {
+    try {
+      // RPC: listar_jugadores_disponibles_inscripcion(p_fecha_id)
+      // CA-002: Lista de jugadores aprobados no inscritos
+      final response = await supabase.rpc(
+        'listar_jugadores_disponibles_inscripcion',
+        params: {'p_fecha_id': fechaId},
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return ListarJugadoresDisponiblesResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al listar jugadores disponibles',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message:
+            'Error de conexion al listar jugadores disponibles: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
+  Future<InscribirJugadorAdminResponseModel> inscribirJugadorAdmin({
+    required String fechaId,
+    required String jugadorId,
+  }) async {
+    try {
+      // RPC: inscribir_jugador_admin(p_fecha_id, p_jugador_id)
+      // CA-001 a CA-008, RN-001 a RN-008
+      final response = await supabase.rpc(
+        'inscribir_jugador_admin',
+        params: {
+          'p_fecha_id': fechaId,
+          'p_jugador_id': jugadorId,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return InscribirJugadorAdminResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al inscribir jugador',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al inscribir jugador: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== E003-HU-012: Iniciar Fecha ====================
+
+  @override
+  Future<IniciarFechaResponseModel> iniciarFecha(String fechaId) async {
+    try {
+      // RPC: iniciar_fecha(p_fecha_id)
+      // CA-001 a CA-007, RN-001 a RN-007
+      final response = await supabase.rpc(
+        'iniciar_fecha',
+        params: {'p_fecha_id': fechaId},
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return IniciarFechaResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al iniciar la pichanga',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al iniciar pichanga: ${e.toString()}',
       );
     }
   }

@@ -20,6 +20,8 @@ import '../../data/models/mi_equipo_model.dart';
 import '../../data/models/equipos_fecha_model.dart';
 import '../../data/models/listar_fechas_por_rol_response_model.dart';
 import '../../data/models/finalizar_fecha_response_model.dart';
+import '../../data/models/inscribir_jugador_admin_response_model.dart';
+import '../../data/models/iniciar_fecha_response_model.dart';
 
 /// Interface del repositorio de fechas
 /// E003-HU-001: Crear Fecha
@@ -31,6 +33,8 @@ import '../../data/models/finalizar_fecha_response_model.dart';
 /// E003-HU-007: Cancelar Inscripcion
 /// E003-HU-008: Editar Fecha
 /// E003-HU-009: Listar Fechas por Rol
+/// E003-HU-011: Inscribir Jugador como Admin
+/// E003-HU-012: Iniciar Fecha
 abstract class FechasRepository {
   /// Crea una nueva fecha de pichanga
   /// CA-001 a CA-007, RN-001 a RN-007
@@ -190,4 +194,29 @@ abstract class FechasRepository {
     bool huboIncidente,
     String? descripcionIncidente,
   });
+
+  // ==================== E003-HU-011: Inscribir Jugador como Admin ====================
+
+  /// Lista jugadores disponibles para inscripcion (aprobados, no inscritos a esta fecha)
+  /// CA-002: Selector de jugadores con busqueda
+  /// Returns: `Either<Failure, ListarJugadoresDisponiblesResponseModel>`
+  Future<Either<Failure, ListarJugadoresDisponiblesResponseModel>>
+      listarJugadoresDisponiblesInscripcion(String fechaId);
+
+  /// Inscribe un jugador a una fecha como admin/organizador
+  /// CA-001 a CA-008, RN-001 a RN-008
+  /// Returns: `Either<Failure, InscribirJugadorAdminResponseModel>`
+  Future<Either<Failure, InscribirJugadorAdminResponseModel>>
+      inscribirJugadorAdmin({
+    required String fechaId,
+    required String jugadorId,
+  });
+
+  // ==================== E003-HU-012: Iniciar Fecha ====================
+
+  /// Inicia una fecha de pichanga (cambia estado de cerrada a en_juego)
+  /// CA-001 a CA-007, RN-001 a RN-007
+  /// Returns: `Either<Failure, IniciarFechaResponseModel>`
+  Future<Either<Failure, IniciarFechaResponseModel>> iniciarFecha(
+      String fechaId);
 }

@@ -23,6 +23,8 @@ import '../models/mi_equipo_model.dart';
 import '../models/equipos_fecha_model.dart';
 import '../models/listar_fechas_por_rol_response_model.dart';
 import '../models/finalizar_fecha_response_model.dart';
+import '../models/inscribir_jugador_admin_response_model.dart';
+import '../models/iniciar_fecha_response_model.dart';
 
 /// Implementacion del repositorio de fechas
 /// E003-HU-001: Crear Fecha
@@ -34,6 +36,8 @@ import '../models/finalizar_fecha_response_model.dart';
 /// E003-HU-007: Cancelar Inscripcion
 /// E003-HU-008: Editar Fecha
 /// E003-HU-009: Listar Fechas por Rol
+/// E003-HU-011: Inscribir Jugador como Admin
+/// E003-HU-012: Iniciar Fecha
 class FechasRepositoryImpl implements FechasRepository {
   final FechasRemoteDataSource remoteDataSource;
 
@@ -480,6 +484,75 @@ class FechasRepositoryImpl implements FechasRepository {
     } catch (e) {
       return Left(ServerFailure(
         message: 'Error inesperado al finalizar fecha: ${e.toString()}',
+      ));
+    }
+  }
+
+  // ==================== E003-HU-011: Inscribir Jugador como Admin ====================
+
+  @override
+  Future<Either<Failure, ListarJugadoresDisponiblesResponseModel>>
+      listarJugadoresDisponiblesInscripcion(String fechaId) async {
+    try {
+      final result =
+          await remoteDataSource.listarJugadoresDisponiblesInscripcion(fechaId);
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message:
+            'Error inesperado al listar jugadores disponibles: ${e.toString()}',
+      ));
+    }
+  }
+
+  @override
+  Future<Either<Failure, InscribirJugadorAdminResponseModel>>
+      inscribirJugadorAdmin({
+    required String fechaId,
+    required String jugadorId,
+  }) async {
+    try {
+      final result = await remoteDataSource.inscribirJugadorAdmin(
+        fechaId: fechaId,
+        jugadorId: jugadorId,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado al inscribir jugador: ${e.toString()}',
+      ));
+    }
+  }
+
+  // ==================== E003-HU-012: Iniciar Fecha ====================
+
+  @override
+  Future<Either<Failure, IniciarFechaResponseModel>> iniciarFecha(
+      String fechaId) async {
+    try {
+      final result = await remoteDataSource.iniciarFecha(fechaId);
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado al iniciar pichanga: ${e.toString()}',
       ));
     }
   }

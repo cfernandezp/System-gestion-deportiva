@@ -12,10 +12,14 @@ import '../../../partidos/presentation/widgets/widgets.dart';
 import '../../data/models/color_equipo.dart';
 import '../../data/models/fecha_detalle_model.dart';
 import '../../data/models/fecha_model.dart';
+import '../../data/models/jugador_asignacion_model.dart';
+import '../../data/models/obtener_asignaciones_response_model.dart';
+import '../bloc/asignaciones/asignaciones_bloc.dart';
+import '../bloc/asignaciones/asignaciones_event.dart';
+import '../bloc/asignaciones/asignaciones_state.dart';
 import '../bloc/inscripcion/inscripcion.dart';
 import '../bloc/mi_equipo/mi_equipo.dart';
 import '../widgets/widgets.dart';
-import '../widgets/finalizar_fecha_dialog.dart';
 
 /// Pagina de detalle de fecha con opcion de inscripcion y edicion
 /// E003-HU-002: Inscribirse a Fecha
@@ -41,6 +45,11 @@ import '../widgets/finalizar_fecha_dialog.dart';
 /// E003-HU-008: Editar Fecha
 /// CA-001: Boton "Editar" solo visible para admin
 /// CA-002: Solo habilitado si fecha estado = 'abierta'
+///
+/// E003-HU-012: Iniciar Fecha
+/// CA-001: Boton "Iniciar Pichanga" visible solo en estado 'cerrada'
+/// CA-002: Dialogo de confirmacion con resumen
+/// CA-003: Warning si no hay equipos asignados
 /// Usa ResponsiveLayout: Mobile App Style + Desktop Dashboard Style
 class FechaDetallePage extends StatelessWidget {
   /// ID de la fecha a mostrar
@@ -189,6 +198,9 @@ class _MobileDetalleView extends StatelessWidget {
           onPressed: () => context.pop(),
         ),
         actions: [
+          // E003-HU-012: Boton "Iniciar Pichanga" visible para admin si estado = 'cerrada'
+          if (fechaDetalle != null)
+            _buildIniciarPichangaButton(context),
           // E003-HU-005: Boton "Asignar Equipos" visible para admin si estado = 'cerrada'
           if (fechaDetalle != null)
             _buildAsignarEquiposButton(context),
@@ -463,6 +475,58 @@ class _MobileDetalleView extends StatelessWidget {
     );
   }
 
+  /// E003-HU-012: Boton para iniciar pichanga
+  /// CA-001: Solo visible para admin si estado = 'cerrada'
+  Widget _buildIniciarPichangaButton(BuildContext context) {
+    return BlocBuilder<SessionBloc, SessionState>(
+      builder: (context, sessionState) {
+        // Solo mostrar si es admin
+        if (sessionState is! SessionAuthenticated) {
+          return const SizedBox.shrink();
+        }
+
+        final isAdmin = sessionState.rol.toLowerCase() == 'admin' ||
+            sessionState.rol.toLowerCase() == 'administrador';
+
+        if (!isAdmin) {
+          return const SizedBox.shrink();
+        }
+
+        final estado = fechaDetalle!.fecha.estado;
+
+        // CA-001: Solo mostrar si estado = 'cerrada'
+        if (estado != EstadoFecha.cerrada) {
+          return const SizedBox.shrink();
+        }
+
+        return IconButton(
+          onPressed: () => _abrirIniciarPichangaDialog(context),
+          icon: Icon(
+            Icons.play_circle,
+            color: DesignTokens.successColor,
+          ),
+          tooltip: 'Iniciar pichanga',
+        );
+      },
+    );
+  }
+
+  /// Abre el dialog de iniciar pichanga
+  void _abrirIniciarPichangaDialog(BuildContext context) {
+    // Mostrar dialogo de iniciar pichanga
+    // El resumen de equipos se obtiene de los datos basicos del detalle
+    IniciarFechaDialog.show(
+      context,
+      fechaDetalle: fechaDetalle!,
+      onSuccess: () {
+        // Recargar detalle despues de iniciar
+        context.read<InscripcionBloc>().add(
+          CargarFechaDetalleEvent(fechaId: fechaId),
+        );
+      },
+    );
+  }
+
   Widget _buildContent(BuildContext context) {
     // Estado de carga
     if (isLoading && fechaDetalle == null) {
@@ -502,18 +566,25 @@ class _MobileDetalleView extends StatelessWidget {
 
             // E003-HU-003: Lista de inscritos con realtime
             // CA-001 a CA-006: Widget dedicado con BLoC propio
-            InscritosListWidget(
-              fechaId: fechaId,
-              habilitarRealtime: true,
-              capacidadMaxima: fechaDetalle!.capacidadMaxima > 0
-                  ? fechaDetalle!.capacidadMaxima
-                  : null,
-            ),
+            // E003-HU-011: Boton agregar jugador (admin, fecha abierta)
+            // Solo mostrar lista de inscritos cuando inscripciones abiertas
+            // Cuando hay equipos (cerrada/en_juego/finalizada), los equipos ya muestran los jugadores
+            if (fechaDetalle!.fecha.estado == EstadoFecha.abierta)
+              InscritosListWidget(
+                fechaId: fechaId,
+                habilitarRealtime: true,
+                capacidadMaxima: fechaDetalle!.capacidadMaxima > 0
+                    ? fechaDetalle!.capacidadMaxima
+                    : null,
+                fechaAbierta: fechaDetalle!.inscripcionesAbiertas,
+              ),
 
-            const SizedBox(height: DesignTokens.spacingM),
+            if (fechaDetalle!.fecha.estado == EstadoFecha.abierta)
+              const SizedBox(height: DesignTokens.spacingM),
 
-            // E003-HU-006: Ver Mi Equipo
+            // E003-HU-006: Ver Mi Equipo (todos los equipos)
             // CA-001 a CA-007: Widget para ver equipo asignado
+            // CA-004: Ver todos los equipos con el tuyo resaltado
             BlocProvider(
               create: (context) => MiEquipoBloc(
                 repository: sl(),
@@ -522,6 +593,7 @@ class _MobileDetalleView extends StatelessWidget {
               child: MiEquipoWidget(
                 fechaId: fechaId,
                 habilitarRealtime: true,
+                mostrarTodosEquipos: true,
               ),
             ),
 
@@ -639,80 +711,123 @@ class _MobileDetalleView extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    // CA-004: Badge "Ya estas anotado" si inscrito
+    // Construir lista de badges
+    final List<Widget> badges = [];
+
+    // CA-004: Badge "Anotado" si inscrito
     if (fechaDetalle!.usuarioInscrito) {
-      return Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: DesignTokens.spacingM,
-          vertical: DesignTokens.spacingS,
-        ),
-        decoration: BoxDecoration(
-          color: DesignTokens.successColor.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
-          border: Border.all(
-            color: DesignTokens.successColor.withValues(alpha: 0.3),
+      badges.add(
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: DesignTokens.spacingM,
+            vertical: DesignTokens.spacingS,
           ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.check_circle,
-              size: DesignTokens.iconSizeS,
-              color: DesignTokens.successColor,
+          decoration: BoxDecoration(
+            color: DesignTokens.successColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+            border: Border.all(
+              color: DesignTokens.successColor.withValues(alpha: 0.3),
             ),
-            const SizedBox(width: DesignTokens.spacingXs),
-            Text(
-              'Anotado',
-              style: textTheme.labelMedium?.copyWith(
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.check_circle,
+                size: DesignTokens.iconSizeS,
                 color: DesignTokens.successColor,
-                fontWeight: DesignTokens.fontWeightSemiBold,
               ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // CA-005: Badge de estado si inscripciones cerradas
-    if (!fechaDetalle!.inscripcionesAbiertas) {
-      return Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: DesignTokens.spacingM,
-          vertical: DesignTokens.spacingS,
-        ),
-        decoration: BoxDecoration(
-          color: colorScheme.errorContainer.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
-        ),
-        child: Text(
-          fechaDetalle!.fecha.estado.displayName,
-          style: textTheme.labelMedium?.copyWith(
-            color: colorScheme.error,
-            fontWeight: DesignTokens.fontWeightMedium,
+              const SizedBox(width: DesignTokens.spacingXs),
+              Text(
+                'Anotado',
+                style: textTheme.labelMedium?.copyWith(
+                  color: DesignTokens.successColor,
+                  fontWeight: DesignTokens.fontWeightSemiBold,
+                ),
+              ),
+            ],
           ),
         ),
       );
     }
 
-    // Badge "Abierta"
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: DesignTokens.spacingM,
-        vertical: DesignTokens.spacingS,
-      ),
-      decoration: BoxDecoration(
-        color: DesignTokens.successColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
-      ),
-      child: Text(
-        'Abierta',
-        style: textTheme.labelMedium?.copyWith(
-          color: DesignTokens.successColor,
-          fontWeight: DesignTokens.fontWeightMedium,
+    // Badge de estado de fecha (solo si no esta inscrito o si esta cerrada/en_juego/finalizada)
+    if (!fechaDetalle!.inscripcionesAbiertas) {
+      final estadoColor = _getEstadoColor(fechaDetalle!.fecha.estado, colorScheme);
+      badges.add(
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: DesignTokens.spacingS,
+            vertical: DesignTokens.spacingXs,
+          ),
+          decoration: BoxDecoration(
+            color: estadoColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+          ),
+          child: Text(
+            fechaDetalle!.fecha.estado.displayName,
+            style: textTheme.labelSmall?.copyWith(
+              color: estadoColor,
+              fontWeight: DesignTokens.fontWeightMedium,
+            ),
+          ),
         ),
-      ),
-    );
+      );
+    } else if (!fechaDetalle!.usuarioInscrito) {
+      // Si esta abierta y no esta inscrito, mostrar badge "Abierta"
+      badges.add(
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: DesignTokens.spacingM,
+            vertical: DesignTokens.spacingS,
+          ),
+          decoration: BoxDecoration(
+            color: DesignTokens.successColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+          ),
+          child: Text(
+            'Abierta',
+            style: textTheme.labelMedium?.copyWith(
+              color: DesignTokens.successColor,
+              fontWeight: DesignTokens.fontWeightMedium,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Si hay multiples badges, mostrarlos en columna compacta
+    if (badges.length > 1) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (int i = 0; i < badges.length; i++) ...[
+            badges[i],
+            if (i < badges.length - 1)
+              const SizedBox(height: DesignTokens.spacingXs),
+          ],
+        ],
+      );
+    }
+
+    return badges.isNotEmpty ? badges.first : const SizedBox.shrink();
+  }
+
+  /// Obtiene el color segun el estado de la fecha
+  Color _getEstadoColor(EstadoFecha estado, ColorScheme colorScheme) {
+    switch (estado) {
+      case EstadoFecha.abierta:
+        return DesignTokens.successColor;
+      case EstadoFecha.cerrada:
+        return DesignTokens.accentColor;
+      case EstadoFecha.enJuego:
+        return DesignTokens.primaryColor;
+      case EstadoFecha.finalizada:
+        return colorScheme.onSurfaceVariant;
+      case EstadoFecha.cancelada:
+        return colorScheme.error;
+    }
   }
 
   Widget _buildInfoRow(
@@ -790,89 +905,72 @@ class _MobileDetalleView extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    // CA-005: Inscripciones cerradas
-    if (!fechaDetalle!.inscripcionesAbiertas) {
-      return Container(
+    // CA-005: Inscripciones cerradas - solo mostrar si NO esta inscrito
+    // Si esta inscrito, el badge ya indica que esta anotado
+    if (!fechaDetalle!.inscripcionesAbiertas && !fechaDetalle!.usuarioInscrito) {
+      // Texto compacto sin card redundante (el estado ya se muestra en el header)
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.lock_outlined,
+            color: colorScheme.onSurfaceVariant,
+            size: DesignTokens.iconSizeS,
+          ),
+          const SizedBox(width: DesignTokens.spacingXs),
+          Text(
+            fechaDetalle!.mensajeEstado ?? 'Inscripciones cerradas',
+            style: textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      );
+    }
+
+    // CA-004: Ya inscrito - mostrar boton cancelar (solo si inscripciones abiertas)
+    if (fechaDetalle!.usuarioInscrito && fechaDetalle!.inscripcionesAbiertas) {
+      return SizedBox(
         width: double.infinity,
-        padding: const EdgeInsets.all(DesignTokens.spacingM),
-        decoration: BoxDecoration(
-          color: colorScheme.errorContainer.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.lock,
-              color: colorScheme.error,
-              size: DesignTokens.iconSizeM,
-            ),
-            const SizedBox(width: DesignTokens.spacingS),
-            Text(
-              'Inscripciones cerradas',
-              style: textTheme.bodyLarge?.copyWith(
-                color: colorScheme.error,
-                fontWeight: DesignTokens.fontWeightMedium,
-              ),
-            ),
-          ],
+        child: OutlinedButton.icon(
+          onPressed: isProcesando
+              ? null
+              : () => _confirmarCancelacion(context),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: colorScheme.error,
+            side: BorderSide(color: colorScheme.error),
+            padding: const EdgeInsets.all(DesignTokens.spacingM),
+          ),
+          icon: isProcesando
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.close),
+          label: const Text('Cancelar inscripcion'),
         ),
       );
     }
 
-    // CA-004: Ya inscrito - mostrar boton cancelar
-    if (fechaDetalle!.usuarioInscrito) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
+    // Inscrito pero inscripciones cerradas - mostrar texto informativo
+    if (fechaDetalle!.usuarioInscrito && !fechaDetalle!.inscripcionesAbiertas) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Indicador "Ya estas anotado"
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(DesignTokens.spacingM),
-            decoration: BoxDecoration(
-              color: DesignTokens.successColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.check_circle,
-                  color: DesignTokens.successColor,
-                  size: DesignTokens.iconSizeM,
-                ),
-                const SizedBox(width: DesignTokens.spacingS),
-                Text(
-                  'Ya estas anotado',
-                  style: textTheme.bodyLarge?.copyWith(
-                    color: DesignTokens.successColor,
-                    fontWeight: DesignTokens.fontWeightSemiBold,
-                  ),
-                ),
-              ],
-            ),
+          Icon(
+            Icons.info_outlined,
+            color: colorScheme.onSurfaceVariant,
+            size: DesignTokens.iconSizeS,
           ),
-          const SizedBox(height: DesignTokens.spacingS),
-          // Boton cancelar
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: isProcesando
-                  ? null
-                  : () => _confirmarCancelacion(context),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: colorScheme.error,
-                side: BorderSide(color: colorScheme.error),
-                padding: const EdgeInsets.all(DesignTokens.spacingM),
+          const SizedBox(width: DesignTokens.spacingXs),
+          Flexible(
+            child: Text(
+              'Recuerda pagar ${fechaDetalle!.fecha.costoFormato}',
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
               ),
-              icon: isProcesando
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.close),
-              label: const Text('Cancelar inscripcion'),
+              textAlign: TextAlign.center,
             ),
           ),
         ],
@@ -907,31 +1005,23 @@ class _MobileDetalleView extends StatelessWidget {
 
     // Fecha llena
     if (fechaDetalle!.estaLleno) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(DesignTokens.spacingM),
-        decoration: BoxDecoration(
-          color: DesignTokens.accentColor.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.group,
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.group,
+            color: DesignTokens.accentColor,
+            size: DesignTokens.iconSizeS,
+          ),
+          const SizedBox(width: DesignTokens.spacingXs),
+          Text(
+            'Fecha completa - ${fechaDetalle!.totalInscritos} inscritos',
+            style: textTheme.bodyMedium?.copyWith(
               color: DesignTokens.accentColor,
-              size: DesignTokens.iconSizeM,
+              fontWeight: DesignTokens.fontWeightMedium,
             ),
-            const SizedBox(width: DesignTokens.spacingS),
-            Text(
-              'Fecha completa',
-              style: textTheme.bodyLarge?.copyWith(
-                color: DesignTokens.accentColor,
-                fontWeight: DesignTokens.fontWeightMedium,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
@@ -1175,7 +1265,8 @@ class _MobileDetalleView extends StatelessWidget {
 }
 
 // ============================================
-// VISTA DESKTOP - Dashboard Style
+// VISTA DESKTOP - Dashboard Style con CRM Layout
+// Panel izquierdo (320px) + Contenido principal (expandido)
 // ============================================
 
 class _DesktopDetalleView extends StatelessWidget {
@@ -1202,18 +1293,7 @@ class _DesktopDetalleView extends StatelessWidget {
       title: 'Detalle de Pichanga',
       breadcrumbs: const ['Inicio', 'Fechas', 'Detalle'],
       actions: [
-        // E003-HU-005: Boton "Asignar Equipos" visible para admin si estado = 'cerrada'
-        if (fechaDetalle != null)
-          _buildAsignarEquiposButton(context),
-        // E003-HU-004 CA-001/CA-006: Boton cerrar/reabrir inscripciones (admin)
-        if (fechaDetalle != null)
-          _buildCerrarReabrirButton(context),
-        // E003-HU-008 CA-001: Boton "Editar" solo visible para admin
-        if (fechaDetalle != null)
-          _buildEditarButton(context),
-        // E003-HU-010: Boton "Finalizar" visible para admin si estado = 'cerrada' o 'en_juego'
-        if (fechaDetalle != null)
-          _buildFinalizarButton(context),
+        // Solo botones de navegacion en el header
         OutlinedButton.icon(
           onPressed: () {
             context.read<InscripcionBloc>().add(
@@ -1231,94 +1311,6 @@ class _DesktopDetalleView extends StatelessWidget {
         ),
       ],
       child: _buildContent(context),
-    );
-  }
-
-  /// E003-HU-005: Boton para asignar equipos (Desktop)
-  /// Solo visible para admin si estado = 'cerrada'
-  Widget _buildAsignarEquiposButton(BuildContext context) {
-    return BlocBuilder<SessionBloc, SessionState>(
-      builder: (context, sessionState) {
-        // Solo mostrar si es admin
-        if (sessionState is! SessionAuthenticated) {
-          return const SizedBox.shrink();
-        }
-
-        final isAdmin = sessionState.rol.toLowerCase() == 'admin' ||
-            sessionState.rol.toLowerCase() == 'administrador';
-
-        if (!isAdmin) {
-          return const SizedBox.shrink();
-        }
-
-        final estado = fechaDetalle!.fecha.estado;
-
-        // Solo mostrar si estado = 'cerrada'
-        if (estado != EstadoFecha.cerrada) {
-          return const SizedBox.shrink();
-        }
-
-        return Padding(
-          padding: const EdgeInsets.only(right: DesignTokens.spacingS),
-          child: FilledButton.icon(
-            onPressed: () => context.go('/fechas/$fechaId/equipos'),
-            icon: const Icon(Icons.groups),
-            label: const Text('Asignar Equipos'),
-          ),
-        );
-      },
-    );
-  }
-
-  /// E003-HU-004: Boton cerrar/reabrir inscripciones para admin (Desktop)
-  /// CA-001: Solo visible para admin si estado = 'abierta'
-  /// CA-006: Solo visible para admin si estado = 'cerrada'
-  Widget _buildCerrarReabrirButton(BuildContext context) {
-    return BlocBuilder<SessionBloc, SessionState>(
-      builder: (context, sessionState) {
-        // Solo mostrar si es admin
-        if (sessionState is! SessionAuthenticated) {
-          return const SizedBox.shrink();
-        }
-
-        final isAdmin = sessionState.rol.toLowerCase() == 'admin' ||
-            sessionState.rol.toLowerCase() == 'administrador';
-
-        if (!isAdmin) {
-          return const SizedBox.shrink();
-        }
-
-        final estado = fechaDetalle!.fecha.estado;
-
-        // CA-001: Si estado = 'abierta', mostrar "Cerrar inscripciones"
-        if (estado == EstadoFecha.abierta) {
-          return Padding(
-            padding: const EdgeInsets.only(right: DesignTokens.spacingS),
-            child: FilledButton.icon(
-              onPressed: () => _abrirCerrarInscripcionesDialog(context),
-              style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.secondary,
-              ),
-              icon: const Icon(Icons.lock),
-              label: const Text('Cerrar Inscripciones'),
-            ),
-          );
-        }
-
-        // CA-006: Si estado = 'cerrada', mostrar "Reabrir inscripciones"
-        if (estado == EstadoFecha.cerrada) {
-          return Padding(
-            padding: const EdgeInsets.only(right: DesignTokens.spacingS),
-            child: FilledButton.icon(
-              onPressed: () => _abrirReabrirInscripcionesDialog(context),
-              icon: const Icon(Icons.lock_open),
-              label: const Text('Reabrir Inscripciones'),
-            ),
-          );
-        }
-
-        return const SizedBox.shrink();
-      },
     );
   }
 
@@ -1350,48 +1342,6 @@ class _DesktopDetalleView extends StatelessWidget {
     );
   }
 
-  /// E003-HU-008: Boton de editar para admin (Desktop)
-  /// CA-001: Solo visible para admin
-  /// CA-002: Solo habilitado si fecha estado = 'abierta'
-  Widget _buildEditarButton(BuildContext context) {
-    return BlocBuilder<SessionBloc, SessionState>(
-      builder: (context, sessionState) {
-        // CA-001: Solo mostrar si es admin
-        if (sessionState is! SessionAuthenticated) {
-          return const SizedBox.shrink();
-        }
-
-        final isAdmin = sessionState.rol.toLowerCase() == 'admin' ||
-            sessionState.rol.toLowerCase() == 'administrador';
-
-        if (!isAdmin) {
-          return const SizedBox.shrink();
-        }
-
-        // CA-002: Verificar si la fecha es editable
-        final esEditable = fechaDetalle!.fecha.estado == EstadoFecha.abierta;
-
-        return Padding(
-          padding: const EdgeInsets.only(right: DesignTokens.spacingS),
-          child: esEditable
-              ? FilledButton.icon(
-                  onPressed: () => _abrirDialogoEditar(context),
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Editar Fecha'),
-                )
-              : OutlinedButton.icon(
-                  onPressed: () => _mostrarMensajeNoEditable(context),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  icon: const Icon(Icons.edit_off),
-                  label: Text('No editable (${fechaDetalle!.fecha.estado.displayName})'),
-                ),
-        );
-      },
-    );
-  }
-
   /// Abre el dialogo de edicion
   void _abrirDialogoEditar(BuildContext context) {
     EditarFechaDialog.show(
@@ -1401,82 +1351,6 @@ class _DesktopDetalleView extends StatelessWidget {
         // Recargar detalle despues de editar
         context.read<InscripcionBloc>().add(
           CargarFechaDetalleEvent(fechaId: fechaId),
-        );
-      },
-    );
-  }
-
-  /// Muestra mensaje cuando la fecha no es editable
-  void _mostrarMensajeNoEditable(BuildContext context) {
-    final estado = fechaDetalle!.fecha.estado;
-    String mensaje;
-
-    switch (estado) {
-      case EstadoFecha.cerrada:
-        mensaje = 'No se puede editar: las inscripciones estan cerradas.';
-        break;
-      case EstadoFecha.enJuego:
-        mensaje = 'No se puede editar: la pichanga esta en curso.';
-        break;
-      case EstadoFecha.finalizada:
-        mensaje = 'No se puede editar: la pichanga ya termino.';
-        break;
-      case EstadoFecha.cancelada:
-        mensaje = 'No se puede editar: la pichanga fue cancelada.';
-        break;
-      default:
-        mensaje = 'No se puede editar esta fecha.';
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.info_outline, color: Colors.white),
-            const SizedBox(width: DesignTokens.spacingS),
-            Expanded(child: Text(mensaje)),
-          ],
-        ),
-        backgroundColor: Theme.of(context).colorScheme.secondary,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  /// E003-HU-010: Boton para finalizar fecha (Desktop)
-  /// Solo visible para admin si estado = 'cerrada' o 'en_juego'
-  Widget _buildFinalizarButton(BuildContext context) {
-    return BlocBuilder<SessionBloc, SessionState>(
-      builder: (context, sessionState) {
-        // Solo mostrar si es admin
-        if (sessionState is! SessionAuthenticated) {
-          return const SizedBox.shrink();
-        }
-
-        final isAdmin = sessionState.rol.toLowerCase() == 'admin' ||
-            sessionState.rol.toLowerCase() == 'administrador';
-
-        if (!isAdmin) {
-          return const SizedBox.shrink();
-        }
-
-        final estado = fechaDetalle!.fecha.estado;
-
-        // Solo mostrar si estado = 'cerrada' o 'en_juego'
-        if (estado != EstadoFecha.cerrada && estado != EstadoFecha.enJuego) {
-          return const SizedBox.shrink();
-        }
-
-        return Padding(
-          padding: const EdgeInsets.only(right: DesignTokens.spacingS),
-          child: FilledButton.icon(
-            onPressed: () => _abrirFinalizarDialog(context),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF9E9E9E),
-            ),
-            icon: const Icon(Icons.check_circle),
-            label: const Text('Finalizar Pichanga'),
-          ),
         );
       },
     );
@@ -1496,7 +1370,47 @@ class _DesktopDetalleView extends StatelessWidget {
     );
   }
 
+  /// Abre el dialog de asignacion de equipos (Desktop)
+  /// E003-HU-005: Dialog grande para asignar equipos sin navegar
+  void _abrirAsignarEquiposDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => BlocProvider(
+        create: (context) => AsignacionesBloc(
+          repository: sl(),
+        )..add(CargarAsignacionesEvent(fechaId: fechaId)),
+        child: _AsignarEquiposDialog(
+          fechaId: fechaId,
+          onSuccess: () {
+            // Recargar detalle despues de confirmar equipos
+            context.read<InscripcionBloc>().add(
+              CargarFechaDetalleEvent(fechaId: fechaId),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  /// E003-HU-012: Abre el dialog de iniciar pichanga (Desktop)
+  void _abrirIniciarPichangaDialog(BuildContext context) {
+    // Mostrar dialogo de iniciar pichanga
+    IniciarFechaDialog.show(
+      context,
+      fechaDetalle: fechaDetalle!,
+      onSuccess: () {
+        // Recargar detalle despues de iniciar
+        context.read<InscripcionBloc>().add(
+          CargarFechaDetalleEvent(fechaId: fechaId),
+        );
+      },
+    );
+  }
+
   Widget _buildContent(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     // Estado de carga
     if (isLoading && fechaDetalle == null) {
       return const Center(child: CircularProgressIndicator());
@@ -1512,18 +1426,19 @@ class _DesktopDetalleView extends StatelessWidget {
       return const Center(child: Text('No se encontro la fecha'));
     }
 
-    // Layout de 2 columnas para desktop
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(DesignTokens.spacingL),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Columna izquierda: Info principal + Accion + Partido
-          SizedBox(
-            width: 400,
+    // Layout CRM: Panel izquierdo (320px) + Contenido principal (expandido)
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Panel izquierdo: Info de la fecha (320px fijo)
+        SizedBox(
+          width: 320,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(DesignTokens.spacingL),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildInfoCard(context),
+                _buildInfoPanel(context),
                 const SizedBox(height: DesignTokens.spacingM),
                 _buildActionCard(context),
                 // E004-HU-001: Widget de partido en vivo (si estado = en_juego)
@@ -1531,30 +1446,46 @@ class _DesktopDetalleView extends StatelessWidget {
                   const SizedBox(height: DesignTokens.spacingM),
                   _buildPartidoSection(context),
                 ],
+                // Seccion de acciones de administrador (en panel lateral)
+                _buildAdminActionsPanel(context),
               ],
             ),
           ),
+        ),
 
-          const SizedBox(width: DesignTokens.spacingL),
+        // Separador vertical
+        VerticalDivider(
+          width: 1,
+          thickness: 1,
+          color: colorScheme.outlineVariant,
+        ),
 
-          // Columna derecha: Lista de inscritos + Mi Equipo
-          Expanded(
+        // Panel derecho: Equipos e Inscritos (expandido)
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(DesignTokens.spacingL),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // E003-HU-003: Widget dedicado con BLoC propio y realtime
-                InscritosListWidget(
-                  fechaId: fechaId,
-                  habilitarRealtime: true,
-                  expandible: false, // En desktop, siempre expandido
-                  capacidadMaxima: fechaDetalle!.capacidadMaxima > 0
-                      ? fechaDetalle!.capacidadMaxima
-                      : null,
-                ),
+                // E003-HU-011: Boton agregar jugador (admin, fecha abierta)
+                // Solo mostrar lista de inscritos cuando inscripciones abiertas
+                if (fechaDetalle!.fecha.estado == EstadoFecha.abierta) ...[
+                  InscritosListWidget(
+                    fechaId: fechaId,
+                    habilitarRealtime: true,
+                    expandible: false, // En desktop, siempre expandido
+                    capacidadMaxima: fechaDetalle!.capacidadMaxima > 0
+                        ? fechaDetalle!.capacidadMaxima
+                        : null,
+                    fechaAbierta: fechaDetalle!.inscripcionesAbiertas,
+                  ),
+                  const SizedBox(height: DesignTokens.spacingL),
+                ],
 
-                const SizedBox(height: DesignTokens.spacingM),
-
-                // E003-HU-006: Ver Mi Equipo
+                // E003-HU-006: Ver Mi Equipo (todos los equipos)
                 // CA-001 a CA-007: Widget para ver equipo asignado
+                // CA-004: Ver todos los equipos con el tuyo resaltado
                 BlocProvider(
                   create: (context) => MiEquipoBloc(
                     repository: sl(),
@@ -1563,17 +1494,19 @@ class _DesktopDetalleView extends StatelessWidget {
                   child: MiEquipoWidget(
                     fechaId: fechaId,
                     habilitarRealtime: true,
+                    mostrarTodosEquipos: true,
                   ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildInfoCard(BuildContext context) {
+  /// Panel compacto de informacion de la fecha
+  Widget _buildInfoPanel(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final fecha = fechaDetalle!.fecha;
@@ -1581,92 +1514,104 @@ class _DesktopDetalleView extends StatelessWidget {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
         side: BorderSide(
           color: colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(DesignTokens.spacingL),
+        padding: const EdgeInsets.all(DesignTokens.spacingM),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header con fecha y estado
+            // Header compacto
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(DesignTokens.spacingM),
+                  padding: const EdgeInsets.all(DesignTokens.spacingS),
                   decoration: BoxDecoration(
                     gradient: DesignTokens.primaryGradient,
-                    borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusS),
                   ),
                   child: const Icon(
                     Icons.calendar_month,
                     color: Colors.white,
-                    size: DesignTokens.iconSizeL,
+                    size: DesignTokens.iconSizeM,
                   ),
                 ),
-                const SizedBox(width: DesignTokens.spacingM),
+                const SizedBox(width: DesignTokens.spacingS),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${fecha.fechaFormato} - ${fecha.horaFormato.isNotEmpty ? fecha.horaFormato : "Por definir"}',
-                        style: textTheme.titleLarge?.copyWith(
-                          fontWeight: DesignTokens.fontWeightBold,
-                        ),
-                      ),
-                      const SizedBox(height: DesignTokens.spacingXs),
-                      Text(
-                        '${fecha.duracionHoras} hora${fecha.duracionHoras != 1 ? 's' : ''} de juego',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    'Info de la Pichanga',
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: DesignTokens.fontWeightSemiBold,
+                    ),
                   ),
                 ),
               ],
             ),
 
-            const SizedBox(height: DesignTokens.spacingL),
+            const Divider(height: DesignTokens.spacingL),
 
-            // Estado badge
-            _buildEstadoBadge(context),
+            // Estado badge compacto
+            _buildEstadoBadgeCompact(context),
 
-            const Divider(height: DesignTokens.spacingL * 2),
+            const SizedBox(height: DesignTokens.spacingM),
 
-            // Detalles
-            _buildDetailItem(
+            // Fecha y hora
+            _buildInfoItemCompact(
+              context,
+              icon: Icons.event,
+              label: 'Fecha',
+              value: fecha.fechaFormato,
+            ),
+            const SizedBox(height: DesignTokens.spacingS),
+
+            _buildInfoItemCompact(
+              context,
+              icon: Icons.access_time,
+              label: 'Hora',
+              value: fecha.horaFormato.isNotEmpty ? fecha.horaFormato : 'Por definir',
+            ),
+            const SizedBox(height: DesignTokens.spacingS),
+
+            _buildInfoItemCompact(
+              context,
+              icon: Icons.timer,
+              label: 'Duracion',
+              value: '${fecha.duracionHoras} hora${fecha.duracionHoras != 1 ? 's' : ''}',
+            ),
+            const SizedBox(height: DesignTokens.spacingS),
+
+            _buildInfoItemCompact(
               context,
               icon: Icons.location_on,
               label: 'Lugar',
               value: fecha.lugar,
             ),
-            const SizedBox(height: DesignTokens.spacingM),
+            const SizedBox(height: DesignTokens.spacingS),
 
-            _buildDetailItem(
+            _buildInfoItemCompact(
               context,
               icon: Icons.groups,
               label: 'Formato',
               value: fecha.formatoJuego,
             ),
-            const SizedBox(height: DesignTokens.spacingM),
+            const SizedBox(height: DesignTokens.spacingS),
 
-            _buildDetailItem(
+            _buildInfoItemCompact(
               context,
               icon: Icons.attach_money,
-              label: 'Debes pagar',
+              label: 'Costo',
               value: fecha.costoFormato,
               destacado: true,
             ),
-            const SizedBox(height: DesignTokens.spacingM),
+            const SizedBox(height: DesignTokens.spacingS),
 
-            _buildDetailItem(
+            _buildInfoItemCompact(
               context,
               icon: Icons.person,
-              label: 'Organizado por',
+              label: 'Organizador',
               value: fecha.createdByNombre,
             ),
           ],
@@ -1675,60 +1620,8 @@ class _DesktopDetalleView extends StatelessWidget {
     );
   }
 
-  Widget _buildEstadoBadge(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    Color badgeColor;
-    IconData badgeIcon;
-    String badgeText;
-
-    if (fechaDetalle!.usuarioInscrito) {
-      badgeColor = DesignTokens.successColor;
-      badgeIcon = Icons.check_circle;
-      badgeText = 'Ya estas anotado';
-    } else if (!fechaDetalle!.inscripcionesAbiertas) {
-      badgeColor = colorScheme.error;
-      badgeIcon = Icons.lock;
-      badgeText = 'Inscripciones cerradas';
-    } else if (fechaDetalle!.estaLleno) {
-      badgeColor = DesignTokens.accentColor;
-      badgeIcon = Icons.group;
-      badgeText = 'Fecha completa';
-    } else {
-      badgeColor = DesignTokens.successColor;
-      badgeIcon = Icons.sports_soccer;
-      badgeText = 'Inscripciones abiertas';
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(DesignTokens.spacingM),
-      decoration: BoxDecoration(
-        color: badgeColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-        border: Border.all(
-          color: badgeColor.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(badgeIcon, color: badgeColor, size: DesignTokens.iconSizeM),
-          const SizedBox(width: DesignTokens.spacingS),
-          Text(
-            badgeText,
-            style: textTheme.titleSmall?.copyWith(
-              color: badgeColor,
-              fontWeight: DesignTokens.fontWeightSemiBold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailItem(
+  /// Item de informacion compacto para el panel lateral
+  Widget _buildInfoItemCompact(
     BuildContext context, {
     required IconData icon,
     required String label,
@@ -1743,23 +1636,23 @@ class _DesktopDetalleView extends StatelessWidget {
       children: [
         Icon(
           icon,
-          size: DesignTokens.iconSizeM,
+          size: DesignTokens.iconSizeS,
           color: destacado ? colorScheme.primary : colorScheme.onSurfaceVariant,
         ),
-        const SizedBox(width: DesignTokens.spacingM),
+        const SizedBox(width: DesignTokens.spacingS),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: textTheme.bodySmall?.copyWith(
+                style: textTheme.labelSmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
               Text(
                 value,
-                style: textTheme.bodyLarge?.copyWith(
+                style: textTheme.bodyMedium?.copyWith(
                   fontWeight: destacado
                       ? DesignTokens.fontWeightBold
                       : DesignTokens.fontWeightMedium,
@@ -1773,13 +1666,105 @@ class _DesktopDetalleView extends StatelessWidget {
     );
   }
 
+  /// Badge de estado compacto
+  Widget _buildEstadoBadgeCompact(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    Color badgeColor;
+    IconData badgeIcon;
+    String badgeText;
+    String? badgeSubtext;
+
+    if (fechaDetalle!.usuarioInscrito) {
+      badgeColor = DesignTokens.successColor;
+      badgeIcon = Icons.check_circle;
+      badgeText = 'Ya estas anotado';
+      if (!fechaDetalle!.inscripcionesAbiertas) {
+        badgeSubtext = 'Recuerda pagar ${fechaDetalle!.fecha.costoFormato}';
+      }
+    } else if (!fechaDetalle!.inscripcionesAbiertas) {
+      badgeColor = colorScheme.onSurfaceVariant;
+      badgeIcon = Icons.lock_outlined;
+      badgeText = fechaDetalle!.fecha.estado.displayName;
+      badgeSubtext = fechaDetalle!.mensajeEstado;
+    } else if (fechaDetalle!.estaLleno) {
+      badgeColor = DesignTokens.accentColor;
+      badgeIcon = Icons.group;
+      badgeText = 'Fecha completa';
+      badgeSubtext = '${fechaDetalle!.totalInscritos} inscritos';
+    } else {
+      badgeColor = DesignTokens.successColor;
+      badgeIcon = Icons.sports_soccer;
+      badgeText = 'Inscripciones abiertas';
+      final lugares = fechaDetalle!.lugaresDisponibles;
+      if (lugares < 999) {
+        badgeSubtext = '$lugares lugares disponibles';
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(DesignTokens.spacingS),
+      decoration: BoxDecoration(
+        color: badgeColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+        border: Border.all(
+          color: badgeColor.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(badgeIcon, color: badgeColor, size: DesignTokens.iconSizeS),
+              const SizedBox(width: DesignTokens.spacingXs),
+              Flexible(
+                child: Text(
+                  badgeText,
+                  style: textTheme.labelMedium?.copyWith(
+                    color: badgeColor,
+                    fontWeight: DesignTokens.fontWeightSemiBold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+          if (badgeSubtext != null) ...[
+            const SizedBox(height: DesignTokens.spacingXxs),
+            Text(
+              badgeSubtext,
+              style: textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildActionCard(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
+    // Determinar si hay contenido para mostrar
+    final tieneAccion = fechaDetalle!.puedeInscribirse ||
+        (fechaDetalle!.usuarioInscrito && fechaDetalle!.inscripcionesAbiertas) ||
+        (!fechaDetalle!.inscripcionesAbiertas && !fechaDetalle!.usuarioInscrito);
+
+    // Si no hay accion relevante (inscrito + cerrada o fecha llena), no mostrar card
+    if (!tieneAccion) {
+      return const SizedBox.shrink();
+    }
 
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
         side: BorderSide(
           color: fechaDetalle!.usuarioInscrito
               ? DesignTokens.successColor.withValues(alpha: 0.5)
@@ -1788,7 +1773,7 @@ class _DesktopDetalleView extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(DesignTokens.spacingL),
+        padding: const EdgeInsets.all(DesignTokens.spacingM),
         child: _buildActionContent(context),
       ),
     );
@@ -1798,162 +1783,296 @@ class _DesktopDetalleView extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    // CA-005: Inscripciones cerradas
-    if (!fechaDetalle!.inscripcionesAbiertas) {
-      return Column(
-        children: [
-          Icon(
-            Icons.lock,
-            size: 48,
-            color: colorScheme.error,
-          ),
-          const SizedBox(height: DesignTokens.spacingM),
-          Text(
-            'Inscripciones cerradas',
-            style: textTheme.titleMedium?.copyWith(
-              color: colorScheme.error,
-              fontWeight: DesignTokens.fontWeightSemiBold,
-            ),
-          ),
-          const SizedBox(height: DesignTokens.spacingS),
-          Text(
-            fechaDetalle!.mensajeEstado ?? 'Esta fecha ya no acepta nuevas inscripciones.',
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+    // CA-005: Inscripciones cerradas y NO esta inscrito
+    if (!fechaDetalle!.inscripcionesAbiertas && !fechaDetalle!.usuarioInscrito) {
+      return Text(
+        fechaDetalle!.mensajeEstado ?? 'Esta fecha ya no acepta nuevas inscripciones.',
+        style: textTheme.bodySmall?.copyWith(
+          color: colorScheme.onSurfaceVariant,
+        ),
+        textAlign: TextAlign.center,
       );
     }
 
-    // CA-004: Ya inscrito
-    if (fechaDetalle!.usuarioInscrito) {
-      return Column(
-        children: [
-          Icon(
-            Icons.check_circle,
-            size: 48,
-            color: DesignTokens.successColor,
-          ),
-          const SizedBox(height: DesignTokens.spacingM),
-          Text(
-            'Ya estas anotado',
-            style: textTheme.titleMedium?.copyWith(
-              color: DesignTokens.successColor,
-              fontWeight: DesignTokens.fontWeightSemiBold,
+    // CA-004: Ya inscrito y inscripciones abiertas - mostrar boton cancelar
+    if (fechaDetalle!.usuarioInscrito && fechaDetalle!.inscripcionesAbiertas) {
+      return SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: isProcesando
+              ? null
+              : () => _confirmarCancelacion(context),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: colorScheme.error,
+            side: BorderSide(color: colorScheme.error),
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spacingM,
+              vertical: DesignTokens.spacingS,
             ),
           ),
-          const SizedBox(height: DesignTokens.spacingS),
-          Text(
-            'Recuerda pagar ${fechaDetalle!.fecha.costoFormato} antes de la pichanga.',
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: DesignTokens.spacingL),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: isProcesando
-                  ? null
-                  : () => _confirmarCancelacion(context),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: colorScheme.error,
-                side: BorderSide(color: colorScheme.error),
-                padding: const EdgeInsets.all(DesignTokens.spacingM),
-              ),
-              icon: isProcesando
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.close),
-              label: const Text('Cancelar inscripcion'),
-            ),
-          ),
-        ],
+          icon: isProcesando
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.close, size: 18),
+          label: const Text('Cancelar inscripcion'),
+        ),
       );
+    }
+
+    // Ya inscrito pero inscripciones cerradas - no hay accion disponible
+    if (fechaDetalle!.usuarioInscrito && !fechaDetalle!.inscripcionesAbiertas) {
+      return const SizedBox.shrink();
     }
 
     // CA-002: Puede inscribirse
     if (fechaDetalle!.puedeInscribirse) {
-      return Column(
-        children: [
-          Icon(
-            Icons.sports_soccer,
-            size: 48,
-            color: colorScheme.primary,
-          ),
-          const SizedBox(height: DesignTokens.spacingM),
-          Text(
-            'Anotate a esta pichanga',
-            style: textTheme.titleMedium?.copyWith(
-              fontWeight: DesignTokens.fontWeightSemiBold,
+      return SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
+          onPressed: isProcesando
+              ? null
+              : () => _confirmarInscripcion(context),
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spacingM,
+              vertical: DesignTokens.spacingS,
             ),
           ),
-          const SizedBox(height: DesignTokens.spacingS),
-          Text(
-            'Quedan ${fechaDetalle!.lugaresDisponibles} lugares disponibles.',
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: DesignTokens.spacingL),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: isProcesando
-                  ? null
-                  : () => _confirmarInscripcion(context),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.all(DesignTokens.spacingM),
-              ),
-              icon: isProcesando
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.sports_soccer),
-              label: const Text('Anotarme'),
-            ),
-          ),
-        ],
+          icon: isProcesando
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.sports_soccer, size: 18),
+          label: const Text('Anotarme'),
+        ),
       );
     }
 
     // Fecha llena
-    return Column(
-      children: [
-        Icon(
-          Icons.group,
-          size: 48,
-          color: DesignTokens.accentColor,
-        ),
-        const SizedBox(height: DesignTokens.spacingM),
-        Text(
-          'Fecha completa',
-          style: textTheme.titleMedium?.copyWith(
-            color: DesignTokens.accentColor,
-            fontWeight: DesignTokens.fontWeightSemiBold,
-          ),
-        ),
-        const SizedBox(height: DesignTokens.spacingS),
-        Text(
-          'Todos los lugares han sido ocupados.',
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
+    if (fechaDetalle!.estaLleno) {
+      return const SizedBox.shrink();
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  /// Panel de acciones de administrador en el panel lateral
+  /// Muestra botones apilados verticalmente segun el estado de la fecha
+  Widget _buildAdminActionsPanel(BuildContext context) {
+    if (fechaDetalle == null) return const SizedBox.shrink();
+
+    return BlocBuilder<SessionBloc, SessionState>(
+      builder: (context, sessionState) {
+        // Solo mostrar si es admin
+        if (sessionState is! SessionAuthenticated) {
+          return const SizedBox.shrink();
+        }
+
+        final isAdmin = sessionState.rol.toLowerCase() == 'admin' ||
+            sessionState.rol.toLowerCase() == 'administrador';
+
+        if (!isAdmin) {
+          return const SizedBox.shrink();
+        }
+
+        final estado = fechaDetalle!.fecha.estado;
+        final colorScheme = Theme.of(context).colorScheme;
+        final textTheme = Theme.of(context).textTheme;
+
+        // Construir lista de botones segun el estado
+        final List<Widget> actionButtons = [];
+
+        // E003-HU-012: Iniciar Pichanga (solo si estado = 'cerrada')
+        if (estado == EstadoFecha.cerrada) {
+          actionButtons.add(
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _abrirIniciarPichangaDialog(context),
+                style: FilledButton.styleFrom(
+                  backgroundColor: DesignTokens.successColor,
+                ),
+                icon: const Icon(Icons.play_circle),
+                label: const Text('Iniciar Pichanga'),
+              ),
+            ),
+          );
+        }
+
+        // E003-HU-005: Asignar Equipos (solo si estado = 'cerrada')
+        if (estado == EstadoFecha.cerrada) {
+          actionButtons.add(
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _abrirAsignarEquiposDialog(context),
+                icon: const Icon(Icons.groups),
+                label: const Text('Asignar Equipos'),
+              ),
+            ),
+          );
+        }
+
+        // E003-HU-004 CA-001: Cerrar inscripciones (si estado = 'abierta')
+        if (estado == EstadoFecha.abierta) {
+          actionButtons.add(
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _abrirCerrarInscripcionesDialog(context),
+                style: FilledButton.styleFrom(
+                  backgroundColor: colorScheme.secondary,
+                ),
+                icon: const Icon(Icons.lock),
+                label: const Text('Cerrar Inscripciones'),
+              ),
+            ),
+          );
+        }
+
+        // E003-HU-004 CA-006: Reabrir inscripciones (si estado = 'cerrada')
+        if (estado == EstadoFecha.cerrada) {
+          actionButtons.add(
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _abrirReabrirInscripcionesDialog(context),
+                icon: const Icon(Icons.lock_open),
+                label: const Text('Reabrir Inscripciones'),
+              ),
+            ),
+          );
+        }
+
+        // E003-HU-008: Editar Fecha (solo si estado = 'abierta')
+        if (estado == EstadoFecha.abierta) {
+          actionButtons.add(
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _abrirDialogoEditar(context),
+                icon: const Icon(Icons.edit),
+                label: const Text('Editar Fecha'),
+              ),
+            ),
+          );
+        }
+
+        // Badge "No editable" si no es abierta
+        if (estado != EstadoFecha.abierta &&
+            estado != EstadoFecha.finalizada &&
+            estado != EstadoFecha.cancelada) {
+          actionButtons.add(
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spacingM,
+                vertical: DesignTokens.spacingS,
+              ),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.edit_off,
+                    size: DesignTokens.iconSizeS,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: DesignTokens.spacingXs),
+                  Text(
+                    'No editable (${estado.displayName})',
+                    style: textTheme.labelMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // E003-HU-010: Finalizar Pichanga (si estado = 'cerrada' o 'en_juego')
+        if (estado == EstadoFecha.cerrada || estado == EstadoFecha.enJuego) {
+          actionButtons.add(
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _abrirFinalizarDialog(context),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF9E9E9E),
+                ),
+                icon: const Icon(Icons.check_circle),
+                label: const Text('Finalizar Pichanga'),
+              ),
+            ),
+          );
+        }
+
+        // Si no hay acciones, no mostrar nada
+        if (actionButtons.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        // Construir el panel con titulo y botones
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: DesignTokens.spacingM),
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+                side: BorderSide(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(DesignTokens.spacingM),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.admin_panel_settings,
+                          size: DesignTokens.iconSizeS,
+                          color: colorScheme.primary,
+                        ),
+                        const SizedBox(width: DesignTokens.spacingS),
+                        Text(
+                          'Acciones de Admin',
+                          style: textTheme.titleSmall?.copyWith(
+                            fontWeight: DesignTokens.fontWeightSemiBold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: DesignTokens.spacingM),
+                    // Botones apilados verticalmente con separacion
+                    ...actionButtons.expand((button) => [
+                      button,
+                      const SizedBox(height: DesignTokens.spacingS),
+                    ]).toList()
+                      ..removeLast(), // Quitar el ultimo SizedBox
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -2007,9 +2126,6 @@ class _DesktopDetalleView extends StatelessWidget {
   }
 
   /// E003-HU-007: Dialogo de confirmacion para cancelar inscripcion (Desktop)
-  /// CA-001: Visible solo si usuario esta inscrito
-  /// CA-002: Mensaje de confirmacion
-  /// CA-005: Si fecha cerrada, mostrar mensaje
   void _confirmarCancelacion(BuildContext context) {
     CancelarInscripcionDialog.show(
       context,
@@ -2052,7 +2168,6 @@ class _DesktopDetalleView extends StatelessWidget {
   }
 
   /// E004-HU-001: Seccion de partido en vivo (Desktop)
-  /// Muestra widget de partido activo o boton para iniciar
   Widget _buildPartidoSection(BuildContext context) {
     return BlocProvider(
       create: (context) => PartidoBloc(repository: sl())
@@ -2095,50 +2210,61 @@ class _DesktopDetalleView extends StatelessWidget {
     );
   }
 
-  /// Boton para iniciar un nuevo partido (Desktop)
+  /// Boton para iniciar un nuevo partido (Desktop) - compacto
   Widget _buildIniciarPartidoButton(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
         side: BorderSide(
           color: colorScheme.primary.withValues(alpha: 0.3),
         ),
       ),
       child: InkWell(
         onTap: () => _mostrarDialogoIniciarPartido(context),
-        borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
         child: Padding(
-          padding: const EdgeInsets.all(DesignTokens.spacingL),
-          child: Column(
+          padding: const EdgeInsets.all(DesignTokens.spacingM),
+          child: Row(
             children: [
+              Container(
+                padding: const EdgeInsets.all(DesignTokens.spacingS),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+                ),
+                child: Icon(
+                  Icons.sports_soccer,
+                  color: colorScheme.onPrimaryContainer,
+                  size: DesignTokens.iconSizeM,
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spacingS),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Iniciar Partido',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: DesignTokens.fontWeightSemiBold,
+                          ),
+                    ),
+                    Text(
+                      'Selecciona equipos',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
               Icon(
-                Icons.sports_soccer,
+                Icons.play_circle,
                 color: colorScheme.primary,
-                size: DesignTokens.iconSizeXl,
-              ),
-              const SizedBox(height: DesignTokens.spacingM),
-              Text(
-                'Iniciar Partido',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: DesignTokens.fontWeightSemiBold,
-                    ),
-              ),
-              const SizedBox(height: DesignTokens.spacingXs),
-              Text(
-                'Selecciona los equipos y comienza el temporizador',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: DesignTokens.spacingM),
-              FilledButton.icon(
-                onPressed: () => _mostrarDialogoIniciarPartido(context),
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('Comenzar'),
+                size: DesignTokens.iconSizeM,
               ),
             ],
           ),
@@ -2149,7 +2275,6 @@ class _DesktopDetalleView extends StatelessWidget {
 
   /// Muestra el dialogo para iniciar partido (Desktop)
   void _mostrarDialogoIniciarPartido(BuildContext context) {
-    // Obtener equipos disponibles segun el numero de equipos de la fecha
     final numEquipos = fechaDetalle!.fecha.numEquipos;
     final equiposDisponibles = <ColorEquipo>[
       ColorEquipo.naranja,
@@ -2157,8 +2282,6 @@ class _DesktopDetalleView extends StatelessWidget {
       if (numEquipos >= 3) ColorEquipo.azul,
     ];
 
-    // Calcular duracion segun formato (RN-004)
-    // 2 equipos = 20 min, 3 equipos = 10 min
     final duracionMinutos = numEquipos == 2 ? 20 : 10;
 
     IniciarPartidoDialog.show(
@@ -2167,7 +2290,6 @@ class _DesktopDetalleView extends StatelessWidget {
       equiposDisponibles: equiposDisponibles,
       duracionMinutos: duracionMinutos,
       onSuccess: () {
-        // Recargar partido activo
         context.read<PartidoBloc>().add(
               CargarPartidoActivoEvent(fechaId: fechaId),
             );
@@ -2216,6 +2338,720 @@ class _DialogInfoRow extends StatelessWidget {
                 color: destacado ? colorScheme.primary : null,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================
+// DIALOG ASIGNAR EQUIPOS (Desktop)
+// E003-HU-005: Dialog grande para asignacion de equipos
+// ============================================
+
+/// Dialog de asignacion de equipos para desktop
+/// Contiene la misma funcionalidad que AsignarEquiposPage pero en un dialog
+class _AsignarEquiposDialog extends StatelessWidget {
+  final String fechaId;
+  final VoidCallback onSuccess;
+
+  const _AsignarEquiposDialog({
+    required this.fechaId,
+    required this.onSuccess,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocConsumer<AsignacionesBloc, AsignacionesState>(
+      listener: (context, state) {
+        // CA-007: Feedback al confirmar equipos
+        if (state is EquiposConfirmados) {
+          _mostrarSnackBarExito(context, state.message);
+          Navigator.of(context).pop();
+          onSuccess();
+        }
+
+        // Errores
+        if (state is AsignarEquipoError) {
+          _mostrarSnackBarError(context, state.message);
+        }
+        if (state is DesasignarEquipoError) {
+          _mostrarSnackBarError(context, state.message);
+        }
+        if (state is ConfirmarEquiposError) {
+          _mostrarSnackBarError(context, state.message);
+        }
+      },
+      builder: (context, state) {
+        final data = _obtenerData(state);
+        final isLoading = state is AsignacionesLoading;
+        final hasError = state is AsignacionesError;
+        final errorMessage = hasError ? state.message : null;
+        final isConfirmando = state is ConfirmandoEquipos;
+        final asignacionCompleta = data?.resumen.asignacionCompleta ?? false;
+
+        return Dialog(
+          insetPadding: const EdgeInsets.all(24),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 1200,
+                maxHeight: MediaQuery.of(context).size.height * 0.9,
+              ),
+              child: Scaffold(
+                appBar: AppBar(
+                  title: const Text('Asignar Equipos'),
+                  leading: IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  actions: [
+                    // CA-006: Indicador de desbalance
+                    if (data != null && _hayDesbalance(data))
+                      Container(
+                        margin: const EdgeInsets.only(right: DesignTokens.spacingS),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: DesignTokens.spacingM,
+                          vertical: DesignTokens.spacingS,
+                        ),
+                        decoration: BoxDecoration(
+                          color: DesignTokens.accentColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+                          border: Border.all(
+                            color: DesignTokens.accentColor.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.warning_amber,
+                              size: DesignTokens.iconSizeS,
+                              color: DesignTokens.accentColor,
+                            ),
+                            const SizedBox(width: DesignTokens.spacingXs),
+                            Text(
+                              'Desbalanceado',
+                              style: TextStyle(
+                                color: DesignTokens.accentColor,
+                                fontWeight: DesignTokens.fontWeightMedium,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    // Boton refrescar
+                    IconButton(
+                      onPressed: () {
+                        context.read<AsignacionesBloc>().add(
+                              CargarAsignacionesEvent(fechaId: fechaId),
+                            );
+                      },
+                      icon: const Icon(Icons.refresh),
+                      tooltip: 'Actualizar',
+                    ),
+                    const SizedBox(width: DesignTokens.spacingS),
+                    // CA-007: Boton confirmar
+                    Padding(
+                      padding: const EdgeInsets.only(right: DesignTokens.spacingM),
+                      child: FilledButton.icon(
+                        onPressed: asignacionCompleta && !isConfirmando
+                            ? () => _mostrarDialogConfirmacion(context, data!)
+                            : null,
+                        icon: isConfirmando
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.check),
+                        label: const Text('Confirmar Equipos'),
+                      ),
+                    ),
+                  ],
+                ),
+                body: _buildContent(
+                  context,
+                  data: data,
+                  isLoading: isLoading,
+                  hasError: hasError,
+                  errorMessage: errorMessage,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  ObtenerAsignacionesDataModel? _obtenerData(AsignacionesState state) {
+    if (state is AsignacionesLoaded) return state.data;
+    if (state is AsignandoEquipo) return state.data;
+    if (state is EquipoAsignado) return state.data;
+    if (state is AsignarEquipoError) return state.data;
+    if (state is DesasignandoEquipo) return state.data;
+    if (state is EquipoDesasignado) return state.data;
+    if (state is DesasignarEquipoError) return state.data;
+    if (state is ConfirmandoEquipos) return state.data;
+    if (state is ConfirmarEquiposError) return state.data;
+    return null;
+  }
+
+  bool _hayDesbalance(ObtenerAsignacionesDataModel data) {
+    if (data.equipos.isEmpty) return false;
+    final cantidades = data.equipos.map((e) => e.cantidad).toList();
+    if (cantidades.isEmpty) return false;
+    final max = cantidades.reduce((a, b) => a > b ? a : b);
+    final min = cantidades.reduce((a, b) => a < b ? a : b);
+    return (max - min) > 1;
+  }
+
+  void _mostrarSnackBarExito(BuildContext context, String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: DesignTokens.spacingS),
+            Expanded(child: Text(mensaje)),
+          ],
+        ),
+        backgroundColor: DesignTokens.successColor,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _mostrarSnackBarError(BuildContext context, String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: DesignTokens.spacingS),
+            Expanded(child: Text(mensaje)),
+          ],
+        ),
+        backgroundColor: DesignTokens.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Widget _buildContent(
+    BuildContext context, {
+    required ObtenerAsignacionesDataModel? data,
+    required bool isLoading,
+    required bool hasError,
+    required String? errorMessage,
+  }) {
+    // Estado de carga
+    if (isLoading && data == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // Estado de error
+    if (hasError && data == null) {
+      return _buildErrorContent(context, errorMessage);
+    }
+
+    // Sin datos
+    if (data == null) {
+      return const Center(child: Text('No se encontraron datos'));
+    }
+
+    // Layout de 2 columnas para el dialog
+    return Padding(
+      padding: const EdgeInsets.all(DesignTokens.spacingL),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Columna izquierda: Jugadores sin asignar
+          SizedBox(
+            width: 350,
+            child: _buildPanelJugadoresSinAsignar(context, data),
+          ),
+
+          const SizedBox(width: DesignTokens.spacingL),
+
+          // Columna derecha: Equipos (expandida)
+          Expanded(
+            child: _buildPanelEquipos(context, data),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPanelJugadoresSinAsignar(
+    BuildContext context,
+    ObtenerAsignacionesDataModel data,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final jugadoresSinAsignar = data.jugadoresSinAsignar;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(DesignTokens.spacingM),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(DesignTokens.spacingS),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+                  ),
+                  child: Icon(
+                    Icons.people_outline,
+                    color: colorScheme.primary,
+                    size: DesignTokens.iconSizeM,
+                  ),
+                ),
+                const SizedBox(width: DesignTokens.spacingM),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Jugadores Sin Asignar',
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: DesignTokens.fontWeightSemiBold,
+                        ),
+                      ),
+                      Text(
+                        '${jugadoresSinAsignar.length} jugador${jugadoresSinAsignar.length != 1 ? 'es' : ''}',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          // Lista de jugadores
+          if (jugadoresSinAsignar.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(DesignTokens.spacingL),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: DesignTokens.iconSizeXl,
+                      color: DesignTokens.successColor,
+                    ),
+                    const SizedBox(height: DesignTokens.spacingM),
+                    Text(
+                      'Todos asignados',
+                      style: textTheme.titleSmall?.copyWith(
+                        color: DesignTokens.successColor,
+                        fontWeight: DesignTokens.fontWeightSemiBold,
+                      ),
+                    ),
+                    const SizedBox(height: DesignTokens.spacingXs),
+                    Text(
+                      'Puedes confirmar los equipos',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: jugadoresSinAsignar.length,
+                separatorBuilder: (_, __) => Divider(
+                  height: 1,
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                ),
+                itemBuilder: (context, index) {
+                  final jugador = jugadoresSinAsignar[index];
+                  // CA-004: Draggable para drag-drop en desktop
+                  return Draggable<JugadorAsignacionModel>(
+                    data: jugador,
+                    feedback: Material(
+                      elevation: 8,
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+                      child: Container(
+                        width: 300,
+                        padding: const EdgeInsets.all(DesignTokens.spacingM),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surface,
+                          borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+                          border: Border.all(
+                            color: colorScheme.primary,
+                            width: 2,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            _buildAvatar(jugador, colorScheme, textTheme, 40),
+                            const SizedBox(width: DesignTokens.spacingM),
+                            Text(
+                              jugador.displayName,
+                              style: textTheme.bodyMedium?.copyWith(
+                                fontWeight: DesignTokens.fontWeightMedium,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    childWhenDragging: Opacity(
+                      opacity: 0.5,
+                      child: JugadorAsignacionTile(
+                        jugador: jugador,
+                        coloresDisponibles: data.coloresDisponibles,
+                        onAsignar: (_) {},
+                        isMobile: false,
+                      ),
+                    ),
+                    child: JugadorAsignacionTile(
+                      jugador: jugador,
+                      coloresDisponibles: data.coloresDisponibles,
+                      onAsignar: (equipo) => _asignarEquipo(context, data, jugador, equipo),
+                      isMobile: false,
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPanelEquipos(BuildContext context, ObtenerAsignacionesDataModel data) {
+    final colores = data.coloresDisponibles;
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header con progreso
+          _buildProgresoHeader(context, data),
+
+          const SizedBox(height: DesignTokens.spacingL),
+
+          // Grid de equipos
+          Wrap(
+            spacing: DesignTokens.spacingM,
+            runSpacing: DesignTokens.spacingM,
+            children: colores.map((color) {
+              final jugadoresEquipo = data.jugadoresDelEquipo(color);
+              return SizedBox(
+                width: colores.length == 2 ? 400 : 320,
+                child: EquipoContainerWidget(
+                  equipo: color,
+                  jugadores: jugadoresEquipo,
+                  onJugadorRemover: (jugador) => _removerDeEquipo(context, data, jugador),
+                  onJugadorDrop: (jugador) => _asignarEquipo(context, data, jugador, color),
+                  isMobile: false,
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgresoHeader(BuildContext context, ObtenerAsignacionesDataModel data) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final resumen = data.resumen;
+
+    return Container(
+      padding: const EdgeInsets.all(DesignTokens.spacingM),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+        border: Border.all(
+          color: colorScheme.primary.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            resumen.asignacionCompleta ? Icons.check_circle : Icons.groups,
+            color: resumen.asignacionCompleta
+                ? DesignTokens.successColor
+                : colorScheme.primary,
+            size: DesignTokens.iconSizeL,
+          ),
+          const SizedBox(width: DesignTokens.spacingM),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${resumen.totalAsignados} de ${resumen.totalInscritos} jugadores asignados',
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: DesignTokens.fontWeightBold,
+                ),
+              ),
+              Text(
+                resumen.asignacionCompleta
+                    ? 'Todos los jugadores tienen equipo. Puedes confirmar.'
+                    : 'Faltan ${resumen.sinAsignar} jugador${resumen.sinAsignar != 1 ? 'es' : ''} por asignar.',
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          // Barras de equipos
+          Row(
+            children: data.coloresDisponibles.map((color) {
+              final cantidad = data.jugadoresDelEquipo(color).length;
+              return Container(
+                margin: const EdgeInsets.only(left: DesignTokens.spacingS),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spacingM,
+                  vertical: DesignTokens.spacingS,
+                ),
+                decoration: BoxDecoration(
+                  color: color.color,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      color.displayName,
+                      style: textTheme.labelMedium?.copyWith(
+                        color: color.textColor,
+                        fontWeight: DesignTokens.fontWeightMedium,
+                      ),
+                    ),
+                    const SizedBox(width: DesignTokens.spacingXs),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: DesignTokens.spacingS,
+                        vertical: DesignTokens.spacingXxs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+                      ),
+                      child: Text(
+                        '$cantidad',
+                        style: textTheme.labelMedium?.copyWith(
+                          color: color.textColor,
+                          fontWeight: DesignTokens.fontWeightBold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar(
+    JugadorAsignacionModel jugador,
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+    double size,
+  ) {
+    if (jugador.fotoUrl != null && jugador.fotoUrl!.isNotEmpty) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+          image: DecorationImage(
+            image: NetworkImage(jugador.fotoUrl!),
+            fit: BoxFit.cover,
+          ),
+        ),
+      );
+    }
+
+    final inicial = jugador.displayName.isNotEmpty
+        ? jugador.displayName[0].toUpperCase()
+        : '?';
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: DesignTokens.primaryGradient,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+      ),
+      child: Center(
+        child: Text(
+          inicial,
+          style: textTheme.titleSmall?.copyWith(
+            color: Colors.white,
+            fontWeight: DesignTokens.fontWeightBold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _asignarEquipo(
+    BuildContext context,
+    ObtenerAsignacionesDataModel data,
+    JugadorAsignacionModel jugador,
+    ColorEquipo equipo,
+  ) {
+    context.read<AsignacionesBloc>().add(
+          AsignarEquipoEvent(
+            fechaId: fechaId,
+            usuarioId: jugador.usuarioId,
+            equipo: equipo.toBackend(),
+          ),
+        );
+  }
+
+  void _removerDeEquipo(
+    BuildContext context,
+    ObtenerAsignacionesDataModel data,
+    JugadorAsignacionModel jugador,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Reasignar ${jugador.displayName}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Opcion Sin Asignar (solo si ya tiene equipo)
+            if (jugador.equipo != null)
+              ListTile(
+                leading: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+                    border: Border.all(color: colorScheme.outline),
+                  ),
+                  child: Icon(
+                    Icons.person_remove,
+                    size: 16,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                title: const Text('Sin Asignar'),
+                subtitle: const Text('Devolver a lista de espera'),
+                onTap: () {
+                  Navigator.of(dialogContext).pop();
+                  _desasignarEquipo(context, jugador);
+                },
+              ),
+            if (jugador.equipo != null)
+              const Divider(),
+            // Opciones de equipos
+            ...data.coloresDisponibles.map((color) {
+              return ListTile(
+                leading: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: color.color,
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+                    border: Border.all(color: color.borderColor),
+                  ),
+                ),
+                title: Text(color.displayName),
+                selected: jugador.equipo == color,
+                onTap: () {
+                  Navigator.of(dialogContext).pop();
+                  _asignarEquipo(context, data, jugador, color);
+                },
+              );
+            }),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancelar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _desasignarEquipo(BuildContext context, JugadorAsignacionModel jugador) {
+    context.read<AsignacionesBloc>().add(
+          DesasignarEquipoEvent(
+            fechaId: fechaId,
+            usuarioId: jugador.usuarioId,
+          ),
+        );
+  }
+
+  void _mostrarDialogConfirmacion(
+    BuildContext context,
+    ObtenerAsignacionesDataModel data,
+  ) {
+    ConfirmarEquiposDialog.show(
+      context,
+      fechaId: fechaId,
+      data: data,
+      hayDesbalance: _hayDesbalance(data),
+    );
+  }
+
+  Widget _buildErrorContent(BuildContext context, String? errorMessage) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 64, color: colorScheme.error),
+          const SizedBox(height: DesignTokens.spacingM),
+          Text(
+            errorMessage ?? 'Error al cargar asignaciones',
+            style: TextStyle(color: colorScheme.onSurfaceVariant),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: DesignTokens.spacingL),
+          FilledButton.icon(
+            onPressed: () {
+              context.read<AsignacionesBloc>().add(
+                    CargarAsignacionesEvent(fechaId: fechaId),
+                  );
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Reintentar'),
           ),
         ],
       ),
