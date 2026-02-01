@@ -46,6 +46,8 @@ Permitir a los administradores organizar las pichangas semanales y a los jugador
 | E003-HU-008 | Editar Fecha | 🟢 REF | Como admin, quiero editar una fecha de pichanga existente |
 | E003-HU-009 | Listado Fechas por Rol | 🟢 REF | Como usuario, quiero ver fechas segun mi rol y participacion |
 | E003-HU-010 | Finalizar Fecha | DRF | Como admin, quiero finalizar una pichanga para registrarla en historial |
+| E003-HU-011 | Inscribir Jugador como Admin | 🟢 REF | Como admin, quiero inscribir jugadores a una fecha desde el detalle |
+| E003-HU-012 | Iniciar Fecha | 🟢 REF | Como admin, quiero iniciar una pichanga para habilitar partidos |
 
 ## Dependencias
 - E001: Login de Usuario

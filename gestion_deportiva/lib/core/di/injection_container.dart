@@ -47,6 +47,7 @@ import '../../features/fechas/presentation/bloc/asignaciones/asignaciones_bloc.d
 import '../../features/fechas/presentation/bloc/mi_equipo/mi_equipo_bloc.dart';
 import '../../features/fechas/presentation/bloc/fechas_por_rol/fechas_por_rol_bloc.dart';
 import '../../features/fechas/presentation/bloc/finalizar_fecha/finalizar_fecha_bloc.dart';
+import '../../features/fechas/presentation/bloc/inscribir_jugador_admin/inscribir_jugador_admin_bloc.dart';
 
 // Solicitudes Feature (E001-HU-006: Gestionar Solicitudes de Registro)
 import '../../features/solicitudes/data/datasources/solicitudes_remote_datasource.dart';
@@ -176,6 +177,8 @@ Future<void> initializeDependencies() async {
   sl.registerFactory(() => FechasPorRolBloc(repository: sl()));
   // E003-HU-010: Finalizar Fecha
   sl.registerFactory(() => FinalizarFechaBloc(repository: sl()));
+  // E003-HU-011: Inscribir Jugador como Admin
+  sl.registerFactory(() => InscribirJugadorAdminBloc(repository: sl()));
 
   // Repository
   sl.registerLazySingleton<FechasRepository>(

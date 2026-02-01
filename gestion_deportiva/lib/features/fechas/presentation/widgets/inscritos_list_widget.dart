@@ -3,8 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../auth/presentation/bloc/session/session.dart';
 import '../../data/models/inscrito_fecha_model.dart';
 import '../bloc/inscritos/inscritos.dart';
+import 'agregar_jugador_admin_dialog.dart';
 
 /// Widget reutilizable para mostrar lista de jugadores inscritos a una fecha
 /// E003-HU-003: Ver Inscritos
@@ -20,6 +22,9 @@ import '../bloc/inscritos/inscritos.dart';
 /// Reglas de Negocio:
 /// - RN-003: Orden por fecha de inscripcion
 /// - RN-005: Pull-to-refresh para actualizacion manual (fallback)
+///
+/// E003-HU-011: Inscribir Jugador como Admin
+/// - CA-001: Boton "Agregar jugador" visible solo para admin si fecha abierta
 class InscritosListWidget extends StatefulWidget {
   /// ID de la fecha para cargar inscritos
   final String fechaId;
@@ -39,6 +44,9 @@ class InscritosListWidget extends StatefulWidget {
   /// Capacidad maxima para mostrar progreso (opcional)
   final int? capacidadMaxima;
 
+  /// E003-HU-011: Si la fecha esta abierta (para mostrar boton agregar)
+  final bool fechaAbierta;
+
   const InscritosListWidget({
     super.key,
     required this.fechaId,
@@ -47,6 +55,7 @@ class InscritosListWidget extends StatefulWidget {
     this.expandidoInicial = true,
     this.expandible = true,
     this.capacidadMaxima,
+    this.fechaAbierta = false,
   });
 
   @override
@@ -167,6 +176,7 @@ class _InscritosListWidgetState extends State<InscritosListWidget>
   }
 
   /// CA-003: Header con contador "X jugadores anotados"
+  /// E003-HU-011 CA-001: Boton "+" para agregar jugador (solo admin, fecha abierta)
   Widget _buildHeader(BuildContext context, InscritosState state) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
@@ -251,6 +261,10 @@ class _InscritosListWidgetState extends State<InscritosListWidget>
               ),
             ),
 
+            // E003-HU-011 CA-001: Boton agregar jugador (solo admin, fecha abierta)
+            if (widget.fechaAbierta && !widget.compacto)
+              _buildAgregarJugadorButton(context),
+
             // Indicador de progreso o contador
             if (isLoading)
               SizedBox(
@@ -303,6 +317,58 @@ class _InscritosListWidgetState extends State<InscritosListWidget>
           ],
         ),
       ),
+    );
+  }
+
+  /// E003-HU-011 CA-001: Boton para agregar jugador (solo visible para admin)
+  Widget _buildAgregarJugadorButton(BuildContext context) {
+    return BlocBuilder<SessionBloc, SessionState>(
+      builder: (context, sessionState) {
+        // Solo mostrar si es admin
+        if (sessionState is! SessionAuthenticated) {
+          return const SizedBox.shrink();
+        }
+
+        final isAdmin = sessionState.rol.toLowerCase() == 'admin' ||
+            sessionState.rol.toLowerCase() == 'administrador';
+
+        if (!isAdmin) {
+          return const SizedBox.shrink();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(right: DesignTokens.spacingS),
+          child: IconButton(
+            onPressed: () => _abrirDialogoAgregarJugador(context),
+            icon: Icon(
+              Icons.person_add,
+              color: Theme.of(context).colorScheme.primary,
+              size: DesignTokens.iconSizeM,
+            ),
+            tooltip: 'Agregar jugador',
+            style: IconButton.styleFrom(
+              backgroundColor: Theme.of(context)
+                  .colorScheme
+                  .primaryContainer
+                  .withValues(alpha: 0.3),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// E003-HU-011: Abrir dialog para agregar jugador
+  void _abrirDialogoAgregarJugador(BuildContext context) {
+    AgregarJugadorAdminDialog.show(
+      context,
+      fechaId: widget.fechaId,
+      onSuccess: () {
+        // Recargar lista de inscritos
+        context.read<InscritosBloc>().add(
+              CargarInscritosEvent(fechaId: widget.fechaId),
+            );
+      },
     );
   }
 

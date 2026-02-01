@@ -51,3 +51,6 @@ export 'equipos_fecha_model.dart';
 
 // E003-HU-009: Listar Fechas por Rol
 export 'listar_fechas_por_rol_response_model.dart';
+
+// E003-HU-011: Inscribir Jugador como Admin
+export 'inscribir_jugador_admin_response_model.dart';

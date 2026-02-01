@@ -31,6 +31,11 @@ class _JugadoresPageState extends State<JugadoresPage> {
   final _debouncer = _Debouncer(milliseconds: 500);
   PosicionJugador? _filtroPosicion;
 
+  // Estado de paginacion
+  int _currentPage = 1;
+  int _itemsPerPage = 10;
+  static const List<int> _itemsPerPageOptions = [10, 25, 50];
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -58,6 +63,16 @@ class _JugadoresPageState extends State<JugadoresPage> {
         // Calcular metricas
         final metricas = _calcularMetricas(jugadores);
 
+        // Calcular paginacion
+        final totalPages = (jugadoresFiltrados.length / _itemsPerPage).ceil();
+        final startIndex = (_currentPage - 1) * _itemsPerPage;
+        final endIndex = startIndex + _itemsPerPage > jugadoresFiltrados.length
+            ? jugadoresFiltrados.length
+            : startIndex + _itemsPerPage;
+        final jugadoresPaginados = jugadoresFiltrados.isEmpty
+            ? <JugadorModel>[]
+            : jugadoresFiltrados.sublist(startIndex, endIndex);
+
         // Siempre mostrar el layout, el loading/error va dentro del contenido
         return ResponsiveLayout(
           mobileBody: _MobileJugadoresView(
@@ -73,7 +88,8 @@ class _JugadoresPageState extends State<JugadoresPage> {
             onRefresh: _onRefresh,
           ),
           desktopBody: _DesktopJugadoresView(
-            jugadores: jugadoresFiltrados,
+            jugadores: jugadoresPaginados,
+            totalJugadores: jugadoresFiltrados.length,
             filtros: filtros,
             isLoading: isLoading,
             isEmpty: isEmpty && jugadoresFiltrados.isEmpty,
@@ -86,6 +102,15 @@ class _JugadoresPageState extends State<JugadoresPage> {
             onClearSearch: _onClearSearch,
             onRefresh: _onRefresh,
             onCambiarFiltroPosicion: _onCambiarFiltroPosicion,
+            // Paginacion
+            currentPage: _currentPage,
+            totalPages: totalPages,
+            itemsPerPage: _itemsPerPage,
+            itemsPerPageOptions: _itemsPerPageOptions,
+            startIndex: startIndex,
+            endIndex: endIndex,
+            onPageChanged: _onPageChanged,
+            onItemsPerPageChanged: _onItemsPerPageChanged,
           ),
         );
       },
@@ -142,7 +167,9 @@ class _JugadoresPageState extends State<JugadoresPage> {
   }
 
   void _onSearch(String value) {
-    setState(() {});
+    setState(() {
+      _currentPage = 1; // Reset a primera pagina al buscar
+    });
     _debouncer.run(() {
       context.read<JugadoresBloc>().add(BuscarJugadoresEvent(value));
     });
@@ -151,13 +178,16 @@ class _JugadoresPageState extends State<JugadoresPage> {
   void _onClearSearch() {
     _searchController.clear();
     context.read<JugadoresBloc>().add(const LimpiarBusquedaEvent());
-    setState(() {});
+    setState(() {
+      _currentPage = 1; // Reset a primera pagina al limpiar busqueda
+    });
   }
 
   void _onRefresh() {
     _searchController.clear();
     setState(() {
       _filtroPosicion = null;
+      _currentPage = 1; // Reset a primera pagina al refrescar
     });
     context.read<JugadoresBloc>().add(const RefrescarJugadoresEvent());
   }
@@ -165,6 +195,20 @@ class _JugadoresPageState extends State<JugadoresPage> {
   void _onCambiarFiltroPosicion(PosicionJugador? nuevaPosicion) {
     setState(() {
       _filtroPosicion = nuevaPosicion;
+      _currentPage = 1; // Reset a primera pagina al cambiar filtro
+    });
+  }
+
+  void _onPageChanged(int newPage) {
+    setState(() {
+      _currentPage = newPage;
+    });
+  }
+
+  void _onItemsPerPageChanged(int newItemsPerPage) {
+    setState(() {
+      _itemsPerPage = newItemsPerPage;
+      _currentPage = 1; // Reset a primera pagina al cambiar items por pagina
     });
   }
 }
@@ -366,6 +410,7 @@ class _MobileJugadoresView extends StatelessWidget {
 
 class _DesktopJugadoresView extends StatelessWidget {
   final List<JugadorModel> jugadores;
+  final int totalJugadores;
   final FiltrosJugadores filtros;
   final bool isLoading;
   final bool isEmpty;
@@ -378,9 +423,19 @@ class _DesktopJugadoresView extends StatelessWidget {
   final VoidCallback onClearSearch;
   final VoidCallback onRefresh;
   final void Function(PosicionJugador?) onCambiarFiltroPosicion;
+  // Paginacion
+  final int currentPage;
+  final int totalPages;
+  final int itemsPerPage;
+  final List<int> itemsPerPageOptions;
+  final int startIndex;
+  final int endIndex;
+  final void Function(int) onPageChanged;
+  final void Function(int) onItemsPerPageChanged;
 
   const _DesktopJugadoresView({
     required this.jugadores,
+    required this.totalJugadores,
     required this.filtros,
     required this.isLoading,
     required this.isEmpty,
@@ -393,6 +448,15 @@ class _DesktopJugadoresView extends StatelessWidget {
     required this.onClearSearch,
     required this.onRefresh,
     required this.onCambiarFiltroPosicion,
+    // Paginacion
+    required this.currentPage,
+    required this.totalPages,
+    required this.itemsPerPage,
+    required this.itemsPerPageOptions,
+    required this.startIndex,
+    required this.endIndex,
+    required this.onPageChanged,
+    required this.onItemsPerPageChanged,
   });
 
   @override
@@ -435,6 +499,7 @@ class _DesktopJugadoresView extends StatelessWidget {
           Expanded(
             child: _DataTablePanel(
               jugadores: jugadores,
+              totalJugadores: totalJugadores,
               filtros: filtros,
               isLoading: isLoading,
               isEmpty: isEmpty,
@@ -442,6 +507,15 @@ class _DesktopJugadoresView extends StatelessWidget {
               errorMessage: errorMessage,
               onRefresh: onRefresh,
               onClearSearch: onClearSearch,
+              // Paginacion
+              currentPage: currentPage,
+              totalPages: totalPages,
+              itemsPerPage: itemsPerPage,
+              itemsPerPageOptions: itemsPerPageOptions,
+              startIndex: startIndex,
+              endIndex: endIndex,
+              onPageChanged: onPageChanged,
+              onItemsPerPageChanged: onItemsPerPageChanged,
             ),
           ),
         ],
@@ -712,6 +786,7 @@ class _FilterPanel extends StatelessWidget {
 
 class _DataTablePanel extends StatelessWidget {
   final List<JugadorModel> jugadores;
+  final int totalJugadores;
   final FiltrosJugadores filtros;
   final bool isLoading;
   final bool isEmpty;
@@ -719,9 +794,19 @@ class _DataTablePanel extends StatelessWidget {
   final String? errorMessage;
   final VoidCallback onRefresh;
   final VoidCallback onClearSearch;
+  // Paginacion
+  final int currentPage;
+  final int totalPages;
+  final int itemsPerPage;
+  final List<int> itemsPerPageOptions;
+  final int startIndex;
+  final int endIndex;
+  final void Function(int) onPageChanged;
+  final void Function(int) onItemsPerPageChanged;
 
   const _DataTablePanel({
     required this.jugadores,
+    required this.totalJugadores,
     required this.filtros,
     required this.isLoading,
     required this.isEmpty,
@@ -729,6 +814,15 @@ class _DataTablePanel extends StatelessWidget {
     this.errorMessage,
     required this.onRefresh,
     required this.onClearSearch,
+    // Paginacion
+    required this.currentPage,
+    required this.totalPages,
+    required this.itemsPerPage,
+    required this.itemsPerPageOptions,
+    required this.startIndex,
+    required this.endIndex,
+    required this.onPageChanged,
+    required this.onItemsPerPageChanged,
   });
 
   @override
@@ -772,7 +866,7 @@ class _DataTablePanel extends StatelessWidget {
                   ],
                 ),
               ),
-              // Contador de registros
+              // Contador de registros totales
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: DesignTokens.spacingM,
@@ -792,7 +886,7 @@ class _DataTablePanel extends StatelessWidget {
                     ),
                     const SizedBox(width: DesignTokens.spacingXs),
                     Text(
-                      '${jugadores.length} jugador${jugadores.length != 1 ? 'es' : ''}',
+                      '$totalJugadores jugador${totalJugadores != 1 ? 'es' : ''}',
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: colorScheme.primary,
                         fontWeight: DesignTokens.fontWeightMedium,
@@ -804,6 +898,20 @@ class _DataTablePanel extends StatelessWidget {
             ],
           ),
         ),
+
+        // Controles de paginacion (ARRIBA de la tabla segun convencion)
+        if (totalJugadores > 0)
+          _PaginationControls(
+            currentPage: currentPage,
+            totalPages: totalPages,
+            itemsPerPage: itemsPerPage,
+            itemsPerPageOptions: itemsPerPageOptions,
+            startIndex: startIndex,
+            endIndex: endIndex,
+            totalItems: totalJugadores,
+            onPageChanged: onPageChanged,
+            onItemsPerPageChanged: onItemsPerPageChanged,
+          ),
 
         // Contenido de la tabla
         Expanded(
@@ -1316,6 +1424,368 @@ class _PosicionLegendItem extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Controles de paginacion mejorados (ubicados ARRIBA de la tabla segun convencion)
+/// Incluye: navegacion rapida (<<, <, >, >>) + input de pagina directa
+class _PaginationControls extends StatefulWidget {
+  final int currentPage;
+  final int totalPages;
+  final int itemsPerPage;
+  final List<int> itemsPerPageOptions;
+  final int startIndex;
+  final int endIndex;
+  final int totalItems;
+  final void Function(int) onPageChanged;
+  final void Function(int) onItemsPerPageChanged;
+
+  const _PaginationControls({
+    required this.currentPage,
+    required this.totalPages,
+    required this.itemsPerPage,
+    required this.itemsPerPageOptions,
+    required this.startIndex,
+    required this.endIndex,
+    required this.totalItems,
+    required this.onPageChanged,
+    required this.onItemsPerPageChanged,
+  });
+
+  @override
+  State<_PaginationControls> createState() => _PaginationControlsState();
+}
+
+class _PaginationControlsState extends State<_PaginationControls> {
+  late TextEditingController _pageInputController;
+  late FocusNode _pageInputFocusNode;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageInputController =
+        TextEditingController(text: widget.currentPage.toString());
+    _pageInputFocusNode = FocusNode();
+    _pageInputFocusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(covariant _PaginationControls oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Actualizar el texto del input cuando cambia la pagina externamente
+    if (oldWidget.currentPage != widget.currentPage) {
+      _pageInputController.text = widget.currentPage.toString();
+      _hasError = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageInputFocusNode.removeListener(_onFocusChange);
+    _pageInputFocusNode.dispose();
+    _pageInputController.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (!_pageInputFocusNode.hasFocus) {
+      _navigateToPage();
+    }
+  }
+
+  void _navigateToPage() {
+    final text = _pageInputController.text.trim();
+    final page = int.tryParse(text);
+
+    if (page == null) {
+      // Restaurar el valor anterior si no es un numero valido
+      setState(() {
+        _hasError = true;
+      });
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          setState(() {
+            _pageInputController.text = widget.currentPage.toString();
+            _hasError = false;
+          });
+        }
+      });
+      return;
+    }
+
+    setState(() {
+      _hasError = false;
+    });
+
+    // Validar rango y navegar
+    if (page < 1) {
+      widget.onPageChanged(1);
+    } else if (page > widget.totalPages) {
+      widget.onPageChanged(widget.totalPages > 0 ? widget.totalPages : 1);
+    } else if (page != widget.currentPage) {
+      widget.onPageChanged(page);
+    }
+  }
+
+  void _onSubmitted(String value) {
+    _navigateToPage();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final effectiveTotalPages = widget.totalPages > 0 ? widget.totalPages : 1;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: DesignTokens.spacingL,
+        vertical: DesignTokens.spacingM,
+      ),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        border: Border(
+          bottom: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Botones de navegacion con input de pagina
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Boton Primera pagina (<<)
+              _PaginationButton(
+                icon: Icons.first_page,
+                tooltip: 'Primera pagina',
+                enabled: widget.currentPage > 1,
+                onPressed: () => widget.onPageChanged(1),
+              ),
+              const SizedBox(width: DesignTokens.spacingXs),
+
+              // Boton Anterior (<)
+              _PaginationButton(
+                icon: Icons.chevron_left,
+                tooltip: 'Pagina anterior',
+                enabled: widget.currentPage > 1,
+                onPressed: () => widget.onPageChanged(widget.currentPage - 1),
+              ),
+              const SizedBox(width: DesignTokens.spacingM),
+
+              // Input de pagina directa
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Pagina',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: DesignTokens.spacingS),
+                  SizedBox(
+                    width: 60,
+                    child: TextField(
+                      controller: _pageInputController,
+                      focusNode: _pageInputFocusNode,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: DesignTokens.fontWeightMedium,
+                      ),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: DesignTokens.spacingS,
+                          vertical: DesignTokens.spacingS,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(DesignTokens.radiusS),
+                          borderSide: BorderSide(
+                            color: _hasError
+                                ? colorScheme.error
+                                : colorScheme.outlineVariant,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(DesignTokens.radiusS),
+                          borderSide: BorderSide(
+                            color: _hasError
+                                ? colorScheme.error
+                                : colorScheme.outlineVariant,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(DesignTokens.radiusS),
+                          borderSide: BorderSide(
+                            color:
+                                _hasError ? colorScheme.error : colorScheme.primary,
+                            width: 2,
+                          ),
+                        ),
+                        filled: true,
+                        fillColor: _hasError
+                            ? colorScheme.errorContainer.withValues(alpha: 0.3)
+                            : colorScheme.surface,
+                      ),
+                      onSubmitted: _onSubmitted,
+                    ),
+                  ),
+                  const SizedBox(width: DesignTokens.spacingS),
+                  Text(
+                    'de $effectiveTotalPages',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: DesignTokens.spacingM),
+
+              // Boton Siguiente (>)
+              _PaginationButton(
+                icon: Icons.chevron_right,
+                tooltip: 'Pagina siguiente',
+                enabled: widget.currentPage < widget.totalPages,
+                onPressed: () => widget.onPageChanged(widget.currentPage + 1),
+              ),
+              const SizedBox(width: DesignTokens.spacingXs),
+
+              // Boton Ultima pagina (>>)
+              _PaginationButton(
+                icon: Icons.last_page,
+                tooltip: 'Ultima pagina',
+                enabled: widget.currentPage < widget.totalPages,
+                onPressed: () => widget.onPageChanged(widget.totalPages),
+              ),
+            ],
+          ),
+
+          const SizedBox(width: DesignTokens.spacingL),
+
+          // Separador vertical
+          Container(
+            width: 1,
+            height: 24,
+            color: colorScheme.outlineVariant,
+          ),
+
+          const SizedBox(width: DesignTokens.spacingL),
+
+          // Selector de items por pagina
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Mostrar',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spacingS),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spacingS,
+                ),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+                  border: Border.all(
+                    color: colorScheme.outlineVariant,
+                  ),
+                ),
+                child: DropdownButton<int>(
+                  value: widget.itemsPerPage,
+                  underline: const SizedBox.shrink(),
+                  isDense: true,
+                  items: widget.itemsPerPageOptions.map((option) {
+                    return DropdownMenuItem<int>(
+                      value: option,
+                      child: Text(
+                        '$option',
+                        style: theme.textTheme.labelMedium,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      widget.onItemsPerPageChanged(value);
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spacingS),
+              Text(
+                'por pagina',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+
+          const Spacer(),
+
+          // Informacion de registros mostrados
+          Text(
+            'Mostrando ${widget.startIndex + 1}-${widget.endIndex} de ${widget.totalItems}',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Boton de paginacion
+class _PaginationButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  const _PaginationButton({
+    required this.icon,
+    required this.tooltip,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: enabled
+            ? colorScheme.primaryContainer.withValues(alpha: 0.5)
+            : colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+        child: InkWell(
+          onTap: enabled ? onPressed : null,
+          borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+          child: Container(
+            padding: const EdgeInsets.all(DesignTokens.spacingS),
+            child: Icon(
+              icon,
+              size: DesignTokens.iconSizeS + 4,
+              color: enabled
+                  ? colorScheme.primary
+                  : colorScheme.onSurface.withValues(alpha: 0.3),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

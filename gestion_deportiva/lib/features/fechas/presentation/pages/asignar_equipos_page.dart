@@ -36,16 +36,6 @@ class AsignarEquiposPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocConsumer<AsignacionesBloc, AsignacionesState>(
       listener: (context, state) {
-        // CA-004, CA-005: Feedback al asignar equipo
-        if (state is EquipoAsignado) {
-          _mostrarSnackBarExito(
-            context,
-            state.esActualizacion
-                ? 'Jugador cambiado al equipo ${state.asignacion.equipo}'
-                : state.message,
-          );
-        }
-
         // CA-007: Feedback al confirmar equipos
         if (state is EquiposConfirmados) {
           _mostrarSnackBarExito(context, state.message);
@@ -55,6 +45,11 @@ class AsignarEquiposPage extends StatelessWidget {
 
         // Error al asignar
         if (state is AsignarEquipoError) {
+          _mostrarSnackBarError(context, state.message);
+        }
+
+        // Error al desasignar
+        if (state is DesasignarEquipoError) {
           _mostrarSnackBarError(context, state.message);
         }
 
@@ -96,6 +91,9 @@ class AsignarEquiposPage extends StatelessWidget {
     if (state is AsignandoEquipo) return state.data;
     if (state is EquipoAsignado) return state.data;
     if (state is AsignarEquipoError) return state.data;
+    if (state is DesasignandoEquipo) return state.data;
+    if (state is EquipoDesasignado) return state.data;
+    if (state is DesasignarEquipoError) return state.data;
     if (state is ConfirmandoEquipos) return state.data;
     if (state is ConfirmarEquiposError) return state.data;
     return null;

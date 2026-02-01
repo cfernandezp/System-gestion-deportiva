@@ -255,8 +255,8 @@ class _MobileFechasViewState extends State<_MobileFechasView>
 }
 
 // ============================================
-// VISTA DESKTOP - CRM Style con Panel Lateral + Tabs
-// Layout: Panel Filtros (320px) | Contenido con Tabs
+// VISTA DESKTOP - CRM Style con Panel Lateral (sin Tabs arriba)
+// Layout: Panel Filtros con Secciones (320px) | Contenido
 // ============================================
 
 class _DesktopFechasView extends StatefulWidget {
@@ -268,114 +268,11 @@ class _DesktopFechasView extends StatefulWidget {
   State<_DesktopFechasView> createState() => _DesktopFechasViewState();
 }
 
-class _DesktopFechasViewState extends State<_DesktopFechasView>
-    with TickerProviderStateMixin {
-  late TabController _tabController;
-
+class _DesktopFechasViewState extends State<_DesktopFechasView> {
   // Filtros locales
   String? _estadoSeleccionado;
   DateTime? _fechaDesde;
   DateTime? _fechaHasta;
-
-  @override
-  void initState() {
-    super.initState();
-    // Obtener el index inicial desde el bloc
-    final bloc = context.read<FechasPorRolBloc>();
-    final initialIndex = _getIndexPorSeccion(bloc.seccionActual);
-    _tabController = TabController(
-      length: widget.esAdmin ? 4 : 3,
-      vsync: this,
-      initialIndex: initialIndex,
-    );
-    _tabController.addListener(_onTabChanged);
-  }
-
-  @override
-  void didUpdateWidget(covariant _DesktopFechasView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.esAdmin != widget.esAdmin) {
-      _tabController.removeListener(_onTabChanged);
-      _tabController.dispose();
-      final bloc = context.read<FechasPorRolBloc>();
-      final currentIndex = _getIndexPorSeccion(bloc.seccionActual);
-      _tabController = TabController(
-        length: widget.esAdmin ? 4 : 3,
-        vsync: this,
-        initialIndex: currentIndex.clamp(0, (widget.esAdmin ? 4 : 3) - 1),
-      );
-      _tabController.addListener(_onTabChanged);
-    }
-  }
-
-  @override
-  void dispose() {
-    _tabController.removeListener(_onTabChanged);
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  void _onTabChanged() {
-    if (_tabController.indexIsChanging) return;
-    final seccion = _getSeccionPorIndex(_tabController.index);
-    context.read<FechasPorRolBloc>().add(CambiarSeccionEvent(seccion: seccion));
-  }
-
-  int _getIndexPorSeccion(String seccion) {
-    if (widget.esAdmin) {
-      switch (seccion) {
-        case 'proximas':
-          return 0;
-        case 'en_curso':
-          return 1;
-        case 'historial':
-          return 2;
-        case 'todas':
-          return 3;
-        default:
-          return 0;
-      }
-    } else {
-      switch (seccion) {
-        case 'proximas':
-          return 0;
-        case 'inscrito':
-          return 1;
-        case 'historial':
-          return 2;
-        default:
-          return 0;
-      }
-    }
-  }
-
-  String _getSeccionPorIndex(int index) {
-    if (widget.esAdmin) {
-      switch (index) {
-        case 0:
-          return 'proximas';
-        case 1:
-          return 'en_curso';
-        case 2:
-          return 'historial';
-        case 3:
-          return 'todas';
-        default:
-          return 'proximas';
-      }
-    } else {
-      switch (index) {
-        case 0:
-          return 'proximas';
-        case 1:
-          return 'inscrito';
-        case 2:
-          return 'historial';
-        default:
-          return 'proximas';
-      }
-    }
-  }
 
   void _onCambiarEstado(String? estado) {
     setState(() => _estadoSeleccionado = estado);
@@ -431,14 +328,22 @@ class _DesktopFechasViewState extends State<_DesktopFechasView>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Panel de filtros lateral (320px fijo) - SIEMPRE VISIBLE
+          // Panel de filtros lateral (320px fijo) - CON SECCIONES
           SizedBox(
             width: 320,
             child: BlocBuilder<FechasPorRolBloc, FechasPorRolState>(
               builder: (context, state) {
+                final seccionActual =
+                    context.read<FechasPorRolBloc>().seccionActual;
                 return _FilterPanel(
                   esAdmin: widget.esAdmin,
                   state: state,
+                  seccionActual: seccionActual,
+                  onCambiarSeccion: (seccion) {
+                    context
+                        .read<FechasPorRolBloc>()
+                        .add(CambiarSeccionEvent(seccion: seccion));
+                  },
                   estadoSeleccionado: _estadoSeleccionado,
                   fechaDesde: _fechaDesde,
                   fechaHasta: _fechaHasta,
@@ -461,141 +366,22 @@ class _DesktopFechasViewState extends State<_DesktopFechasView>
             color: colorScheme.outlineVariant,
           ),
 
-          // Contenido con Tabs (expandido)
+          // Contenido principal (muestra seccion actual)
           Expanded(
-            child: Column(
-              children: [
-                // TabBar
-                Container(
-                  decoration: BoxDecoration(
-                    color: colorScheme.surface,
-                    border: Border(
-                      bottom: BorderSide(
-                        color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                      ),
-                    ),
-                  ),
-                  child: TabBar(
-                    controller: _tabController,
-                    isScrollable: true,
-                    tabs: _buildTabs(),
-                    labelColor: colorScheme.primary,
-                    unselectedLabelColor: colorScheme.onSurfaceVariant,
-                    indicatorColor: colorScheme.primary,
-                    tabAlignment: TabAlignment.start,
-                  ),
-                ),
-
-                // TabBarView
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: _buildTabViews(),
-                  ),
-                ),
-              ],
+            child: BlocBuilder<FechasPorRolBloc, FechasPorRolState>(
+              builder: (context, state) {
+                final seccionActual =
+                    context.read<FechasPorRolBloc>().seccionActual;
+                return _FechasTabContentDesktop(
+                  seccion: seccionActual,
+                  esAdmin: widget.esAdmin,
+                );
+              },
             ),
           ),
         ],
       ),
     );
-  }
-
-  List<Widget> _buildTabs() {
-    if (widget.esAdmin) {
-      return const [
-        Tab(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.event_available, size: 18),
-              SizedBox(width: 8),
-              Text('Proximas'),
-            ],
-          ),
-        ),
-        Tab(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.sports_soccer, size: 18),
-              SizedBox(width: 8),
-              Text('En Curso'),
-            ],
-          ),
-        ),
-        Tab(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.history, size: 18),
-              SizedBox(width: 8),
-              Text('Historial'),
-            ],
-          ),
-        ),
-        Tab(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.list_alt, size: 18),
-              SizedBox(width: 8),
-              Text('Todas'),
-            ],
-          ),
-        ),
-      ];
-    } else {
-      return const [
-        Tab(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.event_available, size: 18),
-              SizedBox(width: 8),
-              Text('Proximas'),
-            ],
-          ),
-        ),
-        Tab(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.check_circle, size: 18),
-              SizedBox(width: 8),
-              Text('Inscrito'),
-            ],
-          ),
-        ),
-        Tab(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.history, size: 18),
-              SizedBox(width: 8),
-              Text('Historial'),
-            ],
-          ),
-        ),
-      ];
-    }
-  }
-
-  List<Widget> _buildTabViews() {
-    if (widget.esAdmin) {
-      return [
-        _FechasTabContentDesktop(seccion: 'proximas', esAdmin: true),
-        _FechasTabContentDesktop(seccion: 'en_curso', esAdmin: true),
-        _FechasTabContentDesktop(seccion: 'historial', esAdmin: true),
-        _FechasTabContentDesktop(seccion: 'todas', esAdmin: true),
-      ];
-    } else {
-      return [
-        _FechasTabContentDesktop(seccion: 'proximas', esAdmin: false),
-        _FechasTabContentDesktop(seccion: 'inscrito', esAdmin: false),
-        _FechasTabContentDesktop(seccion: 'historial', esAdmin: false),
-      ];
-    }
   }
 }
 
@@ -606,6 +392,8 @@ class _DesktopFechasViewState extends State<_DesktopFechasView>
 class _FilterPanel extends StatelessWidget {
   final bool esAdmin;
   final FechasPorRolState state;
+  final String seccionActual;
+  final void Function(String) onCambiarSeccion;
   final String? estadoSeleccionado;
   final DateTime? fechaDesde;
   final DateTime? fechaHasta;
@@ -620,6 +408,8 @@ class _FilterPanel extends StatelessWidget {
   const _FilterPanel({
     required this.esAdmin,
     required this.state,
+    required this.seccionActual,
+    required this.onCambiarSeccion,
     required this.estadoSeleccionado,
     required this.fechaDesde,
     required this.fechaHasta,
@@ -757,6 +547,26 @@ class _FilterPanel extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+
+          const SizedBox(height: DesignTokens.spacingL),
+
+          // Seccion SECCION (selector de tabs)
+          Text(
+            'SECCION',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: DesignTokens.fontWeightSemiBold,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: DesignTokens.spacingS),
+
+          // Opciones de seccion como lista seleccionable
+          _SeccionSelector(
+            esAdmin: esAdmin,
+            seccionActual: seccionActual,
+            onCambiarSeccion: onCambiarSeccion,
           ),
 
           const SizedBox(height: DesignTokens.spacingL),
@@ -1639,43 +1449,55 @@ class _DataTablePanel extends StatelessWidget {
             margin: EdgeInsets.zero,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minWidth: MediaQuery.of(context).size.width - 400,
-                  ),
-                  child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(
-                      colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                    ),
-                    showCheckboxColumn: false,
-                    columns: const [
-                      DataColumn(label: Text('Fecha/Hora')),
-                      DataColumn(label: Text('Lugar')),
-                      DataColumn(label: Text('Duracion')),
-                      DataColumn(label: Text('Costo')),
-                      DataColumn(label: Text('Inscritos')),
-                      DataColumn(label: Text('Estado')),
-                      DataColumn(label: Text('Acciones')),
-                    ],
-                    rows: fechas.map((fecha) {
-                      return DataRow(
-                        // Hacer toda la fila clickeable para navegar al detalle
-                        onSelectChanged: (_) => context.push('/fechas/${fecha.id}'),
-                        cells: [
-                          DataCell(_buildFechaHoraCell(context, fecha)),
-                          DataCell(_buildLugarCell(context, fecha)),
-                          DataCell(Text('${fecha.duracionHoras}h')),
-                          DataCell(_buildCostoCell(context, fecha)),
-                          DataCell(_buildInscritosCell(context, fecha)),
-                          DataCell(_buildEstadoBadge(context, fecha)),
-                          DataCell(_buildAcciones(context, fecha)),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Ancho minimo para mostrar todas las columnas
+                  const double minWidth = 900;
+                  // Usar el mayor entre el espacio disponible y el minimo
+                  // Esto hace que la tabla sea RESPONSIVA (se expande) pero con scroll si es necesario
+                  final tableWidth = constraints.maxWidth > minWidth
+                      ? constraints.maxWidth
+                      : minWidth;
+
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: tableWidth,
+                      child: DataTable(
+                        headingRowColor: WidgetStateProperty.all(
+                          colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.5),
+                        ),
+                        showCheckboxColumn: false,
+                        columns: const [
+                          DataColumn(label: Text('Fecha/Hora')),
+                          DataColumn(label: Text('Lugar')),
+                          DataColumn(label: Text('Duracion')),
+                          DataColumn(label: Text('Costo')),
+                          DataColumn(label: Text('Inscritos')),
+                          DataColumn(label: Text('Estado')),
+                          DataColumn(label: Text('Acciones')),
                         ],
-                      );
-                    }).toList(),
-                  ),
-                ),
+                        rows: fechas.map((fecha) {
+                          return DataRow(
+                            // Hacer toda la fila clickeable para navegar al detalle
+                            onSelectChanged: (_) =>
+                                context.push('/fechas/${fecha.id}'),
+                            cells: [
+                              DataCell(_buildFechaHoraCell(context, fecha)),
+                              DataCell(_buildLugarCell(context, fecha)),
+                              DataCell(Text('${fecha.duracionHoras}h')),
+                              DataCell(_buildCostoCell(context, fecha)),
+                              DataCell(_buildInscritosCell(context, fecha)),
+                              DataCell(_buildEstadoBadge(context, fecha)),
+                              DataCell(_buildAcciones(context, fecha)),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -1838,10 +1660,11 @@ class _DataTablePanel extends StatelessWidget {
     final color = _hexToColor(fecha.indicador.color);
     final icono = _getIconoDesdeNombre(fecha.indicador.icono);
 
-    // Si el usuario esta inscrito, mostrar badge adicional
+    // Si el usuario esta inscrito, mostrar badge adicional (apilados verticalmente)
     if (fecha.usuarioInscrito) {
-      return Row(
+      return Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.symmetric(
@@ -1868,7 +1691,7 @@ class _DataTablePanel extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: DesignTokens.spacingXs),
+          const SizedBox(height: DesignTokens.spacingXxs),
           const StatusBadge(
             label: 'Inscrito',
             type: StatusBadgeType.activo,
@@ -2802,6 +2625,212 @@ class _EstadoLegendItem extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ============================================
+// SELECTOR DE SECCION (para panel lateral desktop)
+// ============================================
+
+class _SeccionSelector extends StatelessWidget {
+  final bool esAdmin;
+  final String seccionActual;
+  final void Function(String) onCambiarSeccion;
+
+  const _SeccionSelector({
+    required this.esAdmin,
+    required this.seccionActual,
+    required this.onCambiarSeccion,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final secciones = esAdmin
+        ? [
+            _SeccionOption(
+              id: 'proximas',
+              label: 'Proximas',
+              icon: Icons.event_available,
+              descripcion: 'Fechas abiertas',
+            ),
+            _SeccionOption(
+              id: 'en_curso',
+              label: 'En Curso',
+              icon: Icons.sports_soccer,
+              descripcion: 'Fechas cerradas o en juego',
+            ),
+            _SeccionOption(
+              id: 'historial',
+              label: 'Historial',
+              icon: Icons.history,
+              descripcion: 'Fechas finalizadas',
+            ),
+            _SeccionOption(
+              id: 'todas',
+              label: 'Todas',
+              icon: Icons.list_alt,
+              descripcion: 'Todas las fechas',
+            ),
+          ]
+        : [
+            _SeccionOption(
+              id: 'proximas',
+              label: 'Proximas',
+              icon: Icons.event_available,
+              descripcion: 'Fechas disponibles',
+            ),
+            _SeccionOption(
+              id: 'inscrito',
+              label: 'Inscrito',
+              icon: Icons.check_circle,
+              descripcion: 'Mis inscripciones',
+            ),
+            _SeccionOption(
+              id: 'historial',
+              label: 'Historial',
+              icon: Icons.history,
+              descripcion: 'Fechas finalizadas',
+            ),
+          ];
+
+    return Column(
+      children: secciones.map((seccion) {
+        final isSelected = seccionActual == seccion.id;
+        return _SeccionTile(
+          seccion: seccion,
+          isSelected: isSelected,
+          onTap: () => onCambiarSeccion(seccion.id),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _SeccionOption {
+  final String id;
+  final String label;
+  final IconData icon;
+  final String descripcion;
+
+  _SeccionOption({
+    required this.id,
+    required this.label,
+    required this.icon,
+    required this.descripcion,
+  });
+}
+
+class _SeccionTile extends StatelessWidget {
+  final _SeccionOption seccion;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _SeccionTile({
+    required this.seccion,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: DesignTokens.spacingXs),
+      child: Material(
+        color: isSelected
+            ? colorScheme.primaryContainer.withValues(alpha: 0.5)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spacingM,
+              vertical: DesignTokens.spacingS,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+              border: isSelected
+                  ? Border.all(
+                      color: colorScheme.primary.withValues(alpha: 0.5),
+                      width: 1.5,
+                    )
+                  : Border.all(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
+            ),
+            child: Row(
+              children: [
+                // Radio indicator
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected
+                          ? colorScheme.primary
+                          : colorScheme.outline,
+                      width: 2,
+                    ),
+                  ),
+                  child: isSelected
+                      ? Center(
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: colorScheme.primary,
+                            ),
+                          ),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: DesignTokens.spacingM),
+                // Icon
+                Icon(
+                  seccion.icon,
+                  size: DesignTokens.iconSizeS,
+                  color: isSelected
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: DesignTokens.spacingS),
+                // Label y descripcion
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        seccion.label,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: isSelected
+                              ? DesignTokens.fontWeightSemiBold
+                              : DesignTokens.fontWeightMedium,
+                          color: isSelected
+                              ? colorScheme.primary
+                              : colorScheme.onSurface,
+                        ),
+                      ),
+                      Text(
+                        seccion.descripcion,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
