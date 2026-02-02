@@ -52,6 +52,7 @@ class PartidoBloc extends Bloc<PartidoEvent, PartidoState> {
     on<ReanudarPartidoEvent>(_onReanudarPartido);
     on<ActualizarTiempoEvent>(_onActualizarTiempo);
     on<ResetPartidoEvent>(_onReset);
+    on<ActualizarMarcadorEvent>(_onActualizarMarcador);
   }
 
   /// CA-004: Cargar partido activo de una fecha
@@ -313,6 +314,37 @@ class PartidoBloc extends Bloc<PartidoEvent, PartidoState> {
     _detenerCountdown();
     _fechaIdActual = null;
     emit(const PartidoInitial());
+  }
+
+  /// Actualizar marcador del partido activo
+  /// Se llama cuando GolesBloc registra o elimina un gol
+  void _onActualizarMarcador(
+    ActualizarMarcadorEvent event,
+    Emitter<PartidoState> emit,
+  ) {
+    final estadoActual = state;
+
+    if (estadoActual is PartidoEnCurso) {
+      final partidoActualizado = estadoActual.partido.copyWithGoles(
+        golesLocal: event.golesLocal,
+        golesVisitante: event.golesVisitante,
+      );
+      emit(PartidoEnCurso(
+        partido: partidoActualizado,
+        puedePausar: estadoActual.puedePausar,
+        message: estadoActual.message,
+      ));
+    } else if (estadoActual is PartidoPausado) {
+      final partidoActualizado = estadoActual.partido.copyWithGoles(
+        golesLocal: event.golesLocal,
+        golesVisitante: event.golesVisitante,
+      );
+      emit(PartidoPausado(
+        partido: partidoActualizado,
+        puedeReanudar: estadoActual.puedeReanudar,
+        message: estadoActual.message,
+      ));
+    }
   }
 
   /// Inicia el timer de countdown (cada segundo)

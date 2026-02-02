@@ -4,7 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../fechas/data/models/color_equipo.dart';
 import '../../data/models/partido_model.dart';
+import '../bloc/goles/goles.dart';
 import '../bloc/partido/partido.dart';
+import 'registrar_gol_dialog.dart';
 
 /// Widget para mostrar partido activo estilo Champions League
 /// E004-HU-001: Iniciar Partido
@@ -26,7 +28,12 @@ class PartidoEnVivoWidget extends StatelessWidget {
   final void Function(PartidoModel partido)? onPantallaCompleta;
 
   /// Callback para anotar gol (solo si esAdmin)
+  /// DEPRECATED: Use los botones de gol integrados en el widget
   final void Function(PartidoModel partido)? onAnotarGol;
+
+  /// GolesBloc para registrar goles directamente
+  /// Si se proporciona, se usaran los botones de gol por equipo
+  final GolesBloc? golesBloc;
 
   /// Callback para finalizar partido (solo si esAdmin)
   final void Function(PartidoModel partido)? onFinalizarPartido;
@@ -38,10 +45,46 @@ class PartidoEnVivoWidget extends StatelessWidget {
     this.onPantallaCompleta,
     this.onAnotarGol,
     this.onFinalizarPartido,
+    this.golesBloc,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Construir el contenido del partido
+    final partidoContent = _buildPartidoContent(context);
+
+    // Si hay GolesBloc, envolver con BlocListener para actualizar el marcador
+    if (golesBloc != null) {
+      return BlocListener<GolesBloc, GolesState>(
+        bloc: golesBloc,
+        listener: (context, golesState) {
+          // Cuando se registra un gol, actualizar el marcador en PartidoBloc
+          if (golesState is GolRegistrado) {
+            context.read<PartidoBloc>().add(
+                  ActualizarMarcadorEvent(
+                    golesLocal: golesState.marcador.golesLocal,
+                    golesVisitante: golesState.marcador.golesVisitante,
+                  ),
+                );
+          }
+          // Cuando se elimina un gol, actualizar el marcador en PartidoBloc
+          if (golesState is GolEliminado) {
+            context.read<PartidoBloc>().add(
+                  ActualizarMarcadorEvent(
+                    golesLocal: golesState.marcador.golesLocal,
+                    golesVisitante: golesState.marcador.golesVisitante,
+                  ),
+                );
+          }
+        },
+        child: partidoContent,
+      );
+    }
+
+    return partidoContent;
+  }
+
+  Widget _buildPartidoContent(BuildContext context) {
     return BlocConsumer<PartidoBloc, PartidoState>(
       listenWhen: (previous, current) {
         if (previous is PartidoInitial || previous is PartidoLoading) {
@@ -116,6 +159,7 @@ class PartidoEnVivoWidget extends StatelessWidget {
             onPantallaCompleta: onPantallaCompleta,
             onAnotarGol: onAnotarGol,
             onFinalizarPartido: onFinalizarPartido,
+            golesBloc: golesBloc,
           );
         }
 
@@ -130,6 +174,7 @@ class PartidoEnVivoWidget extends StatelessWidget {
             onPantallaCompleta: onPantallaCompleta,
             onAnotarGol: onAnotarGol,
             onFinalizarPartido: onFinalizarPartido,
+            golesBloc: golesBloc,
           );
         }
 
@@ -148,6 +193,7 @@ class PartidoEnVivoWidget extends StatelessWidget {
               onPantallaCompleta: onPantallaCompleta,
               onAnotarGol: onAnotarGol,
               onFinalizarPartido: onFinalizarPartido,
+              golesBloc: golesBloc,
             );
           }
           return _buildLoadingState(context);
@@ -253,6 +299,7 @@ class _PartidoEnVivoCard extends StatelessWidget {
   final void Function(PartidoModel partido)? onPantallaCompleta;
   final void Function(PartidoModel partido)? onAnotarGol;
   final void Function(PartidoModel partido)? onFinalizarPartido;
+  final GolesBloc? golesBloc;
 
   const _PartidoEnVivoCard({
     required this.partido,
@@ -264,6 +311,7 @@ class _PartidoEnVivoCard extends StatelessWidget {
     this.onPantallaCompleta,
     this.onAnotarGol,
     this.onFinalizarPartido,
+    this.golesBloc,
   });
 
   /// Determina el estado visual real considerando tiempo extra
@@ -318,10 +366,12 @@ class _PartidoEnVivoCard extends StatelessWidget {
             padding: const EdgeInsets.all(DesignTokens.spacingL),
             child: Column(
               children: [
-                // Equipos con indicadores de color
-                _EquiposEnfrentamiento(
-                  equipoLocal: partido.equipoLocal.color,
-                  equipoVisitante: partido.equipoVisitante.color,
+                // Equipos con indicadores de color y botones de gol
+                _EquiposConBotonesGol(
+                  partido: partido,
+                  esAdmin: esAdmin,
+                  golesBloc: golesBloc,
+                  isProcesando: isProcesando,
                 ),
 
                 const SizedBox(height: DesignTokens.spacingL),
@@ -342,7 +392,7 @@ class _PartidoEnVivoCard extends StatelessWidget {
                   tiempoExtra: estadoReal == _EstadoPartidoVisual.tiempoExtra,
                 ),
 
-                // Botones de accion (solo admin)
+                // Botones de accion (solo admin) - Sin boton de gol, ahora estan arriba
                 if (esAdmin) ...[
                   const SizedBox(height: DesignTokens.spacingL),
                   _BotonesAccion(
@@ -350,7 +400,7 @@ class _PartidoEnVivoCard extends StatelessWidget {
                     puedePausar: puedePausar,
                     puedeReanudar: puedeReanudar,
                     isProcesando: isProcesando,
-                    onAnotarGol: onAnotarGol,
+                    onAnotarGol: null, // Ya no se usa, botones de gol estan arriba
                     onFinalizarPartido: onFinalizarPartido,
                   ),
                 ],
@@ -635,14 +685,19 @@ class _HeaderEstadoPartidoState extends State<_HeaderEstadoPartido>
   }
 }
 
-/// Display de equipos enfrentados con circulos de color
-class _EquiposEnfrentamiento extends StatelessWidget {
-  final ColorEquipo equipoLocal;
-  final ColorEquipo equipoVisitante;
+/// Display de equipos enfrentados con circulos de color y botones de gol
+/// Nuevo diseno: Cada equipo tiene su propio boton de gol debajo
+class _EquiposConBotonesGol extends StatelessWidget {
+  final PartidoModel partido;
+  final bool esAdmin;
+  final GolesBloc? golesBloc;
+  final bool isProcesando;
 
-  const _EquiposEnfrentamiento({
-    required this.equipoLocal,
-    required this.equipoVisitante,
+  const _EquiposConBotonesGol({
+    required this.partido,
+    required this.esAdmin,
+    this.golesBloc,
+    this.isProcesando = false,
   });
 
   @override
@@ -650,19 +705,26 @@ class _EquiposEnfrentamiento extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
 
+    // Determinar si se pueden registrar goles
+    final puedeRegistrarGoles = esAdmin && golesBloc != null && !isProcesando;
+
     return Row(
       children: [
-        // Equipo Local
+        // Equipo Local con boton de gol
         Expanded(
-          child: _EquipoIndicador(
-            color: equipoLocal,
+          child: _EquipoConBotonGol(
+            color: partido.equipoLocal.color,
             etiqueta: 'Local',
+            partido: partido,
+            esLocal: true,
+            puedeRegistrar: puedeRegistrarGoles,
+            golesBloc: golesBloc,
           ),
         ),
 
         // VS central
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spacingM),
+          padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spacingS),
           child: Text(
             'VS',
             style: textTheme.headlineSmall?.copyWith(
@@ -673,11 +735,15 @@ class _EquiposEnfrentamiento extends StatelessWidget {
           ),
         ),
 
-        // Equipo Visitante
+        // Equipo Visitante con boton de gol
         Expanded(
-          child: _EquipoIndicador(
-            color: equipoVisitante,
+          child: _EquipoConBotonGol(
+            color: partido.equipoVisitante.color,
             etiqueta: 'Visitante',
+            partido: partido,
+            esLocal: false,
+            puedeRegistrar: puedeRegistrarGoles,
+            golesBloc: golesBloc,
           ),
         ),
       ],
@@ -685,16 +751,49 @@ class _EquiposEnfrentamiento extends StatelessWidget {
   }
 }
 
-/// Indicador individual de equipo con circulo de color y glow
-/// Tamano reducido para un diseno mas compacto (40px)
-class _EquipoIndicador extends StatelessWidget {
+/// Indicador de equipo con boton de gol integrado
+class _EquipoConBotonGol extends StatelessWidget {
   final ColorEquipo color;
   final String etiqueta;
+  final PartidoModel partido;
+  final bool esLocal;
+  final bool puedeRegistrar;
+  final GolesBloc? golesBloc;
 
-  const _EquipoIndicador({
+  const _EquipoConBotonGol({
     required this.color,
     required this.etiqueta,
+    required this.partido,
+    required this.esLocal,
+    required this.puedeRegistrar,
+    this.golesBloc,
   });
+
+  void _mostrarDialogGol(BuildContext context) {
+    if (golesBloc == null) return;
+
+    final equipoQueAnota = esLocal
+        ? partido.equipoLocal.color
+        : partido.equipoVisitante.color;
+    final equipoContrario = esLocal
+        ? partido.equipoVisitante.color
+        : partido.equipoLocal.color;
+    final jugadores = esLocal
+        ? partido.equipoLocal.jugadores
+        : partido.equipoVisitante.jugadores;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => RegistrarGolDialog(
+        partidoId: partido.id,
+        equipoAnotador: equipoQueAnota,
+        equipoContrario: equipoContrario,
+        jugadores: jugadores,
+        esEquipoLocal: esLocal,
+        golesBloc: golesBloc!,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -703,10 +802,10 @@ class _EquipoIndicador extends StatelessWidget {
 
     return Column(
       children: [
-        // Circulo compacto (32px) con color del equipo y glow
+        // Circulo con color del equipo
         Container(
-          width: 32,
-          height: 32,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
             color: color.color,
             shape: BoxShape.circle,
@@ -752,7 +851,68 @@ class _EquipoIndicador extends StatelessWidget {
             color: colorScheme.onSurfaceVariant,
           ),
         ),
+
+        // Boton de gol (solo si puede registrar)
+        if (puedeRegistrar) ...[
+          const SizedBox(height: DesignTokens.spacingS),
+          _BotonGolEquipo(
+            color: color,
+            onTap: () => _mostrarDialogGol(context),
+          ),
+        ],
       ],
+    );
+  }
+}
+
+/// Boton de gol estilo balon para cada equipo
+class _BotonGolEquipo extends StatelessWidget {
+  final ColorEquipo color;
+  final VoidCallback onTap;
+
+  const _BotonGolEquipo({
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Material(
+      color: color.color,
+      borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+      elevation: DesignTokens.elevationS,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+        splashColor: Colors.white.withValues(alpha: 0.3),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: DesignTokens.spacingM,
+            vertical: DesignTokens.spacingS,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.sports_soccer,
+                color: color.textColor,
+                size: 18,
+              ),
+              const SizedBox(width: DesignTokens.spacingXs),
+              Text(
+                '+Gol',
+                style: textTheme.labelMedium?.copyWith(
+                  color: color.textColor,
+                  fontWeight: DesignTokens.fontWeightBold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

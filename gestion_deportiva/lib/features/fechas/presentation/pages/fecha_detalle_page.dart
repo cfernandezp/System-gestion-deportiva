@@ -268,6 +268,25 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
     return _listaPartidosBloc!;
   }
 
+  /// Refresca todos los datos de la pagina:
+  /// - InscripcionBloc (detalle de fecha)
+  /// - PartidoBloc (partido activo)
+  /// - ListaPartidosBloc (lista de partidos)
+  void _refrescarTodo(BuildContext context) {
+    // Refrescar detalle de fecha
+    context.read<InscripcionBloc>().add(
+          CargarFechaDetalleEvent(fechaId: fechaId),
+        );
+    // Refrescar partido activo (si el bloc ya existe)
+    if (_partidoBloc != null) {
+      _partidoBloc!.add(CargarPartidoActivoEvent(fechaId: fechaId));
+    }
+    // Refrescar lista de partidos (si el bloc ya existe)
+    if (_listaPartidosBloc != null) {
+      _listaPartidosBloc!.add(RefrescarPartidosEvent(fechaId: fechaId));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -627,9 +646,7 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
     // Contenido con datos
     return RefreshIndicator(
       onRefresh: () async {
-        context.read<InscripcionBloc>().add(
-          CargarFechaDetalleEvent(fechaId: fechaId),
-        );
+        _refrescarTodo(context);
       },
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(DesignTokens.spacingM),
@@ -1240,11 +1257,12 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Widget de partido en vivo con callbacks para admin
+                // Usa golesBloc para botones de gol por equipo integrados
                 PartidoEnVivoWidget(
                   esAdmin: isAdmin,
                   onPantallaCompleta: (partido) => _abrirPantallaCompleta(context, partido, isAdmin),
-                  onAnotarGol: isAdmin ? (partido) => _mostrarDialogoAnotarGol(context, partido) : null,
                   onFinalizarPartido: isAdmin ? (partido) => _onFinalizarPartido(context, partido) : null,
+                  golesBloc: isAdmin ? _getOrCreateGolesBloc() : null,
                 ),
 
                 const SizedBox(height: DesignTokens.spacingM),
@@ -1312,60 +1330,6 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
         Navigator.of(context).pop(); // Cerrar pantalla completa
         _onFinalizarPartido(context, partido);
       },
-    );
-  }
-
-  /// Muestra dialogo para seleccionar equipo que anota
-  void _mostrarDialogoAnotarGol(BuildContext context, PartidoModel partido) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Quien anoto?'),
-        content: const Text('Selecciona el equipo que anoto el gol'),
-        actions: [
-          // Boton equipo local
-          FilledButton.icon(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              _abrirRegistrarGolDialog(
-                context,
-                partido,
-                partido.equipoLocal.color,
-                partido.equipoVisitante.color,
-                partido.equipoLocal.jugadores,
-                true,
-              );
-            },
-            icon: Icon(Icons.sports_soccer, color: partido.equipoLocal.color.textColor),
-            label: Text(partido.equipoLocal.color.displayName.toUpperCase()),
-            style: FilledButton.styleFrom(
-              backgroundColor: partido.equipoLocal.color.color,
-              foregroundColor: partido.equipoLocal.color.textColor,
-            ),
-          ),
-          const SizedBox(width: DesignTokens.spacingS),
-          // Boton equipo visitante
-          FilledButton.icon(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              _abrirRegistrarGolDialog(
-                context,
-                partido,
-                partido.equipoVisitante.color,
-                partido.equipoLocal.color,
-                partido.equipoVisitante.jugadores,
-                false,
-              );
-            },
-            icon: Icon(Icons.sports_soccer, color: partido.equipoVisitante.color.textColor),
-            label: Text(partido.equipoVisitante.color.displayName.toUpperCase()),
-            style: FilledButton.styleFrom(
-              backgroundColor: partido.equipoVisitante.color.color,
-              foregroundColor: partido.equipoVisitante.color.textColor,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1528,6 +1492,25 @@ class _DesktopDetalleViewState extends State<_DesktopDetalleView> {
     return _listaPartidosBloc!;
   }
 
+  /// Refresca todos los datos de la pagina:
+  /// - InscripcionBloc (detalle de fecha)
+  /// - PartidoBloc (partido activo)
+  /// - ListaPartidosBloc (lista de partidos)
+  void _refrescarTodo(BuildContext context) {
+    // Refrescar detalle de fecha
+    context.read<InscripcionBloc>().add(
+          CargarFechaDetalleEvent(fechaId: fechaId),
+        );
+    // Refrescar partido activo (si el bloc ya existe)
+    if (_partidoBloc != null) {
+      _partidoBloc!.add(CargarPartidoActivoEvent(fechaId: fechaId));
+    }
+    // Refrescar lista de partidos (si el bloc ya existe)
+    if (_listaPartidosBloc != null) {
+      _listaPartidosBloc!.add(RefrescarPartidosEvent(fechaId: fechaId));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DashboardShell(
@@ -1537,11 +1520,7 @@ class _DesktopDetalleViewState extends State<_DesktopDetalleView> {
       actions: [
         // Solo botones de navegacion en el header
         OutlinedButton.icon(
-          onPressed: () {
-            context.read<InscripcionBloc>().add(
-              CargarFechaDetalleEvent(fechaId: fechaId),
-            );
-          },
+          onPressed: () => _refrescarTodo(context),
           icon: const Icon(Icons.refresh),
           label: const Text('Actualizar'),
         ),
@@ -2440,11 +2419,12 @@ class _DesktopDetalleViewState extends State<_DesktopDetalleView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Widget de partido en vivo con callbacks para admin
+                // Usa golesBloc para botones de gol por equipo integrados
                 PartidoEnVivoWidget(
                   esAdmin: isAdmin,
                   onPantallaCompleta: (partido) => _abrirPantallaCompleta(context, partido, isAdmin),
-                  onAnotarGol: isAdmin ? (partido) => _mostrarDialogoAnotarGol(context, partido) : null,
                   onFinalizarPartido: isAdmin ? (partido) => _onFinalizarPartido(context, partido) : null,
+                  golesBloc: isAdmin ? _getOrCreateGolesBloc() : null,
                 ),
 
                 const SizedBox(height: DesignTokens.spacingM),
@@ -2512,60 +2492,6 @@ class _DesktopDetalleViewState extends State<_DesktopDetalleView> {
         Navigator.of(context).pop(); // Cerrar pantalla completa
         _onFinalizarPartido(context, partido);
       },
-    );
-  }
-
-  /// Muestra dialogo para seleccionar equipo que anota (Desktop)
-  void _mostrarDialogoAnotarGol(BuildContext context, PartidoModel partido) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Quien anoto?'),
-        content: const Text('Selecciona el equipo que anoto el gol'),
-        actions: [
-          // Boton equipo local
-          FilledButton.icon(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              _abrirRegistrarGolDialog(
-                context,
-                partido,
-                partido.equipoLocal.color,
-                partido.equipoVisitante.color,
-                partido.equipoLocal.jugadores,
-                true,
-              );
-            },
-            icon: Icon(Icons.sports_soccer, color: partido.equipoLocal.color.textColor),
-            label: Text(partido.equipoLocal.color.displayName.toUpperCase()),
-            style: FilledButton.styleFrom(
-              backgroundColor: partido.equipoLocal.color.color,
-              foregroundColor: partido.equipoLocal.color.textColor,
-            ),
-          ),
-          const SizedBox(width: DesignTokens.spacingS),
-          // Boton equipo visitante
-          FilledButton.icon(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              _abrirRegistrarGolDialog(
-                context,
-                partido,
-                partido.equipoVisitante.color,
-                partido.equipoLocal.color,
-                partido.equipoVisitante.jugadores,
-                false,
-              );
-            },
-            icon: Icon(Icons.sports_soccer, color: partido.equipoVisitante.color.textColor),
-            label: Text(partido.equipoVisitante.color.displayName.toUpperCase()),
-            style: FilledButton.styleFrom(
-              backgroundColor: partido.equipoVisitante.color.color,
-              foregroundColor: partido.equipoVisitante.color.textColor,
-            ),
-          ),
-        ],
-      ),
     );
   }
 

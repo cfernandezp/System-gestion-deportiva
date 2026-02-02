@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injection_container.dart';
@@ -41,12 +42,24 @@ class _PartidoEnVivoPageState extends State<PartidoEnVivoPage> {
     _alarmService = sl<AlarmService>();
     // Inicializar servicio de audio (requiere interaccion del usuario en web)
     _alarmService.initialize();
+
+    // Permitir rotacion a landscape en esta pantalla para mejor visibilidad del marcador
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
   }
 
   @override
   void dispose() {
     // Detener alarmas al salir
     _alarmService.stopEndAlarm();
+
+    // Restaurar solo portrait al salir
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
     super.dispose();
   }
 

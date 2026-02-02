@@ -75,3 +75,21 @@ class ActualizarTiempoEvent extends PartidoEvent {
 class ResetPartidoEvent extends PartidoEvent {
   const ResetPartidoEvent();
 }
+
+/// Evento para actualizar el marcador del partido activo
+/// Se dispara cuando GolesBloc registra o elimina un gol
+class ActualizarMarcadorEvent extends PartidoEvent {
+  /// Nuevos goles del equipo local
+  final int golesLocal;
+
+  /// Nuevos goles del equipo visitante
+  final int golesVisitante;
+
+  const ActualizarMarcadorEvent({
+    required this.golesLocal,
+    required this.golesVisitante,
+  });
+
+  @override
+  List<Object?> get props => [golesLocal, golesVisitante];
+}

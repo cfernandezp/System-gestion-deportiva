@@ -28,8 +28,8 @@ class ResultadoPartidoModel extends Equatable {
   /// Factory desde JSON del backend
   factory ResultadoPartidoModel.fromJson(Map<String, dynamic> json) {
     return ResultadoPartidoModel(
-      codigo: json['codigo'] as String,
-      descripcion: json['descripcion'] as String,
+      codigo: json['codigo'] as String? ?? 'empate',
+      descripcion: json['descripcion'] as String? ?? '',
       equipoGanador: json['equipo_ganador'] as String?,
       esEmpate: json['es_empate'] as bool? ?? false,
     );
@@ -81,10 +81,10 @@ class MarcadorFinalModel extends Equatable {
   /// Factory desde JSON del backend
   factory MarcadorFinalModel.fromJson(Map<String, dynamic> json) {
     return MarcadorFinalModel(
-      golesLocal: json['goles_local'] as int,
-      golesVisitante: json['goles_visitante'] as int,
-      equipoLocal: json['equipo_local'] as String,
-      equipoVisitante: json['equipo_visitante'] as String,
+      golesLocal: json['goles_local'] as int? ?? 0,
+      golesVisitante: json['goles_visitante'] as int? ?? 0,
+      equipoLocal: json['equipo_local'] as String? ?? '',
+      equipoVisitante: json['equipo_visitante'] as String? ?? '',
     );
   }
 
@@ -140,9 +140,9 @@ class GoleadorResumenModel extends Equatable {
   factory GoleadorResumenModel.fromJson(Map<String, dynamic> json) {
     return GoleadorResumenModel(
       jugadorNombre: json['jugador_nombre'] as String? ?? 'Sin asignar',
-      minuto: json['minuto'] as int,
+      minuto: json['minuto'] as int? ?? 0,
       esAutogol: json['es_autogol'] as bool? ?? false,
-      equipo: json['equipo'] as String? ?? json['equipo_anotador'] as String,
+      equipo: json['equipo'] as String? ?? json['equipo_anotador'] as String? ?? '',
     );
   }
 
@@ -240,9 +240,9 @@ class SugerenciaSiguienteModel extends Equatable {
   /// Factory desde JSON del backend
   factory SugerenciaSiguienteModel.fromJson(Map<String, dynamic> json) {
     return SugerenciaSiguienteModel(
-      equipoEntra: json['equipo_entra'] as String,
-      equipoContinua: json['equipo_continua'] as String,
-      sugerenciaTexto: json['sugerencia_texto'] as String,
+      equipoEntra: json['equipo_entra'] as String? ?? '',
+      equipoContinua: json['equipo_continua'] as String? ?? '',
+      sugerenciaTexto: json['sugerencia_texto'] as String? ?? '',
     );
   }
 
@@ -348,31 +348,36 @@ class FinalizarPartidoResponseModel extends Equatable {
 
   /// Factory desde JSON del backend
   factory FinalizarPartidoResponseModel.fromJson(Map<String, dynamic> json) {
-    final data = json['data'] as Map<String, dynamic>?;
+    // Manejo defensivo: verificar que data sea Map, no List
+    final rawData = json['data'];
+    final Map<String, dynamic>? data =
+        rawData is Map<String, dynamic> ? rawData : null;
+
+    // Helper para obtener un Map de forma segura
+    Map<String, dynamic>? safeMap(dynamic value) {
+      if (value is Map<String, dynamic>) return value;
+      if (value is Map) return Map<String, dynamic>.from(value);
+      return null;
+    }
 
     return FinalizarPartidoResponseModel(
-      success: json['success'] as bool,
+      success: json['success'] as bool? ?? false,
       message: json['message'] as String? ?? '',
       partidoId: data?['partido_id'] as String?,
-      resultado: data?['resultado'] != null
-          ? ResultadoPartidoModel.fromJson(
-              data!['resultado'] as Map<String, dynamic>)
+      resultado: safeMap(data?['resultado']) != null
+          ? ResultadoPartidoModel.fromJson(safeMap(data!['resultado'])!)
           : null,
-      marcador: data?['marcador'] != null
-          ? MarcadorFinalModel.fromJson(
-              data!['marcador'] as Map<String, dynamic>)
+      marcador: safeMap(data?['marcador']) != null
+          ? MarcadorFinalModel.fromJson(safeMap(data!['marcador'])!)
           : null,
-      goleadores: data?['goleadores'] != null
-          ? GoleadoresModel.fromJson(
-              data!['goleadores'] as Map<String, dynamic>)
+      goleadores: safeMap(data?['goleadores']) != null
+          ? GoleadoresModel.fromJson(safeMap(data!['goleadores'])!)
           : null,
-      duracion: data?['duracion'] != null
-          ? DuracionPartidoModel.fromJson(
-              data!['duracion'] as Map<String, dynamic>)
+      duracion: safeMap(data?['duracion']) != null
+          ? DuracionPartidoModel.fromJson(safeMap(data!['duracion'])!)
           : null,
-      sugerenciaSiguiente: data?['sugerencia_siguiente'] != null
-          ? SugerenciaSiguienteModel.fromJson(
-              data!['sugerencia_siguiente'] as Map<String, dynamic>)
+      sugerenciaSiguiente: safeMap(data?['sugerencia_siguiente']) != null
+          ? SugerenciaSiguienteModel.fromJson(safeMap(data!['sugerencia_siguiente'])!)
           : null,
       finalizadoAnticipado: data?['finalizado_anticipado'] as bool? ?? false,
     );

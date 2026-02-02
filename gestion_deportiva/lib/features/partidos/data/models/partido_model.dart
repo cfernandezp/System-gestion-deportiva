@@ -48,6 +48,15 @@ class PartidoModel extends Equatable {
     // Manejar id que puede venir como 'partido_id' o 'id'
     final id = json['partido_id'] as String? ?? json['id'] as String? ?? '';
 
+    // Manejar hora_inicio: puede venir como 'hora_inicio_formato' o 'hora_inicio'
+    // El backend puede enviar 'hora_inicio' (HH:MM) o 'hora_inicio_formato'
+    final horaInicio = json['hora_inicio_formato'] as String? ??
+        json['hora_inicio'] as String?;
+
+    // Manejar hora_fin_estimada: puede venir como 'hora_fin_estimada_formato' o 'hora_fin_estimada'
+    final horaFinEstimada = json['hora_fin_estimada_formato'] as String? ??
+        json['hora_fin_estimada'] as String?;
+
     return PartidoModel(
       id: id,
       fechaId: json['fecha_id'] as String?, // Nullable: obtener_partido_activo no lo envia
@@ -59,8 +68,8 @@ class PartidoModel extends Equatable {
       ),
       duracionMinutos: json['duracion_minutos'] as int? ?? 0,
       estado: EstadoPartido.fromString(json['estado'] as String? ?? 'en_curso'),
-      horaInicioFormato: json['hora_inicio_formato'] as String?,
-      horaFinEstimadaFormato: json['hora_fin_estimada_formato'] as String?,
+      horaInicioFormato: horaInicio,
+      horaFinEstimadaFormato: horaFinEstimada,
       tiempoRestanteSegundos: json['tiempo_restante_segundos'] as int? ?? 0,
       tiempoPausadoSegundos: json['tiempo_pausado_segundos'] as int?,
       tiempoRestanteFormato: json['tiempo_restante_formato'] as String?,

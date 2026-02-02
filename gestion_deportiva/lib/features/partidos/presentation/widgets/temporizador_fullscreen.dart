@@ -214,6 +214,13 @@ class _TemporizadorFullscreenState extends State<TemporizadorFullscreen>
       SystemUiMode.immersiveSticky,
       overlays: [],
     );
+
+    // Permitir todas las orientaciones en pantalla completa para mejor visualizacion
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
   }
 
   void _salirPantallaCompleta() {
@@ -222,6 +229,11 @@ class _TemporizadorFullscreenState extends State<TemporizadorFullscreen>
       SystemUiMode.edgeToEdge,
       overlays: SystemUiOverlay.values,
     );
+
+    // Restaurar solo portrait al salir de pantalla completa
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
   }
 
   void _iniciarTimer() {
@@ -332,6 +344,10 @@ class _TemporizadorFullscreenState extends State<TemporizadorFullscreen>
     final tiempoTerminado = _tiempoLocal <= 0;
     final estaPausado = widget.partido.estado.name == 'pausado';
 
+    // Detectar orientacion para layout responsive
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
     return Scaffold(
       // RN-008: Fondo oscuro
       backgroundColor: const Color(0xFF1A1A1A),
@@ -346,55 +362,21 @@ class _TemporizadorFullscreenState extends State<TemporizadorFullscreen>
         child: SafeArea(
           child: Stack(
             children: [
-              // Contenido principal
+              // Contenido principal - Layout adaptativo segun orientacion
               Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Equipos con colores
-                    _buildEquiposDisplay(),
-
-                    const SizedBox(height: DesignTokens.spacingXl),
-
-                    // Score siempre visible (incluso 0-0)
-                    _buildScoreDisplay(),
-
-                    const SizedBox(height: DesignTokens.spacingXl),
-
-                    // RN-008: Tiempo en fuente extra grande (minimo 120px)
-                    AnimatedBuilder(
-                      animation: _blinkAnimation,
-                      builder: (context, child) {
-                        final opacidad =
-                            tiempoTerminado && !estaPausado
-                                ? _blinkAnimation.value
-                                : 1.0;
-
-                        return Text(
-                          tiempoFormateado,
-                          style: TextStyle(
-                            fontSize: 120, // RN-008: minimo 120px
-                            fontWeight: FontWeight.bold,
-                            color: colorTiempo.withValues(alpha: opacidad),
-                            fontFamily: 'monospace',
-                            letterSpacing: 8,
-                            shadows: [
-                              Shadow(
-                                color: colorTiempo.withValues(alpha: 0.5),
-                                blurRadius: 20,
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-
-                    const SizedBox(height: DesignTokens.spacingM),
-
-                    // Estado del partido
-                    _buildEstadoChip(estaPausado, tiempoTerminado),
-                  ],
-                ),
+                child: isLandscape
+                    ? _buildLandscapeContent(
+                        tiempoFormateado: tiempoFormateado,
+                        colorTiempo: colorTiempo,
+                        tiempoTerminado: tiempoTerminado,
+                        estaPausado: estaPausado,
+                      )
+                    : _buildPortraitContent(
+                        tiempoFormateado: tiempoFormateado,
+                        colorTiempo: colorTiempo,
+                        tiempoTerminado: tiempoTerminado,
+                        estaPausado: estaPausado,
+                      ),
               ),
 
               // RN-009: Controles de admin (visibles al tocar)
@@ -420,6 +402,237 @@ class _TemporizadorFullscreenState extends State<TemporizadorFullscreen>
           ),
         ),
       ),
+    );
+  }
+
+  /// Layout para orientacion portrait (vertical)
+  Widget _buildPortraitContent({
+    required String tiempoFormateado,
+    required Color colorTiempo,
+    required bool tiempoTerminado,
+    required bool estaPausado,
+  }) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Equipos con colores
+        _buildEquiposDisplay(),
+
+        const SizedBox(height: DesignTokens.spacingXl),
+
+        // Score siempre visible (incluso 0-0)
+        _buildScoreDisplay(),
+
+        const SizedBox(height: DesignTokens.spacingXl),
+
+        // RN-008: Tiempo en fuente extra grande (minimo 120px)
+        _buildTiempoDisplay(
+          tiempoFormateado: tiempoFormateado,
+          colorTiempo: colorTiempo,
+          tiempoTerminado: tiempoTerminado,
+          estaPausado: estaPausado,
+          fontSize: 120,
+        ),
+
+        const SizedBox(height: DesignTokens.spacingM),
+
+        // Estado del partido
+        _buildEstadoChip(estaPausado, tiempoTerminado),
+      ],
+    );
+  }
+
+  /// Layout para orientacion landscape (horizontal)
+  /// Optimizado para aprovechar el espacio horizontal
+  Widget _buildLandscapeContent({
+    required String tiempoFormateado,
+    required Color colorTiempo,
+    required bool tiempoTerminado,
+    required bool estaPausado,
+  }) {
+    final equipoLocal = widget.partido.equipoLocal.color;
+    final equipoVisitante = widget.partido.equipoVisitante.color;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spacingXl),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Equipo Local con score
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildEquipoChipLandscape(equipoLocal, 'LOCAL'),
+                const SizedBox(height: DesignTokens.spacingM),
+                Text(
+                  '${widget.golesLocal}',
+                  style: TextStyle(
+                    fontSize: 100,
+                    fontWeight: FontWeight.bold,
+                    color: equipoLocal.color,
+                    shadows: [
+                      Shadow(
+                        color: equipoLocal.color.withValues(alpha: 0.5),
+                        blurRadius: 15,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Centro: Tiempo y estado
+          Expanded(
+            flex: 2,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Estado del partido
+                _buildEstadoChip(estaPausado, tiempoTerminado),
+
+                const SizedBox(height: DesignTokens.spacingM),
+
+                // Tiempo grande en el centro
+                _buildTiempoDisplay(
+                  tiempoFormateado: tiempoFormateado,
+                  colorTiempo: colorTiempo,
+                  tiempoTerminado: tiempoTerminado,
+                  estaPausado: estaPausado,
+                  fontSize: 140, // Mas grande en landscape
+                ),
+
+                const SizedBox(height: DesignTokens.spacingS),
+
+                // VS pequeno
+                Text(
+                  'VS',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white.withValues(alpha: 0.3),
+                    letterSpacing: 4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Equipo Visitante con score
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildEquipoChipLandscape(equipoVisitante, 'VISITANTE'),
+                const SizedBox(height: DesignTokens.spacingM),
+                Text(
+                  '${widget.golesVisitante}',
+                  style: TextStyle(
+                    fontSize: 100,
+                    fontWeight: FontWeight.bold,
+                    color: equipoVisitante.color,
+                    shadows: [
+                      Shadow(
+                        color: equipoVisitante.color.withValues(alpha: 0.5),
+                        blurRadius: 15,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Widget de tiempo reutilizable
+  Widget _buildTiempoDisplay({
+    required String tiempoFormateado,
+    required Color colorTiempo,
+    required bool tiempoTerminado,
+    required bool estaPausado,
+    required double fontSize,
+  }) {
+    return AnimatedBuilder(
+      animation: _blinkAnimation,
+      builder: (context, child) {
+        final opacidad =
+            tiempoTerminado && !estaPausado ? _blinkAnimation.value : 1.0;
+
+        return Text(
+          tiempoFormateado,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: FontWeight.bold,
+            color: colorTiempo.withValues(alpha: opacidad),
+            fontFamily: 'monospace',
+            letterSpacing: 8,
+            shadows: [
+              Shadow(
+                color: colorTiempo.withValues(alpha: 0.5),
+                blurRadius: 20,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Chip de equipo para landscape (mas compacto)
+  Widget _buildEquipoChipLandscape(ColorEquipo color, String label) {
+    return Column(
+      children: [
+        Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: color.color,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: color.borderColor,
+              width: 3,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: color.color.withValues(alpha: 0.5),
+                blurRadius: 15,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              color.displayName[0].toUpperCase(),
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: color.textColor,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: DesignTokens.spacingXs),
+        Text(
+          color.displayName.toUpperCase(),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color.color,
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            color: Colors.white54,
+          ),
+        ),
+      ],
     );
   }
 
