@@ -147,7 +147,10 @@ class _FinalizarFechaDialogState extends State<FinalizarFechaDialog> {
         if (state is FinalizarFechaError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
+              ),
               backgroundColor: DesignTokens.errorColor,
             ),
           );

@@ -10,7 +10,7 @@ import 'equipo_partido_model.dart';
 /// Soporta tiempo negativo para tiempo extra (RN-003)
 class PartidoModel extends Equatable {
   final String id;
-  final String fechaId;
+  final String? fechaId; // Nullable: obtener_partido_activo no lo envia
   final EquipoPartidoModel equipoLocal;
   final EquipoPartidoModel equipoVisitante;
   final int duracionMinutos;
@@ -22,10 +22,12 @@ class PartidoModel extends Equatable {
   final String? tiempoRestanteFormato;
   final String? tiempoTranscurridoFormato;
   final bool tiempoTerminado;
+  final int golesLocal; // Agregado: obtener_partido_activo lo envia
+  final int golesVisitante; // Agregado: obtener_partido_activo lo envia
 
   const PartidoModel({
     required this.id,
-    required this.fechaId,
+    this.fechaId, // Ahora opcional
     required this.equipoLocal,
     required this.equipoVisitante,
     required this.duracionMinutos,
@@ -37,21 +39,26 @@ class PartidoModel extends Equatable {
     this.tiempoRestanteFormato,
     this.tiempoTranscurridoFormato,
     this.tiempoTerminado = false,
+    this.golesLocal = 0,
+    this.golesVisitante = 0,
   });
 
-  /// Factory desde JSON del backend (respuesta de iniciar_partido)
+  /// Factory desde JSON del backend (respuesta de iniciar_partido u obtener_partido_activo)
   factory PartidoModel.fromJson(Map<String, dynamic> json) {
+    // Manejar id que puede venir como 'partido_id' o 'id'
+    final id = json['partido_id'] as String? ?? json['id'] as String? ?? '';
+
     return PartidoModel(
-      id: json['partido_id'] as String? ?? json['id'] as String,
-      fechaId: json['fecha_id'] as String,
+      id: id,
+      fechaId: json['fecha_id'] as String?, // Nullable: obtener_partido_activo no lo envia
       equipoLocal: EquipoPartidoModel.fromJson(
         json['equipo_local'] as Map<String, dynamic>,
       ),
       equipoVisitante: EquipoPartidoModel.fromJson(
         json['equipo_visitante'] as Map<String, dynamic>,
       ),
-      duracionMinutos: json['duracion_minutos'] as int,
-      estado: EstadoPartido.fromString(json['estado'] as String),
+      duracionMinutos: json['duracion_minutos'] as int? ?? 0,
+      estado: EstadoPartido.fromString(json['estado'] as String? ?? 'en_curso'),
       horaInicioFormato: json['hora_inicio_formato'] as String?,
       horaFinEstimadaFormato: json['hora_fin_estimada_formato'] as String?,
       tiempoRestanteSegundos: json['tiempo_restante_segundos'] as int? ?? 0,
@@ -59,6 +66,8 @@ class PartidoModel extends Equatable {
       tiempoRestanteFormato: json['tiempo_restante_formato'] as String?,
       tiempoTranscurridoFormato: json['tiempo_transcurrido_formato'] as String?,
       tiempoTerminado: json['tiempo_terminado'] as bool? ?? false,
+      golesLocal: json['goles_local'] as int? ?? 0,
+      golesVisitante: json['goles_visitante'] as int? ?? 0,
     );
   }
 
@@ -66,7 +75,7 @@ class PartidoModel extends Equatable {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'fecha_id': fechaId,
+      if (fechaId != null) 'fecha_id': fechaId,
       'equipo_local': equipoLocal.toJson(),
       'equipo_visitante': equipoVisitante.toJson(),
       'duracion_minutos': duracionMinutos,
@@ -75,6 +84,8 @@ class PartidoModel extends Equatable {
       'hora_fin_estimada_formato': horaFinEstimadaFormato,
       'tiempo_restante_segundos': tiempoRestanteSegundos,
       'tiempo_pausado_segundos': tiempoPausadoSegundos,
+      'goles_local': golesLocal,
+      'goles_visitante': golesVisitante,
     };
   }
 
@@ -94,6 +105,8 @@ class PartidoModel extends Equatable {
       tiempoRestanteFormato: _formatearTiempo(nuevoTiempoRestante),
       tiempoTranscurridoFormato: tiempoTranscurridoFormato,
       tiempoTerminado: nuevoTiempoRestante <= 0,
+      golesLocal: golesLocal,
+      golesVisitante: golesVisitante,
     );
   }
 
@@ -113,6 +126,29 @@ class PartidoModel extends Equatable {
       tiempoRestanteFormato: tiempoRestanteFormato,
       tiempoTranscurridoFormato: tiempoTranscurridoFormato,
       tiempoTerminado: tiempoTerminado,
+      golesLocal: golesLocal,
+      golesVisitante: golesVisitante,
+    );
+  }
+
+  /// Crea copia con goles actualizados
+  PartidoModel copyWithGoles({int? golesLocal, int? golesVisitante}) {
+    return PartidoModel(
+      id: id,
+      fechaId: fechaId,
+      equipoLocal: equipoLocal,
+      equipoVisitante: equipoVisitante,
+      duracionMinutos: duracionMinutos,
+      estado: estado,
+      horaInicioFormato: horaInicioFormato,
+      horaFinEstimadaFormato: horaFinEstimadaFormato,
+      tiempoRestanteSegundos: tiempoRestanteSegundos,
+      tiempoPausadoSegundos: tiempoPausadoSegundos,
+      tiempoRestanteFormato: tiempoRestanteFormato,
+      tiempoTranscurridoFormato: tiempoTranscurridoFormato,
+      tiempoTerminado: tiempoTerminado,
+      golesLocal: golesLocal ?? this.golesLocal,
+      golesVisitante: golesVisitante ?? this.golesVisitante,
     );
   }
 
@@ -138,10 +174,60 @@ class PartidoModel extends Equatable {
     return _formatearTiempo(tiempoRestanteSegundos);
   }
 
+  /// Calcula el tiempo transcurrido en segundos
+  /// duracion_minutos * 60 - tiempo_restante
+  /// Si tiempo_restante es negativo, el transcurrido supera la duracion
+  int get tiempoTranscurridoSegundos {
+    return (duracionMinutos * 60) - tiempoRestanteSegundos;
+  }
+
+  /// Tiempo transcurrido calculado dinamicamente
+  /// - Si < duracion: "MM:SS" normal (ej: "05:30")
+  /// - Si >= duracion: "+MM:SS" tiempo extra (ej: "+02:15")
+  String get tiempoTranscurridoDisplay {
+    final duracionSegundos = duracionMinutos * 60;
+    final transcurrido = tiempoTranscurridoSegundos;
+
+    if (transcurrido <= duracionSegundos) {
+      // Tiempo normal: mostrar MM:SS limitado a duracion
+      final segundosMostrar = transcurrido.clamp(0, duracionSegundos);
+      return _formatearTiempo(segundosMostrar);
+    } else {
+      // Tiempo extra: mostrar cuanto tiempo extra lleva
+      final tiempoExtra = transcurrido - duracionSegundos;
+      return '+${_formatearTiempo(tiempoExtra)}';
+    }
+  }
+
+  /// Indica si estamos en tiempo extra (pasamos de la duracion)
+  /// Verifica tanto tiempo restante negativo como tiempo transcurrido > duracion
+  bool get enTiempoExtra {
+    if (tiempoRestanteSegundos < 0) return true;
+    // Verificacion adicional: si tiempo transcurrido supera duracion
+    final duracionSegundos = duracionMinutos * 60;
+    return tiempoTranscurridoSegundos > duracionSegundos;
+  }
+
+  /// Tiempo extra en segundos (positivo, cuanto tiempo extra lleva)
+  int get tiempoExtraSegundos {
+    if (tiempoRestanteSegundos < 0) {
+      return tiempoRestanteSegundos.abs();
+    }
+    final duracionSegundos = duracionMinutos * 60;
+    final transcurrido = tiempoTranscurridoSegundos;
+    if (transcurrido > duracionSegundos) {
+      return transcurrido - duracionSegundos;
+    }
+    return 0;
+  }
+
   /// Nombre del enfrentamiento para mostrar
   String get enfrentamientoDisplay {
     return '${equipoLocal.color.displayName.toUpperCase()} vs ${equipoVisitante.color.displayName.toUpperCase()}';
   }
+
+  /// Marcador formateado para mostrar
+  String get marcadorDisplay => '$golesLocal - $golesVisitante';
 
   @override
   List<Object?> get props => [
@@ -156,5 +242,7 @@ class PartidoModel extends Equatable {
         tiempoRestanteSegundos,
         tiempoPausadoSegundos,
         tiempoTerminado,
+        golesLocal,
+        golesVisitante,
       ];
 }

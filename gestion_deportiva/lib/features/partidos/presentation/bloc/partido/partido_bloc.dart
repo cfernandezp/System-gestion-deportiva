@@ -66,6 +66,8 @@ class PartidoBloc extends Bloc<PartidoEvent, PartidoState> {
 
     result.fold(
       (failure) {
+        // Detener countdown si habia un error
+        _detenerCountdown();
         final serverFailure = failure is ServerFailure ? failure : null;
         emit(PartidoError(
           message: failure.message,
@@ -93,6 +95,9 @@ class PartidoBloc extends Bloc<PartidoEvent, PartidoState> {
                 message: response.message,
               ));
             } else {
+              // Partido existe pero no esta activo (finalizado u otro estado)
+              // Detener countdown si estaba corriendo
+              _detenerCountdown();
               emit(SinPartidoActivo(
                 fechaId: event.fechaId,
                 puedeIniciarPartido: response.puedeIniciarPartido,
@@ -100,6 +105,9 @@ class PartidoBloc extends Bloc<PartidoEvent, PartidoState> {
               ));
             }
           } else {
+            // No hay partido activo
+            // Detener countdown si estaba corriendo
+            _detenerCountdown();
             emit(SinPartidoActivo(
               fechaId: event.fechaId,
               puedeIniciarPartido: response.puedeIniciarPartido,
@@ -107,6 +115,8 @@ class PartidoBloc extends Bloc<PartidoEvent, PartidoState> {
             ));
           }
         } else {
+          // Error en respuesta - detener countdown
+          _detenerCountdown();
           emit(PartidoError(
             message: response.message.isNotEmpty
                 ? response.message

@@ -1,36 +1,17 @@
 -- =============================================
--- E003-HU-012: Iniciar Fecha (Iniciar Pichanga)
--- Funcion RPC para cambiar estado de fecha a 'en_juego'
+-- FIX DEFINITIVO V4: iniciar_fecha
+-- Fecha: 2026-02-02
 -- =============================================
--- INSTRUCCIONES:
--- 1. Ejecutar este script en Supabase SQL Editor
--- 2. URL: https://supabase.com/dashboard/project/tvvubzkqbksxvcjvivij/sql
+-- BASADO EN schema_reference.md (SCHEMA REAL VERIFICADO)
+--
+-- CORRECCIONES APLICADAS:
+-- 1. fechas.costo_por_jugador (NO costo_total)
+-- 2. ENUM comparado directamente (NO LOWER())
+-- 3. asignaciones_equipos para contar equipos
+-- 4. notificaciones: usa 'general' como tipo y metadata para fecha_id
+--    (tipo_notificacion ENUM solo tiene: nuevo_registro, cuenta_aprobada, cuenta_rechazada, general)
 -- =============================================
 
--- Paso 1: Agregar columnas de auditoria de inicio si no existen
--- RN-004: Registrar quien y cuando inicio la pichanga
-DO $$
-BEGIN
-  -- Columna iniciado_por (UUID del admin que inicio)
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'fechas' AND column_name = 'iniciado_por'
-  ) THEN
-    ALTER TABLE fechas ADD COLUMN iniciado_por UUID REFERENCES usuarios(id);
-    COMMENT ON COLUMN fechas.iniciado_por IS 'UUID del admin que inicio la pichanga';
-  END IF;
-
-  -- Columna iniciado_at (timestamp real de inicio)
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'fechas' AND column_name = 'iniciado_at'
-  ) THEN
-    ALTER TABLE fechas ADD COLUMN iniciado_at TIMESTAMPTZ;
-    COMMENT ON COLUMN fechas.iniciado_at IS 'Timestamp real de inicio de la pichanga';
-  END IF;
-END $$;
-
--- Paso 2: Crear o reemplazar la funcion RPC iniciar_fecha
 CREATE OR REPLACE FUNCTION iniciar_fecha(p_fecha_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -38,10 +19,8 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_user_id UUID;
-  v_user_rol TEXT;
-  v_user_estado TEXT;
-  v_user_nombre TEXT;
+  v_auth_user_id UUID;
+  v_current_user RECORD;
   v_fecha RECORD;
   v_total_equipos INT;
   v_total_jugadores INT;
@@ -54,9 +33,8 @@ BEGIN
   -- VALIDACIONES
   -- ========================================
 
-  -- Validar autenticacion
-  v_user_id := auth.uid();
-  IF v_user_id IS NULL THEN
+  v_auth_user_id := auth.uid();
+  IF v_auth_user_id IS NULL THEN
     RETURN jsonb_build_object(
       'success', false,
       'error', jsonb_build_object(
@@ -67,7 +45,6 @@ BEGIN
     );
   END IF;
 
-  -- Validar parametro fecha_id
   IF p_fecha_id IS NULL THEN
     RETURN jsonb_build_object(
       'success', false,
@@ -79,13 +56,15 @@ BEGIN
     );
   END IF;
 
-  -- Obtener datos del usuario
-  SELECT rol, estado, nombre_completo
-  INTO v_user_rol, v_user_estado, v_user_nombre
+  -- ========================================
+  -- Obtener usuario actual
+  -- ========================================
+  SELECT id, rol, estado, nombre_completo
+  INTO v_current_user
   FROM usuarios
-  WHERE id = v_user_id;
+  WHERE auth_user_id = v_auth_user_id;
 
-  IF v_user_rol IS NULL THEN
+  IF NOT FOUND THEN
     RETURN jsonb_build_object(
       'success', false,
       'error', jsonb_build_object(
@@ -96,7 +75,9 @@ BEGIN
     );
   END IF;
 
-  -- Obtener datos de la fecha
+  -- ========================================
+  -- Obtener fecha (usando costo_por_jugador - columna real)
+  -- ========================================
   SELECT
     f.id,
     f.fecha_hora_inicio,
@@ -104,7 +85,7 @@ BEGIN
     f.lugar,
     f.estado,
     f.created_by,
-    f.costo_total,
+    f.costo_por_jugador,
     f.num_equipos,
     TO_CHAR(f.fecha_hora_inicio AT TIME ZONE 'America/Lima', 'DD/MM/YYYY HH24:MI') as fecha_formato,
     TO_CHAR(f.fecha_hora_inicio AT TIME ZONE 'America/Lima', 'HH24:MI') as hora_pactada
@@ -123,22 +104,24 @@ BEGIN
     );
   END IF;
 
-  -- RN-001: Validar permisos (admin aprobado o creador de la fecha)
+  -- ========================================
+  -- Validar permisos (ENUM comparado directamente, sin LOWER)
+  -- ========================================
   IF NOT (
-    (LOWER(v_user_rol) IN ('admin', 'administrador') AND LOWER(v_user_estado) = 'aprobado')
-    OR v_fecha.created_by = v_user_id
+    (v_current_user.rol = 'admin' AND v_current_user.estado = 'aprobado')
+    OR v_fecha.created_by = v_current_user.id
   ) THEN
     RETURN jsonb_build_object(
       'success', false,
       'error', jsonb_build_object(
         'code', 'FORBIDDEN',
-        'message', 'No tienes permisos para iniciar esta pichanga. Solo el administrador o el organizador pueden hacerlo.',
+        'message', 'No tienes permisos para iniciar esta pichanga.',
         'hint', 'sin_permisos'
       )
     );
   END IF;
 
-  -- RN-002: Validar que el estado sea 'cerrada'
+  -- Validar estado cerrada
   IF v_fecha.estado != 'cerrada' THEN
     RETURN jsonb_build_object(
       'success', false,
@@ -151,83 +134,71 @@ BEGIN
   END IF;
 
   -- ========================================
-  -- RECOPILAR INFORMACION DE EQUIPOS
+  -- Contar equipos desde asignaciones_equipos (tabla real)
   -- ========================================
-
-  -- RN-003: Contar equipos con jugadores asignados
   SELECT
-    COUNT(DISTINCT i.equipo_asignado) FILTER (WHERE i.equipo_asignado IS NOT NULL),
-    COUNT(*) FILTER (WHERE i.estado = 'inscrito')
+    COUNT(DISTINCT ae.numero_equipo),
+    COUNT(*)
   INTO v_total_equipos, v_total_jugadores
-  FROM inscripciones i
-  WHERE i.fecha_id = p_fecha_id;
+  FROM asignaciones_equipos ae
+  WHERE ae.fecha_id = p_fecha_id;
 
-  -- Warning si no hay equipos asignados
   v_warning_sin_equipos := (v_total_equipos < 2);
 
-  -- Construir detalle de equipos
+  -- Construir detalle de equipos desde asignaciones_equipos
   SELECT COALESCE(
     jsonb_agg(
       jsonb_build_object(
-        'color', equipo,
+        'numero', numero,
+        'color', color,
         'jugadores', cant
       )
-      ORDER BY equipo
+      ORDER BY numero
     ),
     '[]'::jsonb
   )
   INTO v_equipos_detalle
   FROM (
     SELECT
-      i.equipo_asignado as equipo,
+      ae.numero_equipo as numero,
+      ae.color_equipo::text as color,
       COUNT(*) as cant
-    FROM inscripciones i
-    WHERE i.fecha_id = p_fecha_id
-      AND i.estado = 'inscrito'
-      AND i.equipo_asignado IS NOT NULL
-    GROUP BY i.equipo_asignado
+    FROM asignaciones_equipos ae
+    WHERE ae.fecha_id = p_fecha_id
+    GROUP BY ae.numero_equipo, ae.color_equipo
   ) sub;
 
   -- ========================================
-  -- ACTUALIZAR ESTADO DE LA FECHA
+  -- Actualizar estado de la fecha
   -- ========================================
-
-  -- CA-004, RN-004: Cambiar estado y registrar auditoria
   UPDATE fechas
   SET
     estado = 'en_juego',
-    iniciado_por = v_user_id,
+    iniciado_por = v_current_user.id,
     iniciado_at = NOW(),
     updated_at = NOW()
   WHERE id = p_fecha_id;
 
   -- ========================================
-  -- CREAR NOTIFICACIONES PARA INSCRITOS
+  -- Notificar a jugadores inscritos
+  -- NOTA: notificaciones NO tiene fecha_id, usa metadata (jsonb)
+  -- tipo_notificacion ENUM: nuevo_registro, cuenta_aprobada, cuenta_rechazada, general
   -- ========================================
-
-  -- RN-005: Notificar a todos los jugadores inscritos
   FOR v_inscrito IN
     SELECT i.usuario_id
     FROM inscripciones i
     WHERE i.fecha_id = p_fecha_id
       AND i.estado = 'inscrito'
   LOOP
-    -- Solo notificar si no es el mismo admin que inicia
-    IF v_inscrito.usuario_id != v_user_id THEN
+    IF v_inscrito.usuario_id != v_current_user.id THEN
       INSERT INTO notificaciones (
-        usuario_id,
-        tipo,
-        titulo,
-        mensaje,
-        fecha_id,
-        leida,
-        created_at
+        usuario_id, tipo, titulo, mensaje, metadata, leida, created_at
       ) VALUES (
         v_inscrito.usuario_id,
-        'fecha_iniciada',
+        'general',  -- Usar tipo existente en ENUM
         'Pichanga iniciada',
         'La pichanga del ' || v_fecha.fecha_formato || ' en ' || v_fecha.lugar || ' ha comenzado!',
-        p_fecha_id,
+        jsonb_build_object('fecha_id', p_fecha_id, 'tipo_evento', 'fecha_iniciada'),  -- Guardar referencia en metadata
         false,
         NOW()
       );
@@ -236,9 +207,8 @@ BEGIN
   END LOOP;
 
   -- ========================================
-  -- RETORNAR RESPUESTA EXITOSA
+  -- Retornar éxito
   -- ========================================
-
   RETURN jsonb_build_object(
     'success', true,
     'data', jsonb_build_object(
@@ -249,19 +219,19 @@ BEGIN
       'estado_nuevo', 'en_juego',
       'hora_pactada', v_fecha.hora_pactada,
       'hora_inicio_real', TO_CHAR(NOW() AT TIME ZONE 'America/Lima', 'HH24:MI'),
-      'iniciado_por', v_user_id,
-      'iniciado_por_nombre', v_user_nombre,
+      'iniciado_por', v_current_user.id,
+      'iniciado_por_nombre', v_current_user.nombre_completo,
       'iniciado_at', NOW(),
-      'iniciado_at_formato', TO_CHAR(NOW() AT TIME ZONE 'America/Lima', 'DD/MM/YYYY HH24:MI'),
       'total_equipos', v_total_equipos,
       'total_jugadores', v_total_jugadores,
       'equipos_detalle', v_equipos_detalle,
       'warning_sin_equipos', v_warning_sin_equipos,
-      'notificaciones_enviadas', v_notificaciones_creadas
+      'notificaciones_enviadas', v_notificaciones_creadas,
+      'costo_por_jugador', v_fecha.costo_por_jugador
     ),
     'message', CASE
       WHEN v_notificaciones_creadas > 0
-      THEN 'Pichanga iniciada exitosamente. Se notifico a ' || v_notificaciones_creadas || ' jugador(es).'
+      THEN 'Pichanga iniciada. Se notificó a ' || v_notificaciones_creadas || ' jugador(es).'
       ELSE 'Pichanga iniciada exitosamente.'
     END
   );
@@ -279,17 +249,15 @@ EXCEPTION
 END;
 $$;
 
--- Paso 3: Otorgar permisos de ejecucion
 GRANT EXECUTE ON FUNCTION iniciar_fecha(UUID) TO authenticated;
 
--- Paso 4: Agregar comentario descriptivo
 COMMENT ON FUNCTION iniciar_fecha(UUID) IS
-'E003-HU-012: Inicia una pichanga (cambia estado de cerrada a en_juego).
-Valida permisos de admin/organizador, registra hora real de inicio,
-y notifica a todos los jugadores inscritos.
-Parametros:
-- p_fecha_id: UUID de la fecha a iniciar
-Retorna: JSON con datos de la fecha iniciada o error';
+'E003-HU-012: Inicia pichanga.
+V4 DEFINITIVO: Basado en schema_reference.md verificado.
+- costo_por_jugador (no costo_total)
+- ENUM sin LOWER()
+- asignaciones_equipos para equipos
+- notificaciones: tipo=general, fecha_id en metadata';
 
 -- =============================================
 -- FIN DEL SCRIPT

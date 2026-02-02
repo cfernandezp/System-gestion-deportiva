@@ -52,13 +52,16 @@ class _PartidoEnVivoPageState extends State<PartidoEnVivoPage> {
 
   /// CA-009: Abrir pantalla completa
   void _abrirPantallaCompleta(BuildContext context, PartidoModel partido) {
-    // RN-007: Reproducir pitido al iniciar si es partido nuevo
+    // Obtener goles reales del partido
+    final golesLocal = partido.golesLocal;
+    final golesVisitante = partido.golesVisitante;
+
     TemporizadorFullscreen.show(
       context,
       partido: partido,
       esAdmin: widget.esAdmin,
-      golesLocal: 0, // TODO: Obtener goles del estado
-      golesVisitante: 0,
+      golesLocal: golesLocal,
+      golesVisitante: golesVisitante,
       onPausar: () {
         context.read<PartidoBloc>().add(
               PausarPartidoEvent(partidoId: partido.id),
@@ -87,51 +90,55 @@ class _PartidoEnVivoPageState extends State<PartidoEnVivoPage> {
     return BlocProvider(
       create: (context) => sl<PartidoBloc>()
         ..add(CargarPartidoActivoEvent(fechaId: widget.fechaId)),
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Partido en Vivo'),
-          actions: [
-            // Boton de recargar
-            IconButton(
-              onPressed: () {
-                context.read<PartidoBloc>().add(
-                      CargarPartidoActivoEvent(fechaId: widget.fechaId),
+      child: Builder(
+        builder: (blocContext) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Partido en Vivo'),
+              actions: [
+                // Boton de recargar - usa blocContext para acceder al Bloc
+                IconButton(
+                  onPressed: () {
+                    blocContext.read<PartidoBloc>().add(
+                          CargarPartidoActivoEvent(fechaId: widget.fechaId),
+                        );
+                  },
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Recargar',
+                ),
+              ],
+            ),
+            body: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(DesignTokens.spacingM),
+                child: BlocBuilder<PartidoBloc, PartidoState>(
+                  builder: (context, state) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Widget de partido en vivo
+                        PartidoEnVivoWidget(
+                          esAdmin: widget.esAdmin,
+                          onPantallaCompleta: (partido) =>
+                              _abrirPantallaCompleta(blocContext, partido),
+                          onEstadoCambiado: () {
+                            // Recargar datos si cambia el estado
+                          },
+                        ),
+
+                        const SizedBox(height: DesignTokens.spacingL),
+
+                        // Informacion adicional
+                        if (state is PartidoEnCurso || state is PartidoPausado)
+                          _buildInfoAdicional(context, state),
+                      ],
                     );
-              },
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Recargar',
+                  },
+                ),
+              ),
             ),
-          ],
-        ),
-        body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(DesignTokens.spacingM),
-            child: BlocBuilder<PartidoBloc, PartidoState>(
-              builder: (context, state) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Widget de partido en vivo
-                    PartidoEnVivoWidget(
-                      esAdmin: widget.esAdmin,
-                      onPantallaCompleta: (partido) =>
-                          _abrirPantallaCompleta(context, partido),
-                      onEstadoCambiado: () {
-                        // Recargar datos si cambia el estado
-                      },
-                    ),
-
-                    const SizedBox(height: DesignTokens.spacingL),
-
-                    // Informacion adicional
-                    if (state is PartidoEnCurso || state is PartidoPausado)
-                      _buildInfoAdicional(context, state),
-                  ],
-                );
-              },
-            ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

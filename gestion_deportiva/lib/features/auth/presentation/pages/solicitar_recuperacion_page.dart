@@ -356,7 +356,12 @@ class _SolicitarRecuperacionViewState
           children: [
             const Icon(Icons.error_outline, color: Colors.white),
             const SizedBox(width: DesignTokens.spacingS),
-            Expanded(child: Text(mensaje)),
+            Expanded(
+              child: Text(
+                mensaje,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
           ],
         ),
         backgroundColor: colorScheme.error,

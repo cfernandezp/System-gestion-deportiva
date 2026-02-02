@@ -29,3 +29,6 @@ export 'score_partido_response_model.dart';
 
 // E004-HU-005: Finalizar Partido
 export 'finalizar_partido_response_model.dart';
+
+// Lista de partidos
+export 'listar_partidos_response_model.dart';

@@ -13,6 +13,8 @@ import '../../data/models/obtener_goles_response_model.dart';
 import '../../data/models/score_partido_response_model.dart';
 // E004-HU-005: Finalizar Partido
 import '../../data/models/finalizar_partido_response_model.dart';
+// Lista de partidos
+import '../../data/models/listar_partidos_response_model.dart';
 
 /// Interface del repositorio de partidos
 /// E004-HU-001: Iniciar Partido
@@ -95,4 +97,11 @@ abstract class PartidosRepository {
     String partidoId, {
     bool confirmarAnticipado = false,
   });
+
+  // ==================== Lista de Partidos ====================
+
+  /// Lista todos los partidos de una fecha
+  /// Returns: `Either<Failure, ListarPartidosResponseModel>`
+  Future<Either<Failure, ListarPartidosResponseModel>> listarPartidosFecha(
+      String fechaId);
 }

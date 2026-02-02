@@ -190,17 +190,21 @@ supabase/
 
 ## 📋 FLUJO DE TRABAJO (5 Pasos)
 
-### 1. Leer HU y Extraer CA/RN
+### 1. Leer Schema y HU
 
 ```bash
+# ⚠️ OBLIGATORIO: Leer schema ANTES de escribir cualquier SQL
+Read(supabase/sql-cloud/schema_reference.md)
+
 Read(docs/historias-usuario/E00X-HU-XXX.md)
 # EXTRAE y lista TODOS los CA-XXX y RN-XXX
 # Tu implementación DEBE cubrir cada uno
-
-Read(docs/technical/00-CONVENTIONS.md) # si existe
 ```
 
-**CRÍTICO**: Implementa TODOS los CA y RN de la HU.
+**⚠️ CRÍTICO**:
+- **SIEMPRE** lee `supabase/sql-cloud/schema_reference.md` ANTES de crear cualquier script SQL
+- Este archivo contiene el schema REAL de la BD (tablas, columnas, ENUMs)
+- Implementa TODOS los CA y RN de la HU
 
 ### 2. Crear Script SQL
 
@@ -329,30 +333,44 @@ Después de crear el script, informar:
 
 ## 🔧 CUANDO HAY ERRORES
 
-### Usuario reporta error
+### ⚠️ CRÍTICO: USAR SCHEMA REFERENCE
 
-1. Usuario comparte el error (desde app o SQL Editor)
-2. Agente analiza el error
-3. Agente crea script fix en `supabase/sql-cloud/YYYY-MM-DD_fix_descripcion.sql`
-4. Usuario ejecuta en SQL Editor
+**ANTES de crear CUALQUIER script SQL, SIEMPRE lee:**
+```bash
+Read(supabase/sql-cloud/schema_reference.md)
+```
 
-### Validar funciones existentes
+Este archivo contiene el schema REAL de la BD Cloud:
+- Todas las tablas y sus columnas
+- Tipos de datos reales
+- Tipos ENUM y sus valores
 
-**⚠️ IMPORTANTE: NO leer archivos SQL locales para conocer el estado de la BD**
+### Si el schema_reference está desactualizado
 
-Como el agente NO tiene acceso directo a Cloud:
-1. Si necesitas saber estructura de tablas o funciones existentes:
-   - Genera el query SQL de consulta
-   - Pide al usuario que lo ejecute en SQL Editor
-   - Espera la respuesta del usuario para continuar
+Genera queries para que el usuario actualice el archivo:
+```sql
+-- ENUMs
+SELECT t.typname, string_agg(e.enumlabel, ', ' ORDER BY e.enumsortorder)
+FROM pg_type t JOIN pg_enum e ON t.oid = e.enumtypid
+JOIN pg_namespace n ON t.typnamespace = n.oid
+WHERE n.nspname = 'public' GROUP BY t.typname;
 
-2. **NO hagas esto**:
-   - ❌ Leer `supabase/seed.sql` para conocer estructura actual
-   - ❌ Asumir que los archivos locales reflejan el estado de Cloud
+-- Tablas y Columnas
+SELECT c.table_name, c.column_name, c.data_type, c.udt_name, c.is_nullable
+FROM information_schema.columns c
+JOIN information_schema.tables t ON c.table_name = t.table_name
+WHERE c.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+ORDER BY c.table_name, c.ordinal_position;
+```
 
-3. **Sí puedes**:
-   - ✅ Leer archivos SQL locales como referencia de contexto
-   - ✅ Usar archivos como referencia de cómo se diseñó
+### ❌ NO HAGAS ESTO:
+- ❌ Crear SQL sin leer primero `schema_reference.md`
+- ❌ Asumir nombres de columnas
+- ❌ Buscar `CREATE TABLE` en archivos SQL locales como fuente de verdad
+
+### ✅ SÍ PUEDES:
+- ✅ Leer `schema_reference.md` como fuente de verdad
+- ✅ Pedir actualización del schema si sospechas cambios
 
 ---
 

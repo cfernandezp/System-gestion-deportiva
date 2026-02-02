@@ -37,13 +37,27 @@ class MiEquipoWidget extends StatefulWidget {
 class _MiEquipoWidgetState extends State<MiEquipoWidget> {
   bool _expandido = false;
 
+  /// Flag para evitar cargas duplicadas
+  bool _datosCargados = false;
+
+  /// Flag para evitar detener realtime despues de dispose
+  bool _realtimeIniciado = false;
+
   @override
   void initState() {
     super.initState();
-    _cargarDatos();
+    // Usar addPostFrameCallback para evitar llamar context.read durante build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_datosCargados) {
+        _cargarDatos();
+      }
+    });
   }
 
   void _cargarDatos() {
+    if (_datosCargados) return;
+    _datosCargados = true;
+
     final bloc = context.read<MiEquipoBloc>();
 
     if (widget.mostrarTodosEquipos) {
@@ -53,14 +67,21 @@ class _MiEquipoWidgetState extends State<MiEquipoWidget> {
     }
 
     if (widget.habilitarRealtime) {
+      _realtimeIniciado = true;
       bloc.add(IniciarRealtimeEvent(fechaId: widget.fechaId));
     }
   }
 
   @override
   void dispose() {
-    if (widget.habilitarRealtime) {
-      context.read<MiEquipoBloc>().add(const DetenerRealtimeEvent());
+    // Solo detener realtime si fue iniciado y el widget aun esta mounted
+    if (_realtimeIniciado) {
+      // Intentar detener realtime de forma segura
+      try {
+        context.read<MiEquipoBloc>().add(const DetenerRealtimeEvent());
+      } catch (_) {
+        // Ignorar errores si el bloc ya no esta disponible
+      }
     }
     super.dispose();
   }
@@ -69,6 +90,9 @@ class _MiEquipoWidgetState extends State<MiEquipoWidget> {
   Widget build(BuildContext context) {
     return BlocConsumer<MiEquipoBloc, MiEquipoState>(
       listener: (context, state) {
+        // Verificar que el widget siga montado antes de mostrar SnackBar
+        if (!mounted) return;
+
         // CA-007: Mostrar indicador cuando se actualiza via realtime
         if (state is MiEquipoCargado && state.actualizadoRealtime) {
           _mostrarSnackBarActualizado(context);

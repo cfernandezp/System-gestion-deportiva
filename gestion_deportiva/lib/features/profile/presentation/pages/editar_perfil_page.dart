@@ -138,7 +138,10 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
         if (state is PerfilUpdateError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
+              ),
               backgroundColor: DesignTokens.errorColor,
             ),
           );
@@ -908,7 +911,10 @@ class _EditarPerfilDialogState extends State<EditarPerfilDialog> {
         if (state is PerfilUpdateError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
+              ),
               backgroundColor: DesignTokens.errorColor,
             ),
           );

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../data/models/fecha_detalle_model.dart';
+import '../../domain/repositories/fechas_repository.dart';
 import '../bloc/iniciar_fecha/iniciar_fecha.dart';
 
 /// Dialog/BottomSheet para iniciar una fecha de pichanga
@@ -12,26 +13,21 @@ import '../bloc/iniciar_fecha/iniciar_fecha.dart';
 /// CA-002: Confirmacion con resumen
 /// CA-003: Warning si no hay equipos asignados
 /// CA-004: Estado cambia a en_juego
-class IniciarFechaDialog extends StatelessWidget {
+class IniciarFechaDialog extends StatefulWidget {
   /// Detalle de la fecha a iniciar
   final FechaDetalleModel fechaDetalle;
 
   /// Callback cuando se inicia exitosamente
   final VoidCallback? onSuccess;
 
-  /// Cantidad de equipos asignados (para el resumen)
-  final int totalEquipos;
-
-  /// Lista de equipos con jugadores
-  final List<EquipoResumen>? equiposResumen;
-
   const IniciarFechaDialog({
     super.key,
     required this.fechaDetalle,
     this.onSuccess,
-    this.totalEquipos = 0,
-    this.equiposResumen,
   });
+
+  @override
+  State<IniciarFechaDialog> createState() => _IniciarFechaDialogState();
 
   /// Muestra el dialog adaptado segun el dispositivo
   /// Mobile: BottomSheet
@@ -40,8 +36,6 @@ class IniciarFechaDialog extends StatelessWidget {
     BuildContext context, {
     required FechaDetalleModel fechaDetalle,
     VoidCallback? onSuccess,
-    int totalEquipos = 0,
-    List<EquipoResumen>? equiposResumen,
   }) {
     final isDesktop = MediaQuery.of(context).size.width > 600;
 
@@ -54,8 +48,6 @@ class IniciarFechaDialog extends StatelessWidget {
           child: IniciarFechaDialog(
             fechaDetalle: fechaDetalle,
             onSuccess: onSuccess,
-            totalEquipos: totalEquipos,
-            equiposResumen: equiposResumen,
           ),
         ),
       );
@@ -82,8 +74,6 @@ class IniciarFechaDialog extends StatelessWidget {
               child: IniciarFechaDialog(
                 fechaDetalle: fechaDetalle,
                 onSuccess: onSuccess,
-                totalEquipos: totalEquipos,
-                equiposResumen: equiposResumen,
               ),
             ),
           ),
@@ -91,13 +81,76 @@ class IniciarFechaDialog extends StatelessWidget {
       );
     }
   }
+}
+
+class _IniciarFechaDialogState extends State<IniciarFechaDialog> {
+  /// Cantidad de equipos asignados (cargado automaticamente)
+  int _totalEquipos = 0;
+
+  /// Lista de equipos con jugadores
+  List<EquipoResumen> _equiposResumen = [];
+
+  /// Estado de carga de equipos
+  bool _cargandoEquipos = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarEquipos();
+  }
+
+  /// Carga los datos de equipos desde el repositorio
+  Future<void> _cargarEquipos() async {
+    final repository = sl<FechasRepository>();
+    final fechaId = widget.fechaDetalle.fecha.fechaId;
+
+    final result = await repository.obtenerEquiposFecha(fechaId);
+
+    if (!mounted) return;
+
+    result.fold(
+      (failure) {
+        // En caso de error, mantener valores por defecto
+        setState(() {
+          _cargandoEquipos = false;
+        });
+      },
+      (response) {
+        if (response.success && response.data != null) {
+          final data = response.data!;
+          setState(() {
+            _totalEquipos = data.totalEquipos;
+            _equiposResumen = data.equipos
+                .map((e) => EquipoResumen(
+                      nombre: e.nombreEquipo,
+                      color: _hexToColor(e.colorHex),
+                      jugadores: e.totalJugadores,
+                    ))
+                .toList();
+            _cargandoEquipos = false;
+          });
+        } else {
+          setState(() {
+            _cargandoEquipos = false;
+          });
+        }
+      },
+    );
+  }
+
+  /// Convierte un color hex a Color
+  Color _hexToColor(String hex) {
+    final hexCode = hex.replaceFirst('#', '');
+    return Color(int.parse('FF$hexCode', radix: 16));
+  }
 
   /// Verifica si hay warning por falta de equipos
-  bool get _tieneWarningSinEquipos => totalEquipos < 2;
+  /// Solo muestra warning cuando ya terminó de cargar los equipos
+  bool get _tieneWarningSinEquipos => !_cargandoEquipos && _totalEquipos < 2;
 
   void _confirmarInicio(BuildContext context) {
     context.read<IniciarFechaBloc>().add(IniciarFechaSubmitEvent(
-          fechaId: fechaDetalle.fecha.fechaId,
+          fechaId: widget.fechaDetalle.fecha.fechaId,
         ));
   }
 
@@ -111,7 +164,7 @@ class IniciarFechaDialog extends StatelessWidget {
       listener: (context, state) {
         if (state is IniciarFechaSuccess) {
           Navigator.of(context).pop();
-          onSuccess?.call();
+          widget.onSuccess?.call();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
@@ -134,7 +187,12 @@ class IniciarFechaDialog extends StatelessWidget {
                 children: [
                   const Icon(Icons.error_outline, color: Colors.white),
                   const SizedBox(width: DesignTokens.spacingS),
-                  Expanded(child: Text(state.message)),
+                  Expanded(
+                    child: Text(
+                      state.message,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
                 ],
               ),
               backgroundColor: DesignTokens.errorColor,
@@ -358,7 +416,7 @@ class IniciarFechaDialog extends StatelessWidget {
               _buildInfoRow(
                 Icons.calendar_today,
                 'Fecha',
-                fechaDetalle.fecha.fechaFormato,
+                widget.fechaDetalle.fecha.fechaFormato,
                 colorScheme,
                 textTheme,
               ),
@@ -366,8 +424,8 @@ class IniciarFechaDialog extends StatelessWidget {
               _buildInfoRow(
                 Icons.access_time,
                 'Hora pactada',
-                fechaDetalle.fecha.horaFormato.isNotEmpty
-                    ? fechaDetalle.fecha.horaFormato
+                widget.fechaDetalle.fecha.horaFormato.isNotEmpty
+                    ? widget.fechaDetalle.fecha.horaFormato
                     : 'No definida',
                 colorScheme,
                 textTheme,
@@ -376,7 +434,7 @@ class IniciarFechaDialog extends StatelessWidget {
               _buildInfoRow(
                 Icons.location_on,
                 'Lugar',
-                fechaDetalle.fecha.lugar,
+                widget.fechaDetalle.fecha.lugar,
                 colorScheme,
                 textTheme,
               ),
@@ -384,7 +442,7 @@ class IniciarFechaDialog extends StatelessWidget {
               _buildInfoRow(
                 Icons.people,
                 'Inscritos',
-                '${fechaDetalle.totalInscritos} jugadores',
+                '${widget.fechaDetalle.totalInscritos} jugadores',
                 colorScheme,
                 textTheme,
               ),
@@ -392,19 +450,21 @@ class IniciarFechaDialog extends StatelessWidget {
               _buildInfoRow(
                 Icons.groups,
                 'Equipos',
-                totalEquipos > 0
-                    ? '$totalEquipos equipos asignados'
-                    : 'Sin asignar',
+                _cargandoEquipos
+                    ? 'Cargando...'
+                    : _totalEquipos > 0
+                        ? '$_totalEquipos equipos asignados'
+                        : 'Sin asignar',
                 colorScheme,
                 textTheme,
-                isWarning: totalEquipos < 2,
+                isWarning: !_cargandoEquipos && _totalEquipos < 2,
               ),
             ],
           ),
         ),
 
         // Resumen de equipos si hay
-        if (equiposResumen != null && equiposResumen!.isNotEmpty) ...[
+        if (_equiposResumen.isNotEmpty) ...[
           const SizedBox(height: DesignTokens.spacingL),
           Text(
             'EQUIPOS',
@@ -415,7 +475,7 @@ class IniciarFechaDialog extends StatelessWidget {
             ),
           ),
           const SizedBox(height: DesignTokens.spacingS),
-          ...equiposResumen!.map((equipo) => Padding(
+          ..._equiposResumen.map((equipo) => Padding(
                 padding: const EdgeInsets.only(bottom: DesignTokens.spacingXs),
                 child: Row(
                   children: [

@@ -355,7 +355,12 @@ class _LoginViewState extends State<_LoginView> {
           children: [
             Icon(icon, color: Colors.white),
             const SizedBox(width: DesignTokens.spacingS),
-            Expanded(child: Text(state.message)),
+            Expanded(
+              child: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
           ],
         ),
         backgroundColor: backgroundColor,

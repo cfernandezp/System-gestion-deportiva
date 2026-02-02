@@ -174,7 +174,10 @@ class _CrearFechaPageState extends State<CrearFechaPage> {
       if (!_esFechaFutura) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('La fecha y hora deben ser futuras'),
+            content: Text(
+              'La fecha y hora deben ser futuras',
+              style: TextStyle(color: Colors.white),
+            ),
             backgroundColor: DesignTokens.errorColor,
           ),
         );
@@ -204,7 +207,10 @@ class _CrearFechaPageState extends State<CrearFechaPage> {
         if (state is CrearFechaError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
+              ),
               backgroundColor: DesignTokens.errorColor,
             ),
           );

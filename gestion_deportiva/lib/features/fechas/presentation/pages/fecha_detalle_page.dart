@@ -7,6 +7,11 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/widgets/dashboard_shell.dart';
 import '../../../../core/widgets/responsive_layout.dart';
 import '../../../auth/presentation/bloc/session/session.dart';
+import '../../../partidos/data/models/jugador_partido_model.dart';
+import '../../../partidos/data/models/partido_model.dart';
+import '../../../partidos/presentation/bloc/finalizar_partido/finalizar_partido.dart';
+import '../../../partidos/presentation/bloc/goles/goles.dart';
+import '../../../partidos/presentation/bloc/lista_partidos/lista_partidos.dart';
 import '../../../partidos/presentation/bloc/partido/partido.dart';
 import '../../../partidos/presentation/widgets/widgets.dart';
 import '../../data/models/color_equipo.dart';
@@ -18,7 +23,6 @@ import '../bloc/asignaciones/asignaciones_bloc.dart';
 import '../bloc/asignaciones/asignaciones_event.dart';
 import '../bloc/asignaciones/asignaciones_state.dart';
 import '../bloc/inscripcion/inscripcion.dart';
-import '../bloc/mi_equipo/mi_equipo.dart';
 import '../widgets/widgets.dart';
 
 /// Pagina de detalle de fecha con opcion de inscripcion y edicion
@@ -156,7 +160,12 @@ class FechaDetallePage extends StatelessWidget {
           children: [
             const Icon(Icons.error_outline, color: Colors.white),
             const SizedBox(width: DesignTokens.spacingS),
-            Expanded(child: Text(mensaje)),
+            Expanded(
+              child: Text(
+                mensaje,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
           ],
         ),
         backgroundColor: DesignTokens.errorColor,
@@ -170,7 +179,7 @@ class FechaDetallePage extends StatelessWidget {
 // VISTA MOBILE - App Style
 // ============================================
 
-class _MobileDetalleView extends StatelessWidget {
+class _MobileDetalleView extends StatefulWidget {
   final String fechaId;
   final FechaDetalleModel? fechaDetalle;
   final bool isLoading;
@@ -186,6 +195,78 @@ class _MobileDetalleView extends StatelessWidget {
     this.hasError = false,
     this.errorMessage,
   });
+
+  @override
+  State<_MobileDetalleView> createState() => _MobileDetalleViewState();
+}
+
+class _MobileDetalleViewState extends State<_MobileDetalleView> {
+  /// BLoC de partido - se crea una sola vez y se reutiliza
+  PartidoBloc? _partidoBloc;
+
+  /// BLoC de goles - para registrar goles
+  GolesBloc? _golesBloc;
+
+  /// BLoC de finalizar partido - para terminar partidos
+  FinalizarPartidoBloc? _finalizarPartidoBloc;
+
+  /// BLoC de lista de partidos
+  ListaPartidosBloc? _listaPartidosBloc;
+
+  /// Flag para evitar cargas duplicadas del partido
+  bool _partidoCargado = false;
+
+  /// Getter para acceder a los datos del widget
+  String get fechaId => widget.fechaId;
+  FechaDetalleModel? get fechaDetalle => widget.fechaDetalle;
+  bool get isLoading => widget.isLoading;
+  bool get isProcesando => widget.isProcesando;
+  bool get hasError => widget.hasError;
+  String? get errorMessage => widget.errorMessage;
+
+  @override
+  void dispose() {
+    // Cerrar los blocs si fueron creados
+    _partidoBloc?.close();
+    _golesBloc?.close();
+    _finalizarPartidoBloc?.close();
+    _listaPartidosBloc?.close();
+    super.dispose();
+  }
+
+  /// Obtiene o crea el PartidoBloc (singleton por vista)
+  PartidoBloc _getOrCreatePartidoBloc() {
+    if (_partidoBloc == null) {
+      _partidoBloc = PartidoBloc(repository: sl());
+      // Solo cargar una vez
+      if (!_partidoCargado) {
+        _partidoCargado = true;
+        _partidoBloc!.add(CargarPartidoActivoEvent(fechaId: fechaId));
+      }
+    }
+    return _partidoBloc!;
+  }
+
+  /// Obtiene o crea el GolesBloc (singleton por vista)
+  GolesBloc _getOrCreateGolesBloc() {
+    _golesBloc ??= GolesBloc(repository: sl());
+    return _golesBloc!;
+  }
+
+  /// Obtiene o crea el FinalizarPartidoBloc (singleton por vista)
+  FinalizarPartidoBloc _getOrCreateFinalizarPartidoBloc() {
+    _finalizarPartidoBloc ??= FinalizarPartidoBloc(repository: sl());
+    return _finalizarPartidoBloc!;
+  }
+
+  /// Obtiene o crea el ListaPartidosBloc (singleton por vista)
+  ListaPartidosBloc _getOrCreateListaPartidosBloc() {
+    if (_listaPartidosBloc == null) {
+      _listaPartidosBloc = ListaPartidosBloc(repository: sl());
+      _listaPartidosBloc!.add(CargarPartidosEvent(fechaId: fechaId));
+    }
+    return _listaPartidosBloc!;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -560,10 +641,6 @@ class _MobileDetalleView extends StatelessWidget {
 
             const SizedBox(height: DesignTokens.spacingM),
 
-            // E004-HU-001: Widget de partido en vivo (si estado = en_juego)
-            if (fechaDetalle!.fecha.estado == EstadoFecha.enJuego)
-              _buildPartidoSection(context),
-
             // E003-HU-003: Lista de inscritos con realtime
             // CA-001 a CA-006: Widget dedicado con BLoC propio
             // E003-HU-011: Boton agregar jugador (admin, fecha abierta)
@@ -582,20 +659,11 @@ class _MobileDetalleView extends StatelessWidget {
             if (fechaDetalle!.fecha.estado == EstadoFecha.abierta)
               const SizedBox(height: DesignTokens.spacingM),
 
-            // E003-HU-006: Ver Mi Equipo (todos los equipos)
-            // CA-001 a CA-007: Widget para ver equipo asignado
-            // CA-004: Ver todos los equipos con el tuyo resaltado
-            BlocProvider(
-              create: (context) => MiEquipoBloc(
-                repository: sl(),
-                supabase: sl(),
-              ),
-              child: MiEquipoWidget(
-                fechaId: fechaId,
-                habilitarRealtime: true,
-                mostrarTodosEquipos: true,
-              ),
-            ),
+            // E004-HU-001: Lista de partidos en area principal
+            // Solo mostrar si estado = en_juego o finalizada
+            if (fechaDetalle!.fecha.estado == EstadoFecha.enJuego ||
+                fechaDetalle!.fecha.estado == EstadoFecha.finalizada)
+              _buildPartidoSection(context),
 
             const SizedBox(height: DesignTokens.spacingL),
           ],
@@ -1126,140 +1194,242 @@ class _MobileDetalleView extends StatelessWidget {
     );
   }
 
-  /// E004-HU-001: Seccion de partido en vivo
-  /// Muestra widget de partido activo o boton para iniciar
+  /// E004-HU-001: Seccion de partido en vivo y lista de partidos
+  /// Muestra widget de partido activo, lista de partidos y boton para crear
+  /// NOTA: Usa MultiBlocProvider para inyectar blocs de partido, goles, finalizar y lista
   Widget _buildPartidoSection(BuildContext context) {
-    return BlocProvider(
-      create: (context) => PartidoBloc(repository: sl())
-        ..add(CargarPartidoActivoEvent(fechaId: fechaId)),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: _getOrCreatePartidoBloc()),
+        BlocProvider.value(value: _getOrCreateGolesBloc()),
+        BlocProvider.value(value: _getOrCreateFinalizarPartidoBloc()),
+        BlocProvider.value(value: _getOrCreateListaPartidosBloc()),
+      ],
       child: BlocBuilder<SessionBloc, SessionState>(
         builder: (context, sessionState) {
           final isAdmin = sessionState is SessionAuthenticated &&
               (sessionState.rol.toLowerCase() == 'admin' ||
                   sessionState.rol.toLowerCase() == 'administrador');
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Widget de partido en vivo
-              PartidoEnVivoWidget(
-                esAdmin: isAdmin,
-                onEstadoCambiado: () {
-                  // Recargar detalle de fecha
-                  context.read<InscripcionBloc>().add(
-                        CargarFechaDetalleEvent(fechaId: fechaId),
-                      );
-                },
-              ),
-
-              // Boton para iniciar partido (solo admin, si no hay partido activo)
-              if (isAdmin)
-                BlocBuilder<PartidoBloc, PartidoState>(
-                  builder: (context, partidoState) {
-                    if (partidoState is SinPartidoActivo &&
-                        partidoState.puedeIniciarPartido) {
-                      return _buildIniciarPartidoButton(context);
-                    }
-                    return const SizedBox.shrink();
-                  },
+          return BlocListener<FinalizarPartidoBloc, FinalizarPartidoState>(
+            listener: (context, state) {
+              if (state is FinalizarPartidoSuccess) {
+                // Recargar partido activo y lista de partidos
+                _getOrCreatePartidoBloc().add(CargarPartidoActivoEvent(fechaId: fechaId));
+                _getOrCreateListaPartidosBloc().add(RefrescarPartidosEvent(fechaId: fechaId));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.response.message.isNotEmpty
+                        ? state.response.message
+                        : 'Partido finalizado'),
+                    backgroundColor: DesignTokens.successColor,
+                  ),
+                );
+              } else if (state is FinalizarPartidoRequiereConfirmacion) {
+                _mostrarDialogoConfirmacionFinalizar(context, state.partidoId, state.message);
+              } else if (state is FinalizarPartidoError) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.message),
+                    backgroundColor: DesignTokens.errorColor,
+                  ),
+                );
+              }
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Widget de partido en vivo con callbacks para admin
+                PartidoEnVivoWidget(
+                  esAdmin: isAdmin,
+                  onPantallaCompleta: (partido) => _abrirPantallaCompleta(context, partido, isAdmin),
+                  onAnotarGol: isAdmin ? (partido) => _mostrarDialogoAnotarGol(context, partido) : null,
+                  onFinalizarPartido: isAdmin ? (partido) => _onFinalizarPartido(context, partido) : null,
                 ),
 
-              const SizedBox(height: DesignTokens.spacingM),
-            ],
+                const SizedBox(height: DesignTokens.spacingM),
+
+                // Lista de partidos con opcion de crear nuevo
+                if (fechaDetalle != null)
+                  ListaPartidosWidget(
+                    fechaDetalle: fechaDetalle!,
+                    esAdmin: isAdmin,
+                    onPartidoCreado: () {
+                      // Refrescar partido activo y lista
+                      _getOrCreatePartidoBloc().add(CargarPartidoActivoEvent(fechaId: fechaId));
+                      _getOrCreateListaPartidosBloc().add(RefrescarPartidosEvent(fechaId: fechaId));
+                    },
+                  ),
+
+                const SizedBox(height: DesignTokens.spacingM),
+              ],
+            ),
           );
         },
       ),
     );
   }
 
-  /// Boton para iniciar un nuevo partido
-  Widget _buildIniciarPartidoButton(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+  /// E004-HU-002 CA-009: Abre el temporizador en pantalla completa
+  void _abrirPantallaCompleta(BuildContext context, PartidoModel partido, bool esAdmin) {
+    TemporizadorFullscreen.show(
+      context,
+      partido: partido,
+      esAdmin: esAdmin,
+      golesLocal: partido.golesLocal,
+      golesVisitante: partido.golesVisitante,
+      onPausar: () {
+        _getOrCreatePartidoBloc().add(PausarPartidoEvent(partidoId: partido.id));
+      },
+      onReanudar: () {
+        _getOrCreatePartidoBloc().add(ReanudarPartidoEvent(partidoId: partido.id));
+      },
+      onGolLocal: () {
+        // Abrir dialogo para registrar gol del equipo local
+        Navigator.of(context).pop(); // Cerrar pantalla completa
+        _abrirRegistrarGolDialog(
+          context,
+          partido,
+          partido.equipoLocal.color,
+          partido.equipoVisitante.color,
+          partido.equipoLocal.jugadores,
+          true,
+        );
+      },
+      onGolVisitante: () {
+        // Abrir dialogo para registrar gol del equipo visitante
+        Navigator.of(context).pop(); // Cerrar pantalla completa
+        _abrirRegistrarGolDialog(
+          context,
+          partido,
+          partido.equipoVisitante.color,
+          partido.equipoLocal.color,
+          partido.equipoVisitante.jugadores,
+          false,
+        );
+      },
+      onFinalizar: () {
+        Navigator.of(context).pop(); // Cerrar pantalla completa
+        _onFinalizarPartido(context, partido);
+      },
+    );
+  }
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-        side: BorderSide(
-          color: colorScheme.primary.withValues(alpha: 0.3),
-        ),
-      ),
-      child: InkWell(
-        onTap: () => _mostrarDialogoIniciarPartido(context),
-        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-        child: Padding(
-          padding: const EdgeInsets.all(DesignTokens.spacingM),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(DesignTokens.spacingS),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(DesignTokens.radiusS),
-                ),
-                child: Icon(
-                  Icons.sports_soccer,
-                  color: colorScheme.onPrimaryContainer,
-                  size: DesignTokens.iconSizeM,
-                ),
-              ),
-              const SizedBox(width: DesignTokens.spacingM),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Iniciar Partido',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: DesignTokens.fontWeightSemiBold,
-                          ),
-                    ),
-                    Text(
-                      'Selecciona los equipos y comienza',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.play_circle,
-                color: colorScheme.primary,
-                size: DesignTokens.iconSizeL,
-              ),
-            ],
+  /// Muestra dialogo para seleccionar equipo que anota
+  void _mostrarDialogoAnotarGol(BuildContext context, PartidoModel partido) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Quien anoto?'),
+        content: const Text('Selecciona el equipo que anoto el gol'),
+        actions: [
+          // Boton equipo local
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _abrirRegistrarGolDialog(
+                context,
+                partido,
+                partido.equipoLocal.color,
+                partido.equipoVisitante.color,
+                partido.equipoLocal.jugadores,
+                true,
+              );
+            },
+            icon: Icon(Icons.sports_soccer, color: partido.equipoLocal.color.textColor),
+            label: Text(partido.equipoLocal.color.displayName.toUpperCase()),
+            style: FilledButton.styleFrom(
+              backgroundColor: partido.equipoLocal.color.color,
+              foregroundColor: partido.equipoLocal.color.textColor,
+            ),
           ),
-        ),
+          const SizedBox(width: DesignTokens.spacingS),
+          // Boton equipo visitante
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _abrirRegistrarGolDialog(
+                context,
+                partido,
+                partido.equipoVisitante.color,
+                partido.equipoLocal.color,
+                partido.equipoVisitante.jugadores,
+                false,
+              );
+            },
+            icon: Icon(Icons.sports_soccer, color: partido.equipoVisitante.color.textColor),
+            label: Text(partido.equipoVisitante.color.displayName.toUpperCase()),
+            style: FilledButton.styleFrom(
+              backgroundColor: partido.equipoVisitante.color.color,
+              foregroundColor: partido.equipoVisitante.color.textColor,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  /// Muestra el dialogo para iniciar partido
-  void _mostrarDialogoIniciarPartido(BuildContext context) {
-    // Obtener equipos disponibles segun el numero de equipos de la fecha
-    final numEquipos = fechaDetalle!.fecha.numEquipos;
-    final equiposDisponibles = <ColorEquipo>[
-      ColorEquipo.naranja,
-      ColorEquipo.verde,
-      if (numEquipos >= 3) ColorEquipo.azul,
-    ];
+  /// Abre el dialog para registrar gol con el equipo seleccionado
+  void _abrirRegistrarGolDialog(
+    BuildContext context,
+    PartidoModel partido,
+    ColorEquipo equipoAnotador,
+    ColorEquipo equipoContrario,
+    List<JugadorPartidoModel> jugadores,
+    bool esEquipoLocal,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => RegistrarGolDialog(
+        partidoId: partido.id,
+        equipoAnotador: equipoAnotador,
+        equipoContrario: equipoContrario,
+        jugadores: jugadores,
+        esEquipoLocal: esEquipoLocal,
+        golesBloc: _getOrCreateGolesBloc(),
+      ),
+    );
+  }
 
-    // Calcular duracion segun formato (RN-004)
-    // 2 equipos = 20 min, 3 equipos = 10 min
-    final duracionMinutos = numEquipos == 2 ? 20 : 10;
+  /// Solicita finalizar el partido
+  void _onFinalizarPartido(BuildContext context, PartidoModel partido) {
+    _getOrCreateFinalizarPartidoBloc().add(
+      FinalizarPartidoRequested(
+        partidoId: partido.id,
+        tiempoTerminado: partido.tiempoTerminado,
+      ),
+    );
+  }
 
-    IniciarPartidoDialog.show(
-      context,
-      fechaDetalle: fechaDetalle!,
-      equiposDisponibles: equiposDisponibles,
-      duracionMinutos: duracionMinutos,
-      onSuccess: () {
-        // Recargar partido activo
-        context.read<PartidoBloc>().add(
-              CargarPartidoActivoEvent(fechaId: fechaId),
-            );
-      },
+  /// Muestra dialogo de confirmacion para finalizar anticipadamente
+  void _mostrarDialogoConfirmacionFinalizar(BuildContext context, String partidoId, String mensaje) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirmar finalizacion'),
+        content: Text(mensaje),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _getOrCreateFinalizarPartidoBloc().add(const CancelarFinalizacion());
+            },
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _getOrCreateFinalizarPartidoBloc().add(
+                ConfirmarFinalizacionAnticipada(partidoId: partidoId),
+              );
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: DesignTokens.errorColor,
+            ),
+            child: const Text('Finalizar de todos modos'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1269,7 +1439,7 @@ class _MobileDetalleView extends StatelessWidget {
 // Panel izquierdo (320px) + Contenido principal (expandido)
 // ============================================
 
-class _DesktopDetalleView extends StatelessWidget {
+class _DesktopDetalleView extends StatefulWidget {
   final String fechaId;
   final FechaDetalleModel? fechaDetalle;
   final bool isLoading;
@@ -1285,6 +1455,78 @@ class _DesktopDetalleView extends StatelessWidget {
     this.hasError = false,
     this.errorMessage,
   });
+
+  @override
+  State<_DesktopDetalleView> createState() => _DesktopDetalleViewState();
+}
+
+class _DesktopDetalleViewState extends State<_DesktopDetalleView> {
+  /// BLoC de partido - se crea una sola vez y se reutiliza
+  PartidoBloc? _partidoBloc;
+
+  /// BLoC de goles - para registrar goles
+  GolesBloc? _golesBloc;
+
+  /// BLoC de finalizar partido - para terminar partidos
+  FinalizarPartidoBloc? _finalizarPartidoBloc;
+
+  /// BLoC de lista de partidos
+  ListaPartidosBloc? _listaPartidosBloc;
+
+  /// Flag para evitar cargas duplicadas del partido
+  bool _partidoCargado = false;
+
+  /// Getters para acceder a los datos del widget
+  String get fechaId => widget.fechaId;
+  FechaDetalleModel? get fechaDetalle => widget.fechaDetalle;
+  bool get isLoading => widget.isLoading;
+  bool get isProcesando => widget.isProcesando;
+  bool get hasError => widget.hasError;
+  String? get errorMessage => widget.errorMessage;
+
+  @override
+  void dispose() {
+    // Cerrar los blocs si fueron creados
+    _partidoBloc?.close();
+    _golesBloc?.close();
+    _finalizarPartidoBloc?.close();
+    _listaPartidosBloc?.close();
+    super.dispose();
+  }
+
+  /// Obtiene o crea el PartidoBloc (singleton por vista)
+  PartidoBloc _getOrCreatePartidoBloc() {
+    if (_partidoBloc == null) {
+      _partidoBloc = PartidoBloc(repository: sl());
+      // Solo cargar una vez
+      if (!_partidoCargado) {
+        _partidoCargado = true;
+        _partidoBloc!.add(CargarPartidoActivoEvent(fechaId: fechaId));
+      }
+    }
+    return _partidoBloc!;
+  }
+
+  /// Obtiene o crea el GolesBloc (singleton por vista)
+  GolesBloc _getOrCreateGolesBloc() {
+    _golesBloc ??= GolesBloc(repository: sl());
+    return _golesBloc!;
+  }
+
+  /// Obtiene o crea el FinalizarPartidoBloc (singleton por vista)
+  FinalizarPartidoBloc _getOrCreateFinalizarPartidoBloc() {
+    _finalizarPartidoBloc ??= FinalizarPartidoBloc(repository: sl());
+    return _finalizarPartidoBloc!;
+  }
+
+  /// Obtiene o crea el ListaPartidosBloc (singleton por vista)
+  ListaPartidosBloc _getOrCreateListaPartidosBloc() {
+    if (_listaPartidosBloc == null) {
+      _listaPartidosBloc = ListaPartidosBloc(repository: sl());
+      _listaPartidosBloc!.add(CargarPartidosEvent(fechaId: fechaId));
+    }
+    return _listaPartidosBloc!;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1441,11 +1683,6 @@ class _DesktopDetalleView extends StatelessWidget {
                 _buildInfoPanel(context),
                 const SizedBox(height: DesignTokens.spacingM),
                 _buildActionCard(context),
-                // E004-HU-001: Widget de partido en vivo (si estado = en_juego)
-                if (fechaDetalle!.fecha.estado == EstadoFecha.enJuego) ...[
-                  const SizedBox(height: DesignTokens.spacingM),
-                  _buildPartidoSection(context),
-                ],
                 // Seccion de acciones de administrador (en panel lateral)
                 _buildAdminActionsPanel(context),
               ],
@@ -1460,7 +1697,7 @@ class _DesktopDetalleView extends StatelessWidget {
           color: colorScheme.outlineVariant,
         ),
 
-        // Panel derecho: Equipos e Inscritos (expandido)
+        // Panel derecho: Partidos e Inscritos (expandido)
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(DesignTokens.spacingL),
@@ -1483,20 +1720,11 @@ class _DesktopDetalleView extends StatelessWidget {
                   const SizedBox(height: DesignTokens.spacingL),
                 ],
 
-                // E003-HU-006: Ver Mi Equipo (todos los equipos)
-                // CA-001 a CA-007: Widget para ver equipo asignado
-                // CA-004: Ver todos los equipos con el tuyo resaltado
-                BlocProvider(
-                  create: (context) => MiEquipoBloc(
-                    repository: sl(),
-                    supabase: sl(),
-                  ),
-                  child: MiEquipoWidget(
-                    fechaId: fechaId,
-                    habilitarRealtime: true,
-                    mostrarTodosEquipos: true,
-                  ),
-                ),
+                // E004-HU-001: Lista de partidos en area principal
+                // Solo mostrar si estado = en_juego o finalizada
+                if (fechaDetalle!.fecha.estado == EstadoFecha.enJuego ||
+                    fechaDetalle!.fecha.estado == EstadoFecha.finalizada)
+                  _buildPartidoSection(context),
               ],
             ),
           ),
@@ -2167,133 +2395,241 @@ class _DesktopDetalleView extends StatelessWidget {
     );
   }
 
-  /// E004-HU-001: Seccion de partido en vivo (Desktop)
+  /// E004-HU-001: Seccion de partido en vivo y lista de partidos (Desktop)
+  /// NOTA: Usa MultiBlocProvider para inyectar blocs de partido, goles, finalizar y lista
   Widget _buildPartidoSection(BuildContext context) {
-    return BlocProvider(
-      create: (context) => PartidoBloc(repository: sl())
-        ..add(CargarPartidoActivoEvent(fechaId: fechaId)),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: _getOrCreatePartidoBloc()),
+        BlocProvider.value(value: _getOrCreateGolesBloc()),
+        BlocProvider.value(value: _getOrCreateFinalizarPartidoBloc()),
+        BlocProvider.value(value: _getOrCreateListaPartidosBloc()),
+      ],
       child: BlocBuilder<SessionBloc, SessionState>(
         builder: (context, sessionState) {
           final isAdmin = sessionState is SessionAuthenticated &&
               (sessionState.rol.toLowerCase() == 'admin' ||
                   sessionState.rol.toLowerCase() == 'administrador');
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Widget de partido en vivo
-              PartidoEnVivoWidget(
-                esAdmin: isAdmin,
-                onEstadoCambiado: () {
-                  // Recargar detalle de fecha
-                  context.read<InscripcionBloc>().add(
-                        CargarFechaDetalleEvent(fechaId: fechaId),
-                      );
-                },
-              ),
-
-              // Boton para iniciar partido (solo admin, si no hay partido activo)
-              if (isAdmin)
-                BlocBuilder<PartidoBloc, PartidoState>(
-                  builder: (context, partidoState) {
-                    if (partidoState is SinPartidoActivo &&
-                        partidoState.puedeIniciarPartido) {
-                      return _buildIniciarPartidoButton(context);
-                    }
-                    return const SizedBox.shrink();
-                  },
+          return BlocListener<FinalizarPartidoBloc, FinalizarPartidoState>(
+            listener: (context, state) {
+              if (state is FinalizarPartidoSuccess) {
+                // Recargar partido activo y lista de partidos
+                _getOrCreatePartidoBloc().add(CargarPartidoActivoEvent(fechaId: fechaId));
+                _getOrCreateListaPartidosBloc().add(RefrescarPartidosEvent(fechaId: fechaId));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.response.message.isNotEmpty
+                        ? state.response.message
+                        : 'Partido finalizado'),
+                    backgroundColor: DesignTokens.successColor,
+                  ),
+                );
+              } else if (state is FinalizarPartidoRequiereConfirmacion) {
+                _mostrarDialogoConfirmacionFinalizar(context, state.partidoId, state.message);
+              } else if (state is FinalizarPartidoError) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.message),
+                    backgroundColor: DesignTokens.errorColor,
+                  ),
+                );
+              }
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Widget de partido en vivo con callbacks para admin
+                PartidoEnVivoWidget(
+                  esAdmin: isAdmin,
+                  onPantallaCompleta: (partido) => _abrirPantallaCompleta(context, partido, isAdmin),
+                  onAnotarGol: isAdmin ? (partido) => _mostrarDialogoAnotarGol(context, partido) : null,
+                  onFinalizarPartido: isAdmin ? (partido) => _onFinalizarPartido(context, partido) : null,
                 ),
-            ],
+
+                const SizedBox(height: DesignTokens.spacingM),
+
+                // Lista de partidos con opcion de crear nuevo
+                if (fechaDetalle != null)
+                  ListaPartidosWidget(
+                    fechaDetalle: fechaDetalle!,
+                    esAdmin: isAdmin,
+                    onPartidoCreado: () {
+                      // Refrescar partido activo y lista
+                      _getOrCreatePartidoBloc().add(CargarPartidoActivoEvent(fechaId: fechaId));
+                      _getOrCreateListaPartidosBloc().add(RefrescarPartidosEvent(fechaId: fechaId));
+                    },
+                  ),
+
+                const SizedBox(height: DesignTokens.spacingM),
+              ],
+            ),
           );
         },
       ),
     );
   }
 
-  /// Boton para iniciar un nuevo partido (Desktop) - compacto
-  Widget _buildIniciarPartidoButton(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+  /// E004-HU-002 CA-009: Abre el temporizador en pantalla completa (Desktop)
+  void _abrirPantallaCompleta(BuildContext context, PartidoModel partido, bool esAdmin) {
+    TemporizadorFullscreen.show(
+      context,
+      partido: partido,
+      esAdmin: esAdmin,
+      golesLocal: partido.golesLocal,
+      golesVisitante: partido.golesVisitante,
+      onPausar: () {
+        _getOrCreatePartidoBloc().add(PausarPartidoEvent(partidoId: partido.id));
+      },
+      onReanudar: () {
+        _getOrCreatePartidoBloc().add(ReanudarPartidoEvent(partidoId: partido.id));
+      },
+      onGolLocal: () {
+        // Abrir dialogo para registrar gol del equipo local
+        Navigator.of(context).pop(); // Cerrar pantalla completa
+        _abrirRegistrarGolDialog(
+          context,
+          partido,
+          partido.equipoLocal.color,
+          partido.equipoVisitante.color,
+          partido.equipoLocal.jugadores,
+          true,
+        );
+      },
+      onGolVisitante: () {
+        // Abrir dialogo para registrar gol del equipo visitante
+        Navigator.of(context).pop(); // Cerrar pantalla completa
+        _abrirRegistrarGolDialog(
+          context,
+          partido,
+          partido.equipoVisitante.color,
+          partido.equipoLocal.color,
+          partido.equipoVisitante.jugadores,
+          false,
+        );
+      },
+      onFinalizar: () {
+        Navigator.of(context).pop(); // Cerrar pantalla completa
+        _onFinalizarPartido(context, partido);
+      },
+    );
+  }
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-        side: BorderSide(
-          color: colorScheme.primary.withValues(alpha: 0.3),
-        ),
-      ),
-      child: InkWell(
-        onTap: () => _mostrarDialogoIniciarPartido(context),
-        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-        child: Padding(
-          padding: const EdgeInsets.all(DesignTokens.spacingM),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(DesignTokens.spacingS),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(DesignTokens.radiusS),
-                ),
-                child: Icon(
-                  Icons.sports_soccer,
-                  color: colorScheme.onPrimaryContainer,
-                  size: DesignTokens.iconSizeM,
-                ),
-              ),
-              const SizedBox(width: DesignTokens.spacingS),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Iniciar Partido',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: DesignTokens.fontWeightSemiBold,
-                          ),
-                    ),
-                    Text(
-                      'Selecciona equipos',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.play_circle,
-                color: colorScheme.primary,
-                size: DesignTokens.iconSizeM,
-              ),
-            ],
+  /// Muestra dialogo para seleccionar equipo que anota (Desktop)
+  void _mostrarDialogoAnotarGol(BuildContext context, PartidoModel partido) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Quien anoto?'),
+        content: const Text('Selecciona el equipo que anoto el gol'),
+        actions: [
+          // Boton equipo local
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _abrirRegistrarGolDialog(
+                context,
+                partido,
+                partido.equipoLocal.color,
+                partido.equipoVisitante.color,
+                partido.equipoLocal.jugadores,
+                true,
+              );
+            },
+            icon: Icon(Icons.sports_soccer, color: partido.equipoLocal.color.textColor),
+            label: Text(partido.equipoLocal.color.displayName.toUpperCase()),
+            style: FilledButton.styleFrom(
+              backgroundColor: partido.equipoLocal.color.color,
+              foregroundColor: partido.equipoLocal.color.textColor,
+            ),
           ),
-        ),
+          const SizedBox(width: DesignTokens.spacingS),
+          // Boton equipo visitante
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _abrirRegistrarGolDialog(
+                context,
+                partido,
+                partido.equipoVisitante.color,
+                partido.equipoLocal.color,
+                partido.equipoVisitante.jugadores,
+                false,
+              );
+            },
+            icon: Icon(Icons.sports_soccer, color: partido.equipoVisitante.color.textColor),
+            label: Text(partido.equipoVisitante.color.displayName.toUpperCase()),
+            style: FilledButton.styleFrom(
+              backgroundColor: partido.equipoVisitante.color.color,
+              foregroundColor: partido.equipoVisitante.color.textColor,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  /// Muestra el dialogo para iniciar partido (Desktop)
-  void _mostrarDialogoIniciarPartido(BuildContext context) {
-    final numEquipos = fechaDetalle!.fecha.numEquipos;
-    final equiposDisponibles = <ColorEquipo>[
-      ColorEquipo.naranja,
-      ColorEquipo.verde,
-      if (numEquipos >= 3) ColorEquipo.azul,
-    ];
+  /// Abre el dialog para registrar gol con el equipo seleccionado (Desktop)
+  void _abrirRegistrarGolDialog(
+    BuildContext context,
+    PartidoModel partido,
+    ColorEquipo equipoAnotador,
+    ColorEquipo equipoContrario,
+    List<JugadorPartidoModel> jugadores,
+    bool esEquipoLocal,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => RegistrarGolDialog(
+        partidoId: partido.id,
+        equipoAnotador: equipoAnotador,
+        equipoContrario: equipoContrario,
+        jugadores: jugadores,
+        esEquipoLocal: esEquipoLocal,
+        golesBloc: _getOrCreateGolesBloc(),
+      ),
+    );
+  }
 
-    final duracionMinutos = numEquipos == 2 ? 20 : 10;
+  /// Solicita finalizar el partido (Desktop)
+  void _onFinalizarPartido(BuildContext context, PartidoModel partido) {
+    _getOrCreateFinalizarPartidoBloc().add(
+      FinalizarPartidoRequested(
+        partidoId: partido.id,
+        tiempoTerminado: partido.tiempoTerminado,
+      ),
+    );
+  }
 
-    IniciarPartidoDialog.show(
-      context,
-      fechaDetalle: fechaDetalle!,
-      equiposDisponibles: equiposDisponibles,
-      duracionMinutos: duracionMinutos,
-      onSuccess: () {
-        context.read<PartidoBloc>().add(
-              CargarPartidoActivoEvent(fechaId: fechaId),
-            );
-      },
+  /// Muestra dialogo de confirmacion para finalizar anticipadamente (Desktop)
+  void _mostrarDialogoConfirmacionFinalizar(BuildContext context, String partidoId, String mensaje) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirmar finalizacion'),
+        content: Text(mensaje),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _getOrCreateFinalizarPartidoBloc().add(const CancelarFinalizacion());
+            },
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _getOrCreateFinalizarPartidoBloc().add(
+                ConfirmarFinalizacionAnticipada(partidoId: partidoId),
+              );
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: DesignTokens.errorColor,
+            ),
+            child: const Text('Finalizar de todos modos'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -2535,7 +2871,12 @@ class _AsignarEquiposDialog extends StatelessWidget {
           children: [
             const Icon(Icons.error_outline, color: Colors.white),
             const SizedBox(width: DesignTokens.spacingS),
-            Expanded(child: Text(mensaje)),
+            Expanded(
+              child: Text(
+                mensaje,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
           ],
         ),
         backgroundColor: DesignTokens.errorColor,

@@ -25,3 +25,6 @@ export 'finalizar_partido_button.dart';
 export 'confirmacion_anticipada_dialog.dart';
 export 'resumen_partido_card.dart';
 export 'sugerencia_rotacion_card.dart';
+
+// Lista de partidos
+export 'lista_partidos_widget.dart';

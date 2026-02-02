@@ -356,9 +356,8 @@ class _TemporizadorFullscreenState extends State<TemporizadorFullscreen>
 
                     const SizedBox(height: DesignTokens.spacingXl),
 
-                    // Score si hay goles
-                    if (widget.golesLocal > 0 || widget.golesVisitante > 0)
-                      _buildScoreDisplay(),
+                    // Score siempre visible (incluso 0-0)
+                    _buildScoreDisplay(),
 
                     const SizedBox(height: DesignTokens.spacingXl),
 

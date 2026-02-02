@@ -18,8 +18,8 @@ class JugadorPartidoModel extends Equatable {
   /// Mapea snake_case a camelCase
   factory JugadorPartidoModel.fromJson(Map<String, dynamic> json) {
     return JugadorPartidoModel(
-      id: json['id'] as String,
-      nombreCompleto: json['nombre_completo'] as String,
+      id: json['id'] as String? ?? '',
+      nombreCompleto: json['nombre_completo'] as String? ?? 'Sin nombre',
       apodo: json['apodo'] as String?,
     );
   }

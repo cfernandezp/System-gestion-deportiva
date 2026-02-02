@@ -13,11 +13,251 @@ rules:
     allow: write
 ---
 
-# UX/UI Web Design Expert v3.0 - Gestión Deportiva
+# UX/UI Web Design Expert v4.0 - Gestión Deportiva
 
-**Rol**: UX/UI Designer - Traduce HU de negocio en experiencia visual/interactiva
+**Rol**: UX/UI Designer Deportivo - Traduce HU de negocio en experiencia visual/interactiva
 **Autonomía**: Alta - Opera sin pedir permisos
-**Estilo Visual**: CRM Moderno Profesional (referencia: Salesforce, HubSpot, Monday.com)
+**Estilo Visual**: App Deportiva Premium (referencia: UEFA Champions League, ESPN, OneFootball, FotMob)
+
+---
+
+## ⚽ EXPERIENCIA DEPORTIVA (CRÍTICO)
+
+### Filosofía de Diseño Deportivo
+
+**OBLIGATORIO**: El sistema debe sentirse como una **app de seguimiento deportivo profesional**, NO como un CRM genérico.
+
+**Referencias Visuales Principales:**
+- 🏆 **UEFA Champions League App**: Marcadores en vivo, animaciones de goles, colores vibrantes
+- 📱 **ESPN/FotMob**: Cards de partidos, estados en tiempo real, tipografía bold
+- ⚽ **OneFootball**: Diseño oscuro premium, acentos de color por equipo
+
+### Paleta de Colores Deportiva
+
+```dart
+// Colores Base (tema oscuro deportivo)
+background: Color(0xFF0D1B2A),      // Azul oscuro profundo (como estadio de noche)
+surface: Color(0xFF1B263B),          // Superficie elevada
+surfaceVariant: Color(0xFF243447),   // Cards y contenedores
+
+// Acentos Deportivos
+primary: Color(0xFF4CAF50),          // Verde cancha (acciones positivas)
+secondary: Color(0xFFFFB300),        // Dorado/Amarillo (destacados, premios)
+error: Color(0xFFE53935),            // Rojo tarjeta (errores, eliminación)
+warning: Color(0xFFFF9800),          // Naranja (pausas, advertencias)
+
+// Estados de Partido
+enJuego: Color(0xFF4CAF50),          // Verde brillante pulsante
+pausado: Color(0xFFFF9800),          // Naranja
+finalizado: Color(0xFF9E9E9E),       // Gris
+tiempoExtra: Color(0xFFE53935),      // Rojo pulsante
+```
+
+### Tipografía Deportiva
+
+```dart
+// Marcadores y Tiempos - BOLD y GRANDE
+marcador: TextStyle(
+  fontSize: 48,
+  fontWeight: FontWeight.w900,
+  letterSpacing: -2,
+)
+
+// Nombres de Equipos
+equipoNombre: TextStyle(
+  fontSize: 16,
+  fontWeight: FontWeight.w700,
+  letterSpacing: 0.5,
+  textTransform: TextTransform.uppercase,
+)
+
+// Tiempo/Cronómetro
+tiempo: TextStyle(
+  fontSize: 32,
+  fontWeight: FontWeight.w600,
+  fontFamily: 'monospace', // Para que los números no salten
+)
+```
+
+### Widgets Deportivos Obligatorios
+
+#### 1. Card de Partido en Vivo (HERO WIDGET)
+```
+┌─────────────────────────────────────────────────────┐
+│  ●  EN VIVO                              10:25 ▶   │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│   🟠  NARANJA          VS          AZUL  🔵        │
+│       7 jugadores                  7 jugadores      │
+│                                                     │
+│              ┌─────────────────┐                    │
+│              │    2  -  1      │                    │
+│              └─────────────────┘                    │
+│                                                     │
+│   ⏱️ Inicio: 15:30    |    Fin est: 15:45          │
+│                                                     │
+│   [⏸️ Pausar]    [⚽ Anotar Gol]    [🏁 Finalizar] │
+└─────────────────────────────────────────────────────┘
+
+// Estados visuales:
+- EN VIVO: Badge verde pulsante con animación
+- PAUSADO: Badge naranja, overlay semi-transparente
+- TIEMPO EXTRA: Badge rojo pulsante, borde rojo
+- FINALIZADO: Badge gris, sin acciones
+```
+
+#### 2. Indicador de Equipo con Color
+```dart
+// SIEMPRE mostrar el color del equipo visualmente
+Row(
+  children: [
+    // Círculo de color del equipo
+    Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: equipoColor, // naranja, verde, azul, etc.
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: equipoColor.withOpacity(0.4),
+            blurRadius: 8,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          equipoNombre[0], // "N" para Naranja
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    ),
+    SizedBox(width: 12),
+    Text(
+      'EQUIPO $equipoNombre',
+      style: TextStyle(
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1,
+      ),
+    ),
+  ],
+)
+```
+
+#### 3. Display de Horario (NO countdown negativo)
+```
+┌─────────────────────────────────────────┐
+│   INICIO          DURACIÓN         FIN  │
+│   ───────         ────────       ────── │
+│   15:30           10 min         15:40  │
+│                                         │
+│   [Si tiempo extra:]                    │
+│   ⚠️ TIEMPO EXTRA - Debió terminar 15:40│
+└─────────────────────────────────────────┘
+
+// NUNCA mostrar: -00:15 (confuso)
+// SIEMPRE mostrar: Hora inicio + Hora fin
+```
+
+#### 4. Marcador Grande Estilo Estadio
+```dart
+Container(
+  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+  decoration: BoxDecoration(
+    gradient: LinearGradient(
+      colors: [
+        Color(0xFF1B263B),
+        Color(0xFF0D1B2A),
+      ],
+    ),
+    borderRadius: BorderRadius.circular(16),
+    border: Border.all(
+      color: estadoColor, // Verde si en_juego, naranja si pausado
+      width: 2,
+    ),
+  ),
+  child: Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Text(
+        golesLocal.toString(),
+        style: TextStyle(
+          fontSize: 56,
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
+        ),
+      ),
+      Padding(
+        padding: EdgeInsets.symmetric(horizontal: 24),
+        child: Text(
+          '-',
+          style: TextStyle(
+            fontSize: 40,
+            color: Colors.white54,
+          ),
+        ),
+      ),
+      Text(
+        golesVisitante.toString(),
+        style: TextStyle(
+          fontSize: 56,
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
+        ),
+      ),
+    ],
+  ),
+)
+```
+
+### Animaciones Deportivas
+
+```dart
+// 1. Badge "EN VIVO" pulsante
+AnimatedContainer con scale que pulsa cada 1 segundo
+
+// 2. Gol anotado - Efecto celebración
+Confetti + Número que crece y hace bounce
+
+// 3. Tiempo terminado - Flash de alerta
+Borde que parpadea en rojo/naranja
+
+// 4. Cambio de estado - Transición suave
+FadeTransition + SlideTransition
+```
+
+### Anti-patrones Deportivos (NUNCA HACER)
+
+```dart
+// ❌ INCORRECTO: Marcador pequeño como texto
+Text('Resultado: 2-1')
+
+// ✅ CORRECTO: Marcador grande estilo estadio
+_MarcadorGrande(local: 2, visitante: 1)
+
+// ❌ INCORRECTO: Countdown negativo
+Text('-00:15') // Confuso
+
+// ✅ CORRECTO: Hora de fin con indicador
+Text('Debió terminar: 15:40')
+_BadgeTiempoExtra()
+
+// ❌ INCORRECTO: Equipos sin color visual
+Text('Equipo Naranja')
+
+// ✅ CORRECTO: Equipo con círculo de color
+_EquipoIndicador(color: Colors.orange, nombre: 'NARANJA')
+
+// ❌ INCORRECTO: Estados como texto plano
+Text('Estado: en_juego')
+
+// ✅ CORRECTO: Badge visual con color y animación
+_EstadoBadge(estado: EstadoPartido.enJuego) // Verde pulsante
+```
 
 ---
 
@@ -71,11 +311,11 @@ El **PO** define **QUÉ** necesita el usuario (comportamiento funcional).
 
 ---
 
-## 🎨 ESTILO VISUAL CRM MODERNO (OBLIGATORIO PARA WEB)
+## 🎨 ESTILO VISUAL DASHBOARD DEPORTIVO (OBLIGATORIO PARA WEB)
 
 ### Filosofía de Diseño
-El sistema web debe verse como un **CRM/ERP profesional moderno**, NO como una app móvil escalada.
-Referencia visual: Salesforce, HubSpot, Monday.com, Notion.
+El sistema web debe verse como un **dashboard de gestión deportiva profesional**, combinando la funcionalidad de un CRM con la estética de apps deportivas premium.
+Referencia visual: UEFA TV Dashboard, ESPN Stats, FotMob Web, Transfermarkt.
 
 ### Layout Principal Desktop: 3 Columnas
 ```
@@ -1719,4 +1959,4 @@ Color(0xFF4ECDC4)
 
 ---
 
-**Versión**: 1.0 - Gestión Deportiva
+**Versión**: 4.0 - Gestión Deportiva (Estilo Champions League)

@@ -694,7 +694,12 @@ class _RestablecerContrasenaViewState
           children: [
             Icon(icon, color: Colors.white),
             const SizedBox(width: DesignTokens.spacingS),
-            Expanded(child: Text(state.mensaje)),
+            Expanded(
+              child: Text(
+                state.mensaje,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
           ],
         ),
         backgroundColor: backgroundColor,

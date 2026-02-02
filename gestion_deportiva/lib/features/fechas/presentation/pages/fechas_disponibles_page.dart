@@ -2972,7 +2972,10 @@ class _CrearFechaDialogState extends State<_CrearFechaDialog> {
       if (!_esFechaFutura) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('La fecha y hora deben ser futuras'),
+            content: Text(
+              'La fecha y hora deben ser futuras',
+              style: TextStyle(color: Colors.white),
+            ),
             backgroundColor: DesignTokens.errorColor,
           ),
         );
@@ -3010,7 +3013,10 @@ class _CrearFechaDialogState extends State<_CrearFechaDialog> {
         if (state is CrearFechaError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
+              ),
               backgroundColor: DesignTokens.errorColor,
             ),
           );
@@ -3330,7 +3336,10 @@ class _EditarFechaLoaderDialog extends StatelessWidget {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
+              ),
               backgroundColor: DesignTokens.errorColor,
             ),
           );
@@ -3388,7 +3397,10 @@ class _CerrarInscripcionesLoaderDialog extends StatelessWidget {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
+              ),
               backgroundColor: DesignTokens.errorColor,
             ),
           );
@@ -3446,7 +3458,10 @@ class _ReabrirInscripcionesLoaderDialog extends StatelessWidget {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
+              ),
               backgroundColor: DesignTokens.errorColor,
             ),
           );
@@ -3504,7 +3519,10 @@ class _FinalizarFechaLoaderDialog extends StatelessWidget {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
+              ),
               backgroundColor: DesignTokens.errorColor,
             ),
           );
@@ -3565,7 +3583,10 @@ class _EditarFechaLoaderDialogGeneric extends StatelessWidget {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
+              ),
               backgroundColor: DesignTokens.errorColor,
             ),
           );
@@ -3622,7 +3643,10 @@ class _CerrarInscripcionesLoaderDialogGeneric extends StatelessWidget {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
+              ),
               backgroundColor: DesignTokens.errorColor,
             ),
           );
@@ -3679,7 +3703,10 @@ class _ReabrirInscripcionesLoaderDialogGeneric extends StatelessWidget {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
+              ),
               backgroundColor: DesignTokens.errorColor,
             ),
           );
@@ -3736,7 +3763,10 @@ class _FinalizarFechaLoaderDialogGeneric extends StatelessWidget {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
+              ),
               backgroundColor: DesignTokens.errorColor,
             ),
           );

@@ -66,6 +66,8 @@ import '../../features/partidos/presentation/bloc/goles/goles_bloc.dart';
 import '../../features/partidos/presentation/bloc/score/score_bloc.dart';
 // E004-HU-005: Finalizar Partido
 import '../../features/partidos/presentation/bloc/finalizar_partido/finalizar_partido_bloc.dart';
+// Lista de partidos
+import '../../features/partidos/presentation/bloc/lista_partidos/lista_partidos_bloc.dart';
 
 /// Service Locator global
 final sl = GetIt.instance;
@@ -217,6 +219,8 @@ Future<void> initializeDependencies() async {
   sl.registerFactory(() => ScoreBloc(repository: sl(), supabase: sl()));
   // E004-HU-005: Finalizar Partido
   sl.registerFactory(() => FinalizarPartidoBloc(repository: sl()));
+  // Lista de partidos
+  sl.registerFactory(() => ListaPartidosBloc(repository: sl()));
 
   // Repository
   sl.registerLazySingleton<PartidosRepository>(

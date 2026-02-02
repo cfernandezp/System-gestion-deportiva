@@ -39,7 +39,10 @@ class FinalizarPartidoButton extends StatelessWidget {
         } else if (state is FinalizarPartidoError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
+              ),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );

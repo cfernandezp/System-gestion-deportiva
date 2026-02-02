@@ -56,7 +56,6 @@ class _RegistrarGolDialogState extends State<RegistrarGolDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     // El equipo que realmente anota depende de si es autogol
@@ -279,7 +278,12 @@ class _RegistrarGolDialogState extends State<RegistrarGolDialog> {
           children: [
             const Icon(Icons.error_outline, color: Colors.white),
             const SizedBox(width: DesignTokens.spacingS),
-            Expanded(child: Text(mensaje)),
+            Expanded(
+              child: Text(
+                mensaje,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
           ],
         ),
         backgroundColor: DesignTokens.errorColor,

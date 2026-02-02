@@ -16,6 +16,8 @@ import '../models/obtener_goles_response_model.dart';
 import '../models/score_partido_response_model.dart';
 // E004-HU-005: Finalizar Partido
 import '../models/finalizar_partido_response_model.dart';
+// Lista de partidos
+import '../models/listar_partidos_response_model.dart';
 
 /// Implementacion del repositorio de partidos
 /// E004-HU-001: Iniciar Partido
@@ -221,6 +223,27 @@ class PartidosRepositoryImpl implements PartidosRepository {
     } catch (e) {
       return Left(ServerFailure(
         message: 'Error inesperado al finalizar partido: ${e.toString()}',
+      ));
+    }
+  }
+
+  // ==================== Lista de Partidos ====================
+
+  @override
+  Future<Either<Failure, ListarPartidosResponseModel>> listarPartidosFecha(
+      String fechaId) async {
+    try {
+      final result = await remoteDataSource.listarPartidosFecha(fechaId);
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado al listar partidos: ${e.toString()}',
       ));
     }
   }

@@ -112,7 +112,12 @@ class ReabrirInscripcionesDialog extends StatelessWidget {
                 children: [
                   const Icon(Icons.error_outline, color: Colors.white),
                   const SizedBox(width: DesignTokens.spacingS),
-                  Expanded(child: Text(state.message)),
+                  Expanded(
+                    child: Text(
+                      state.message,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
                 ],
               ),
               backgroundColor: DesignTokens.errorColor,
