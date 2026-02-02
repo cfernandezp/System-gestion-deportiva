@@ -68,6 +68,14 @@ import '../../features/partidos/presentation/bloc/score/score_bloc.dart';
 import '../../features/partidos/presentation/bloc/finalizar_partido/finalizar_partido_bloc.dart';
 // Lista de partidos
 import '../../features/partidos/presentation/bloc/lista_partidos/lista_partidos_bloc.dart';
+// E004-HU-007: Resumen de Jornada
+import '../../features/partidos/presentation/bloc/resumen_jornada/resumen_jornada_bloc.dart';
+
+// Mi Actividad Feature (E004-HU-008: Mi Actividad en Vivo)
+import '../../features/mi_actividad/data/datasources/mi_actividad_remote_datasource.dart';
+import '../../features/mi_actividad/data/repositories/mi_actividad_repository_impl.dart';
+import '../../features/mi_actividad/domain/repositories/mi_actividad_repository.dart';
+import '../../features/mi_actividad/presentation/bloc/mi_actividad/mi_actividad_bloc.dart';
 
 /// Service Locator global
 final sl = GetIt.instance;
@@ -221,6 +229,8 @@ Future<void> initializeDependencies() async {
   sl.registerFactory(() => FinalizarPartidoBloc(repository: sl()));
   // Lista de partidos
   sl.registerFactory(() => ListaPartidosBloc(repository: sl()));
+  // E004-HU-007: Resumen de Jornada
+  sl.registerFactory(() => ResumenJornadaBloc(repository: sl()));
 
   // Repository
   sl.registerLazySingleton<PartidosRepository>(
@@ -230,5 +240,20 @@ Future<void> initializeDependencies() async {
   // DataSource
   sl.registerLazySingleton<PartidosRemoteDataSource>(
     () => PartidosRemoteDataSourceImpl(supabase: sl()),
+  );
+
+  // -------------------- Mi Actividad (E004-HU-008: Mi Actividad en Vivo) --------------------
+
+  // Blocs
+  sl.registerFactory(() => MiActividadBloc(repository: sl(), supabase: sl()));
+
+  // Repository
+  sl.registerLazySingleton<MiActividadRepository>(
+    () => MiActividadRepositoryImpl(remoteDataSource: sl()),
+  );
+
+  // DataSource
+  sl.registerLazySingleton<MiActividadRemoteDataSource>(
+    () => MiActividadRemoteDataSourceImpl(supabase: sl()),
   );
 }

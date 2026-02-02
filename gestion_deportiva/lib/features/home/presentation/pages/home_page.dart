@@ -9,6 +9,8 @@ import '../../../../core/widgets/dashboard_shell.dart';
 import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../auth/presentation/bloc/session/session.dart';
+// E004-HU-008: Mi Actividad en Vivo
+import '../../../mi_actividad/presentation/widgets/mi_actividad_vivo_widget.dart';
 
 /// Pagina principal post-login - Dashboard CRM Moderno
 /// Implementa HU-004: Cierre de Sesion
@@ -52,6 +54,8 @@ class _MobileHomeView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // CA-001, RN-007: Widget de Mi Actividad en Vivo (prominente, arriba)
+              const MiActividadVivoWidget(),
               _buildWelcomeCard(context),
               const SizedBox(height: DesignTokens.spacingL),
               _buildQuickAccessSection(context, isMobile: true),
@@ -1295,13 +1299,14 @@ List<_QuickAccessItem> _getAccesosPorRol(String rol) {
     case 'jugador':
     default:
       return [
+        // E004-HU-008: Mi Actividad en Vivo
         _QuickAccessItem(
-          title: 'Mis Partidos',
-          description: 'Ver mis proximos partidos',
+          title: 'Mi Actividad',
+          description: 'Ver mi actividad en vivo',
           icon: Icons.sports_soccer,
           color: DesignTokens.primaryColor,
-          route: '/mis-partidos',
-          enabled: false,
+          route: '/mi-actividad',
+          enabled: true,
         ),
         _QuickAccessItem(
           title: 'Mi Equipo',

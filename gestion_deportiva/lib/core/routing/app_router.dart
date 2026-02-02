@@ -36,6 +36,10 @@ import '../../features/fechas/presentation/pages/asignar_equipos_page.dart';
 // E001-HU-006: Gestionar Solicitudes de Registro
 import '../../features/solicitudes/presentation/bloc/solicitudes/solicitudes.dart';
 import '../../features/solicitudes/presentation/pages/solicitudes_pendientes_page.dart';
+// E004-HU-008: Mi Actividad en Vivo
+import '../../features/mi_actividad/presentation/bloc/mi_actividad/mi_actividad_bloc.dart';
+import '../../features/mi_actividad/presentation/bloc/mi_actividad/mi_actividad_event.dart';
+import '../../features/mi_actividad/presentation/pages/mi_actividad_page.dart';
 
 /// Notificador que escucha cambios en el SessionBloc y notifica al GoRouter
 /// Esto resuelve la race condition entre login exitoso y la redireccion
@@ -109,6 +113,8 @@ class AppRouter {
   static const String asignarEquipos = '/fechas/:id/equipos';
   // E001-HU-006: Gestionar Solicitudes de Registro (solo admin)
   static const String adminSolicitudes = '/admin/solicitudes';
+  // E004-HU-008: Mi Actividad en Vivo
+  static const String miActividad = '/mi-actividad';
 
   /// Rutas publicas (no requieren autenticacion)
   static const List<String> _publicRoutes = [
@@ -371,6 +377,22 @@ class AppRouter {
             create: (context) => sl<SolicitudesBloc>()
               ..add(const CargarSolicitudesEvent()),
             child: const SolicitudesPendientesPage(),
+          ),
+        ),
+      ),
+
+      // E004-HU-008: Mi Actividad en Vivo
+      // CA-003: Pantalla Mi Actividad - Lista de todos los partidos
+      // CA-010: Sin pichanga activa - mensaje informativo
+      GoRoute(
+        path: '/mi-actividad',
+        name: 'miActividad',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: BlocProvider(
+            create: (context) => sl<MiActividadBloc>()
+              ..add(const CargarMiActividadEvent()),
+            child: const MiActividadPage(),
           ),
         ),
       ),
