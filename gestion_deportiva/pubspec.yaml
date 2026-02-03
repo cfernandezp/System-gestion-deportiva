@@ -36,6 +36,9 @@ dependencies:
   audioplayers: ^5.2.1
   web: ^1.0.0
 
+  # Sharing (E004-HU-007: Compartir Resumen)
+  share_plus: ^10.1.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

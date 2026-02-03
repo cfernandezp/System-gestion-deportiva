@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/services/alarm_service.dart';
 import '../../../../core/theme/design_tokens.dart';
@@ -141,12 +142,28 @@ class _TemporizadorFullscreenState extends State<TemporizadorFullscreen>
   /// Flag si el beep de advertencia ya sono
   bool _advertenciaSono = false;
 
+  /// Goles locales - actualizado via realtime
+  late int _golesLocal;
+
+  /// Goles visitantes - actualizado via realtime
+  late int _golesVisitante;
+
+  /// Canal de Supabase Realtime para escuchar goles en tiempo real
+  RealtimeChannel? _golesChannel;
+
+  /// Cliente Supabase
+  final SupabaseClient _supabase = Supabase.instance.client;
+
   @override
   void initState() {
     super.initState();
 
     // Sincronizar tiempo inicial
     _tiempoLocal = widget.partido.tiempoRestanteSegundos;
+
+    // Inicializar goles con valores del widget
+    _golesLocal = widget.golesLocal;
+    _golesVisitante = widget.golesVisitante;
 
     // Inicializar animacion de parpadeo
     _blinkController = AnimationController(
@@ -172,6 +189,81 @@ class _TemporizadorFullscreenState extends State<TemporizadorFullscreen>
     // Si ya termino el tiempo, iniciar parpadeo
     if (_tiempoLocal <= 0) {
       _blinkController.repeat(reverse: true);
+    }
+
+    // Suscribirse a Supabase Realtime para actualizaciones de goles
+    _suscribirseRealtimeGoles();
+  }
+
+  /// Suscribe directamente a Supabase Realtime para cambios en tabla goles
+  void _suscribirseRealtimeGoles() {
+    final partidoId = widget.partido.id;
+
+    _golesChannel = _supabase
+        .channel('fullscreen_goles_$partidoId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'goles',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'partido_id',
+            value: partidoId,
+          ),
+          callback: (payload) {
+            // Nuevo gol registrado - actualizar marcador
+            _recargarGoles();
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.delete,
+          schema: 'public',
+          table: 'goles',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'partido_id',
+            value: partidoId,
+          ),
+          callback: (payload) {
+            // Gol eliminado - actualizar marcador
+            _recargarGoles();
+          },
+        )
+        .subscribe();
+  }
+
+  /// Recarga los goles del partido desde la base de datos
+  Future<void> _recargarGoles() async {
+    try {
+      final response = await _supabase
+          .from('goles')
+          .select('equipo_anotador')
+          .eq('partido_id', widget.partido.id);
+
+      if (!mounted) return;
+
+      // Contar goles por equipo
+      int golesLocal = 0;
+      int golesVisitante = 0;
+
+      final equipoLocalColor = widget.partido.equipoLocal.color.name;
+
+      for (final gol in response) {
+        final equipoAnotador = gol['equipo_anotador'] as String?;
+        if (equipoAnotador?.toLowerCase() == equipoLocalColor.toLowerCase()) {
+          golesLocal++;
+        } else {
+          golesVisitante++;
+        }
+      }
+
+      setState(() {
+        _golesLocal = golesLocal;
+        _golesVisitante = golesVisitante;
+      });
+    } catch (e) {
+      // Error silencioso - mantener valores actuales
+      debugPrint('Error recargando goles: $e');
     }
   }
 
@@ -205,6 +297,10 @@ class _TemporizadorFullscreenState extends State<TemporizadorFullscreen>
     _blinkController.dispose();
     _alarmService.stopEndAlarm();
     _salirPantallaCompleta();
+    // Cancelar suscripcion a Supabase Realtime
+    if (_golesChannel != null) {
+      _supabase.removeChannel(_golesChannel!);
+    }
     super.dispose();
   }
 
@@ -467,7 +563,7 @@ class _TemporizadorFullscreenState extends State<TemporizadorFullscreen>
                 _buildEquipoChipLandscape(equipoLocal, 'LOCAL'),
                 const SizedBox(height: DesignTokens.spacingM),
                 Text(
-                  '${widget.golesLocal}',
+                  '${_golesLocal}',
                   style: TextStyle(
                     fontSize: 100,
                     fontWeight: FontWeight.bold,
@@ -528,7 +624,7 @@ class _TemporizadorFullscreenState extends State<TemporizadorFullscreen>
                 _buildEquipoChipLandscape(equipoVisitante, 'VISITANTE'),
                 const SizedBox(height: DesignTokens.spacingM),
                 Text(
-                  '${widget.golesVisitante}',
+                  '${_golesVisitante}',
                   style: TextStyle(
                     fontSize: 100,
                     fontWeight: FontWeight.bold,
@@ -724,7 +820,7 @@ class _TemporizadorFullscreenState extends State<TemporizadorFullscreen>
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          '${widget.golesLocal}',
+          '${_golesLocal}',
           style: TextStyle(
             fontSize: 72,
             fontWeight: FontWeight.bold,
@@ -743,7 +839,7 @@ class _TemporizadorFullscreenState extends State<TemporizadorFullscreen>
           ),
         ),
         Text(
-          '${widget.golesVisitante}',
+          '${_golesVisitante}',
           style: TextStyle(
             fontSize: 72,
             fontWeight: FontWeight.bold,

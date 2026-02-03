@@ -7,12 +7,12 @@
 - **Story Points**: 8 pts
 
 ## Historia de Usuario
-**Como** jugador inscrito en una pichanga activa
+**Como** usuario inscrito en una pichanga activa (jugador, admin u organizador)
 **Quiero** ver mi estado y actividad en tiempo real
 **Para** saber como voy en la jornada actual (mis goles, partidos de mi equipo, resultados)
 
 ## Descripcion
-Esta funcionalidad permite al jugador ver su actividad durante una pichanga en curso (`en_juego`). Incluye dos componentes:
+Esta funcionalidad permite a cualquier usuario inscrito ver su actividad durante una pichanga en curso (`en_juego`). El rol del usuario (admin, jugador, organizador) no importa; lo relevante es estar inscrito y participando. Incluye dos componentes:
 
 1. **Widget en Dashboard**: Card destacada que aparece SOLO cuando hay pichanga activa donde el jugador esta inscrito. Muestra resumen rapido: estado "Jugando", goles, equipo actual.
 
@@ -23,7 +23,7 @@ Esta funcionalidad permite al jugador ver su actividad durante una pichanga en c
 ## Criterios de Aceptacion (CA)
 
 ### CA-001: Widget en Dashboard - Visible solo con pichanga activa
-- **Dado** que soy jugador y hay una pichanga `en_juego` donde estoy inscrito
+- **Dado** que soy usuario inscrito (cualquier rol: admin, jugador, organizador) y hay una pichanga `en_juego` donde estoy inscrito
 - **Cuando** accedo al Dashboard (Inicio)
 - **Entonces** veo un widget destacado con indicador "JUGANDO" (verde pulsante)
 - **Y** si no hay pichanga activa donde estoy inscrito, el widget NO aparece
@@ -94,14 +94,17 @@ Esta funcionalidad permite al jugador ver su actividad durante una pichanga en c
 
 ## Reglas de Negocio (RN)
 
-### RN-001: Pichanga Activa del Jugador
+### RN-001: Pichanga Activa del Usuario (Independiente del Rol)
 **Contexto**: Para mostrar el widget y la pantalla de actividad.
 **Restriccion**: Solo se considera "mi pichanga activa" si:
   1. La fecha tiene estado = 'en_juego'
   2. Tengo inscripcion activa (estado = 'inscrito') en esa fecha
+  3. **El rol del usuario NO importa** (admin, jugador, organizador pueden ver su actividad)
 **Validacion**: Buscar fecha donde estado='en_juego' AND existe inscripcion del usuario con estado='inscrito'.
 **Regla calculo**: N/A.
-**Caso especial**: Si hay multiples pichangas activas (poco probable), mostrar la mas reciente.
+**Caso especial**:
+  - Si hay multiples pichangas activas (poco probable), mostrar la mas reciente.
+  - Un admin que tambien juega ve tanto sus opciones de admin como "Mi Actividad".
 
 ### RN-002: Identificacion de "Mis Partidos"
 **Contexto**: Para resaltar partidos donde participo.

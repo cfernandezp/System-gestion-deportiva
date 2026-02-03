@@ -18,6 +18,8 @@ import '../models/score_partido_response_model.dart';
 import '../models/finalizar_partido_response_model.dart';
 // Lista de partidos
 import '../models/listar_partidos_response_model.dart';
+// E004-HU-007: Resumen de Jornada
+import '../models/resumen_jornada_model.dart';
 
 /// Implementacion del repositorio de partidos
 /// E004-HU-001: Iniciar Partido
@@ -244,6 +246,27 @@ class PartidosRepositoryImpl implements PartidosRepository {
     } catch (e) {
       return Left(ServerFailure(
         message: 'Error inesperado al listar partidos: ${e.toString()}',
+      ));
+    }
+  }
+
+  // ==================== E004-HU-007: Resumen de Jornada ====================
+
+  @override
+  Future<Either<Failure, ResumenJornadaModel>> obtenerResumenJornada(
+      String fechaId) async {
+    try {
+      final result = await remoteDataSource.obtenerResumenJornada(fechaId);
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado al obtener resumen de jornada: ${e.toString()}',
       ));
     }
   }

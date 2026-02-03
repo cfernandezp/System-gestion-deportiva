@@ -15,6 +15,8 @@ import '../../data/models/score_partido_response_model.dart';
 import '../../data/models/finalizar_partido_response_model.dart';
 // Lista de partidos
 import '../../data/models/listar_partidos_response_model.dart';
+// E004-HU-007: Resumen de Jornada
+import '../../data/models/resumen_jornada_model.dart';
 
 /// Interface del repositorio de partidos
 /// E004-HU-001: Iniciar Partido
@@ -103,5 +105,15 @@ abstract class PartidosRepository {
   /// Lista todos los partidos de una fecha
   /// Returns: `Either<Failure, ListarPartidosResponseModel>`
   Future<Either<Failure, ListarPartidosResponseModel>> listarPartidosFecha(
+      String fechaId);
+
+  // ==================== E004-HU-007: Resumen de Jornada ====================
+
+  /// Obtiene el resumen completo de una jornada/fecha
+  /// CA-001: Tabla de posiciones
+  /// CA-002: Estadisticas de la jornada
+  /// CA-003: Lista de goleadores
+  /// Returns: `Either<Failure, ResumenJornadaModel>`
+  Future<Either<Failure, ResumenJornadaModel>> obtenerResumenJornada(
       String fechaId);
 }

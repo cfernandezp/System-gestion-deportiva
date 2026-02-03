@@ -77,6 +77,12 @@ import '../../features/mi_actividad/data/repositories/mi_actividad_repository_im
 import '../../features/mi_actividad/domain/repositories/mi_actividad_repository.dart';
 import '../../features/mi_actividad/presentation/bloc/mi_actividad/mi_actividad_bloc.dart';
 
+// Estadisticas Feature (E006-HU-001: Ranking de Goleadores)
+import '../../features/estadisticas/data/datasources/estadisticas_remote_datasource.dart';
+import '../../features/estadisticas/data/repositories/estadisticas_repository_impl.dart';
+import '../../features/estadisticas/domain/repositories/estadisticas_repository.dart';
+import '../../features/estadisticas/presentation/bloc/ranking_goleadores/ranking_goleadores_bloc.dart';
+
 /// Service Locator global
 final sl = GetIt.instance;
 
@@ -255,5 +261,21 @@ Future<void> initializeDependencies() async {
   // DataSource
   sl.registerLazySingleton<MiActividadRemoteDataSource>(
     () => MiActividadRemoteDataSourceImpl(supabase: sl()),
+  );
+
+  // -------------------- Estadisticas (E006-HU-001: Ranking de Goleadores) --------------------
+
+  // Blocs
+  // E006-HU-001: Ranking de Goleadores
+  sl.registerFactory(() => RankingGoleadoresBloc(repository: sl()));
+
+  // Repository
+  sl.registerLazySingleton<EstadisticasRepository>(
+    () => EstadisticasRepositoryImpl(remoteDataSource: sl()),
+  );
+
+  // DataSource
+  sl.registerLazySingleton<EstadisticasRemoteDataSource>(
+    () => EstadisticasRemoteDataSourceImpl(supabase: sl()),
   );
 }

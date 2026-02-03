@@ -440,6 +440,9 @@ class _PartidosSection extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final partidos = actividad.partidos;
 
+    // Buscar partido en curso donde participo
+    final partidoEnCurso = partidos.where((p) => p.enCurso && p.esMiPartido).firstOrNull;
+
     if (partidos.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(DesignTokens.spacingXl),
@@ -471,58 +474,559 @@ class _PartidosSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(
-              Icons.list_alt,
-              size: DesignTokens.iconSizeM,
-              color: colorScheme.primary,
+        // Card EN VIVO si hay partido activo donde participo
+        if (partidoEnCurso != null) ...[
+          _PartidoEnVivoCard(partido: partidoEnCurso, miEquipo: actividad.miEquipo),
+          const SizedBox(height: DesignTokens.spacingL),
+        ],
+
+        // Tabla de partidos
+        Container(
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+            border: Border.all(color: colorScheme.outlineVariant),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(DesignTokens.spacingM),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.sports_soccer,
+                      size: DesignTokens.iconSizeM,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: DesignTokens.spacingS),
+                    Text(
+                      'Partidos (${partidos.length})',
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: DesignTokens.fontWeightSemiBold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+
+              // Cabecera de tabla
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spacingM,
+                  vertical: DesignTokens.spacingS,
+                ),
+                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 100,
+                      child: Text(
+                        'Estado',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        'Enfrentamiento',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    SizedBox(
+                      width: 60,
+                      child: Text(
+                        'Score',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Filas de partidos
+              ...partidos.map((partido) => _PartidoRow(
+                partido: partido,
+                esMiPartido: partido.esMiPartido,
+              )),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================
+// CARD PARTIDO EN VIVO (estilo admin)
+// ============================================
+
+class _PartidoEnVivoCard extends StatelessWidget {
+  final PartidoActividadModel partido;
+  final MiEquipoActividadModel? miEquipo;
+
+  const _PartidoEnVivoCard({required this.partido, this.miEquipo});
+
+  Color _colorFromName(String colorName) {
+    switch (colorName.toLowerCase()) {
+      case 'naranja':
+        return const Color(0xFFFF9800);
+      case 'verde':
+        return const Color(0xFF4CAF50);
+      case 'azul':
+        return const Color(0xFF2196F3);
+      case 'rojo':
+        return const Color(0xFFF44336);
+      case 'amarillo':
+        return const Color(0xFFFFEB3B);
+      case 'blanco':
+        return const Color(0xFFFFFFFF);
+      default:
+        return const Color(0xFFCCCCCC);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final colorLocal = _colorFromName(partido.equipoLocal);
+    final colorVisitante = _colorFromName(partido.equipoVisitante);
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            DesignTokens.successColor.withValues(alpha: 0.2),
+            DesignTokens.successColor.withValues(alpha: 0.05),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+        border: Border.all(
+          color: DesignTokens.successColor.withValues(alpha: 0.5),
+          width: 2,
+        ),
+      ),
+      child: Column(
+        children: [
+          // Header EN VIVO
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spacingM,
+              vertical: DesignTokens.spacingS,
             ),
-            const SizedBox(width: DesignTokens.spacingS),
-            Text(
-              'Partidos de la Jornada',
-              style: textTheme.titleMedium?.copyWith(
-                fontWeight: DesignTokens.fontWeightSemiBold,
+            decoration: BoxDecoration(
+              color: DesignTokens.successColor,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(DesignTokens.radiusL - 2),
+                topRight: Radius.circular(DesignTokens.radiusL - 2),
               ),
             ),
-            const SizedBox(width: DesignTokens.spacingS),
-            Container(
+            child: Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: DesignTokens.spacingXs),
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: DesignTokens.spacingS),
+                Text(
+                  'EN VIVO',
+                  style: textTheme.titleSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: DesignTokens.fontWeightBold,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: DesignTokens.spacingS,
+                    vertical: DesignTokens.spacingXxs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${partido.duracionMinutos}:00',
+                        style: textTheme.labelMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: DesignTokens.fontWeightBold,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.play_arrow, color: Colors.white, size: 16),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Contenido
+          Padding(
+            padding: const EdgeInsets.all(DesignTokens.spacingL),
+            child: Column(
+              children: [
+                // Equipos y score
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Equipo Local
+                    Column(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: colorLocal,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: colorLocal.withValues(alpha: 0.4),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              partido.equipoLocal[0].toUpperCase(),
+                              style: textTheme.titleLarge?.copyWith(
+                                color: colorLocal == const Color(0xFFFFFFFF) ||
+                                        colorLocal == const Color(0xFFFFEB3B)
+                                    ? Colors.black
+                                    : Colors.white,
+                                fontWeight: DesignTokens.fontWeightBold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: DesignTokens.spacingXs),
+                        Text(
+                          partido.equipoLocal.toUpperCase(),
+                          style: textTheme.labelMedium?.copyWith(
+                            color: colorLocal,
+                            fontWeight: DesignTokens.fontWeightBold,
+                          ),
+                        ),
+                        Text(
+                          'Local',
+                          style: textTheme.labelSmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // VS y Score
+                    Column(
+                      children: [
+                        Text(
+                          'vs',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: DesignTokens.spacingS),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: DesignTokens.spacingL,
+                            vertical: DesignTokens.spacingM,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surface,
+                            borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+                            border: Border.all(
+                              color: DesignTokens.successColor,
+                              width: 2,
+                            ),
+                          ),
+                          child: Text(
+                            '${partido.golesLocal}  -  ${partido.golesVisitante}',
+                            style: textTheme.displaySmall?.copyWith(
+                              fontWeight: DesignTokens.fontWeightBold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Equipo Visitante
+                    Column(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: colorVisitante,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: colorVisitante.withValues(alpha: 0.4),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              partido.equipoVisitante[0].toUpperCase(),
+                              style: textTheme.titleLarge?.copyWith(
+                                color: colorVisitante == const Color(0xFFFFFFFF) ||
+                                        colorVisitante == const Color(0xFFFFEB3B)
+                                    ? Colors.black
+                                    : Colors.white,
+                                fontWeight: DesignTokens.fontWeightBold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: DesignTokens.spacingXs),
+                        Text(
+                          partido.equipoVisitante.toUpperCase(),
+                          style: textTheme.labelMedium?.copyWith(
+                            color: colorVisitante,
+                            fontWeight: DesignTokens.fontWeightBold,
+                          ),
+                        ),
+                        Text(
+                          'Visitante',
+                          style: textTheme.labelSmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================
+// FILA DE PARTIDO EN TABLA
+// ============================================
+
+class _PartidoRow extends StatelessWidget {
+  final PartidoActividadModel partido;
+  final bool esMiPartido;
+
+  const _PartidoRow({required this.partido, required this.esMiPartido});
+
+  Color _colorFromName(String colorName) {
+    switch (colorName.toLowerCase()) {
+      case 'naranja':
+        return const Color(0xFFFF9800);
+      case 'verde':
+        return const Color(0xFF4CAF50);
+      case 'azul':
+        return const Color(0xFF2196F3);
+      case 'rojo':
+        return const Color(0xFFF44336);
+      case 'amarillo':
+        return const Color(0xFFFFEB3B);
+      case 'blanco':
+        return const Color(0xFFFFFFFF);
+      default:
+        return const Color(0xFFCCCCCC);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final colorLocal = _colorFromName(partido.equipoLocal);
+    final colorVisitante = _colorFromName(partido.equipoVisitante);
+
+    // Colores de estado
+    Color estadoColor;
+    String estadoLabel;
+    switch (partido.estado) {
+      case 'en_curso':
+        estadoColor = DesignTokens.successColor;
+        estadoLabel = 'En curso';
+        break;
+      case 'finalizado':
+        estadoColor = Colors.orange;
+        estadoLabel = 'Finalizado';
+        break;
+      default:
+        estadoColor = Colors.blue;
+        estadoLabel = 'Pendiente';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: DesignTokens.spacingM,
+        vertical: DesignTokens.spacingS,
+      ),
+      decoration: BoxDecoration(
+        color: esMiPartido
+            ? DesignTokens.primaryColor.withValues(alpha: 0.05)
+            : null,
+        border: Border(
+          bottom: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+          left: esMiPartido
+              ? BorderSide(color: DesignTokens.primaryColor, width: 3)
+              : BorderSide.none,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Estado
+          SizedBox(
+            width: 100,
+            child: Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: DesignTokens.spacingS,
                 vertical: DesignTokens.spacingXxs,
               ),
               decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
+                color: estadoColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+                border: Border.all(color: estadoColor.withValues(alpha: 0.3)),
               ),
-              child: Text(
-                '${partidos.length}',
-                style: textTheme.labelMedium?.copyWith(
-                  color: colorScheme.onPrimaryContainer,
-                  fontWeight: DesignTokens.fontWeightSemiBold,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (partido.estado == 'en_curso')
+                    Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.only(right: 4),
+                      decoration: BoxDecoration(
+                        color: estadoColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  Text(
+                    estadoLabel,
+                    style: textTheme.labelSmall?.copyWith(
+                      color: estadoColor,
+                      fontWeight: DesignTokens.fontWeightMedium,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: DesignTokens.spacingM),
+          ),
 
-        // Lista de partidos
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: partidos.length,
-          separatorBuilder: (context, index) =>
-              const SizedBox(height: DesignTokens.spacingM),
-          itemBuilder: (context, index) {
-            final partido = partidos[index];
-            return _PartidoCard(
-              partido: partido,
-              miEquipoColor: actividad.miEquipo?.color,
-            );
-          },
-        ),
-      ],
+          // Enfrentamiento
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Equipo local
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: DesignTokens.spacingS,
+                    vertical: DesignTokens.spacingXxs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorLocal,
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+                  ),
+                  child: Text(
+                    partido.equipoLocal.toUpperCase(),
+                    style: textTheme.labelSmall?.copyWith(
+                      color: colorLocal == const Color(0xFFFFFFFF) ||
+                              colorLocal == const Color(0xFFFFEB3B)
+                          ? Colors.black
+                          : Colors.white,
+                      fontWeight: DesignTokens.fontWeightBold,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spacingS),
+                  child: Text(
+                    'vs',
+                    style: textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                // Equipo visitante
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: DesignTokens.spacingS,
+                    vertical: DesignTokens.spacingXxs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorVisitante,
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+                  ),
+                  child: Text(
+                    partido.equipoVisitante.toUpperCase(),
+                    style: textTheme.labelSmall?.copyWith(
+                      color: colorVisitante == const Color(0xFFFFFFFF) ||
+                              colorVisitante == const Color(0xFFFFEB3B)
+                          ? Colors.black
+                          : Colors.white,
+                      fontWeight: DesignTokens.fontWeightBold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Score
+          SizedBox(
+            width: 60,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spacingS,
+                vertical: DesignTokens.spacingXxs,
+              ),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+              ),
+              child: Text(
+                '${partido.golesLocal} - ${partido.golesVisitante}',
+                style: textTheme.labelMedium?.copyWith(
+                  fontWeight: DesignTokens.fontWeightBold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

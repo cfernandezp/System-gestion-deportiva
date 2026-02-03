@@ -32,3 +32,6 @@ export 'finalizar_partido_response_model.dart';
 
 // Lista de partidos
 export 'listar_partidos_response_model.dart';
+
+// E004-HU-007: Resumen de Jornada
+export 'resumen_jornada_model.dart';

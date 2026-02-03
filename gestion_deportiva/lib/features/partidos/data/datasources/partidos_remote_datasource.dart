@@ -15,6 +15,8 @@ import '../models/score_partido_response_model.dart';
 import '../models/finalizar_partido_response_model.dart';
 // Lista de partidos
 import '../models/listar_partidos_response_model.dart';
+// E004-HU-007: Resumen de Jornada
+import '../models/resumen_jornada_model.dart';
 
 /// Interface del DataSource remoto de partidos
 /// E004-HU-001: Iniciar Partido
@@ -100,6 +102,15 @@ abstract class PartidosRemoteDataSource {
   /// Lista todos los partidos de una fecha
   /// RPC: listar_partidos_fecha(p_fecha_id)
   Future<ListarPartidosResponseModel> listarPartidosFecha(String fechaId);
+
+  // ==================== E004-HU-007: Resumen de Jornada ====================
+
+  /// Obtiene el resumen completo de una jornada/fecha
+  /// RPC: obtener_resumen_jornada(p_fecha_id)
+  /// CA-001: Tabla de posiciones
+  /// CA-002: Estadisticas de la jornada
+  /// CA-003: Lista de goleadores
+  Future<ResumenJornadaModel> obtenerResumenJornada(String fechaId);
 }
 
 /// Implementacion del DataSource remoto de partidos
@@ -466,6 +477,42 @@ class PartidosRemoteDataSourceImpl implements PartidosRemoteDataSource {
     } catch (e) {
       throw ServerException(
         message: 'Error de conexion al listar partidos: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== E004-HU-007: Resumen de Jornada ====================
+
+  @override
+  Future<ResumenJornadaModel> obtenerResumenJornada(String fechaId) async {
+    try {
+      // RPC: obtener_resumen_jornada(p_fecha_id)
+      // CA-001: Tabla de posiciones
+      // CA-002: Estadisticas de la jornada
+      // CA-003: Lista de goleadores
+      final response = await supabase.rpc(
+        'obtener_resumen_jornada',
+        params: {'p_fecha_id': fechaId},
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return ResumenJornadaModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message:
+              error['message'] as String? ?? 'Error al obtener resumen de jornada',
+          code: error['code'] as String?,
+          hint: error['hint'] as String?,
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al obtener resumen de jornada: ${e.toString()}',
       );
     }
   }

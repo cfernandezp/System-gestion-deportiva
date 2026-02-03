@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/theme/design_tokens.dart';
 import '../../../fechas/data/models/color_equipo.dart';
@@ -361,9 +362,12 @@ class _PartidoEnVivoCard extends StatelessWidget {
                 : null,
           ),
 
-          // Contenido principal
+          // Contenido principal - Compacto
           Padding(
-            padding: const EdgeInsets.all(DesignTokens.spacingL),
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spacingM,
+              vertical: DesignTokens.spacingS,
+            ),
             child: Column(
               children: [
                 // Equipos con indicadores de color y botones de gol
@@ -374,18 +378,20 @@ class _PartidoEnVivoCard extends StatelessWidget {
                   isProcesando: isProcesando,
                 ),
 
-                const SizedBox(height: DesignTokens.spacingL),
+                const SizedBox(height: DesignTokens.spacingS),
 
-                // Marcador grande estilo estadio
+                // Marcador estilo estadio con realtime - Compacto
                 _MarcadorEstadio(
                   golesLocal: partido.golesLocal,
                   golesVisitante: partido.golesVisitante,
                   colorBorde: colorEstado,
+                  partidoId: partido.id,
+                  equipoLocalColor: partido.equipoLocal.color.name,
                 ),
 
-                const SizedBox(height: DesignTokens.spacingL),
+                const SizedBox(height: DesignTokens.spacingS),
 
-                // Display de horarios
+                // Display de horarios - Compacto
                 _HorarioDisplay(
                   horaInicio: partido.horaInicioFormato,
                   horaFinEstimada: partido.horaFinEstimadaFormato,
@@ -394,7 +400,7 @@ class _PartidoEnVivoCard extends StatelessWidget {
 
                 // Botones de accion (solo admin) - Sin boton de gol, ahora estan arriba
                 if (esAdmin) ...[
-                  const SizedBox(height: DesignTokens.spacingL),
+                  const SizedBox(height: DesignTokens.spacingS),
                   _BotonesAccion(
                     partido: partido,
                     puedePausar: puedePausar,
@@ -802,29 +808,29 @@ class _EquipoConBotonGol extends StatelessWidget {
 
     return Column(
       children: [
-        // Circulo con color del equipo
+        // Circulo con color del equipo - Compacto
         Container(
-          width: 40,
-          height: 40,
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(
             color: color.color,
             shape: BoxShape.circle,
             border: Border.all(
               color: color.borderColor,
-              width: 2,
+              width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: color.color.withValues(alpha: 0.4),
-                blurRadius: 8,
-                spreadRadius: 1,
+                color: color.color.withValues(alpha: 0.3),
+                blurRadius: 4,
+                spreadRadius: 0,
               ),
             ],
           ),
           child: Center(
             child: Text(
               color.displayName[0].toUpperCase(),
-              style: textTheme.titleSmall?.copyWith(
+              style: textTheme.labelMedium?.copyWith(
                 color: color.textColor,
                 fontWeight: DesignTokens.fontWeightBold,
               ),
@@ -832,29 +838,30 @@ class _EquipoConBotonGol extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: DesignTokens.spacingXs),
+        const SizedBox(height: 2),
 
-        // Nombre del equipo
+        // Nombre del equipo - Compacto
         Text(
           color.displayName.toUpperCase(),
-          style: textTheme.labelMedium?.copyWith(
+          style: textTheme.labelSmall?.copyWith(
             fontWeight: DesignTokens.fontWeightBold,
             color: color.color,
-            letterSpacing: 0.5,
+            letterSpacing: 0.3,
           ),
         ),
 
-        // Etiqueta Local/Visitante
+        // Etiqueta Local/Visitante - Mas pequena
         Text(
           etiqueta,
-          style: textTheme.labelSmall?.copyWith(
+          style: textTheme.bodySmall?.copyWith(
             color: colorScheme.onSurfaceVariant,
+            fontSize: 10,
           ),
         ),
 
-        // Boton de gol (solo si puede registrar)
+        // Boton de gol (solo si puede registrar) - Compacto
         if (puedeRegistrar) ...[
-          const SizedBox(height: DesignTokens.spacingS),
+          const SizedBox(height: DesignTokens.spacingXs),
           _BotonGolEquipo(
             color: color,
             onTap: () => _mostrarDialogGol(context),
@@ -881,16 +888,16 @@ class _BotonGolEquipo extends StatelessWidget {
 
     return Material(
       color: color.color,
-      borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+      borderRadius: BorderRadius.circular(DesignTokens.radiusS),
       elevation: DesignTokens.elevationS,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusS),
         splashColor: Colors.white.withValues(alpha: 0.3),
         child: Container(
           padding: const EdgeInsets.symmetric(
-            horizontal: DesignTokens.spacingM,
-            vertical: DesignTokens.spacingS,
+            horizontal: DesignTokens.spacingS,
+            vertical: 4,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -899,12 +906,12 @@ class _BotonGolEquipo extends StatelessWidget {
               Icon(
                 Icons.sports_soccer,
                 color: color.textColor,
-                size: 18,
+                size: 14,
               ),
-              const SizedBox(width: DesignTokens.spacingXs),
+              const SizedBox(width: 2),
               Text(
                 '+Gol',
-                style: textTheme.labelMedium?.copyWith(
+                style: textTheme.labelSmall?.copyWith(
                   color: color.textColor,
                   fontWeight: DesignTokens.fontWeightBold,
                 ),
@@ -918,23 +925,135 @@ class _BotonGolEquipo extends StatelessWidget {
 }
 
 /// Marcador grande estilo estadio con gradiente oscuro
-class _MarcadorEstadio extends StatelessWidget {
+/// Incluye suscripcion a Supabase Realtime para actualizaciones en tiempo real
+class _MarcadorEstadio extends StatefulWidget {
   final int golesLocal;
   final int golesVisitante;
   final Color colorBorde;
+  final String partidoId;
+  final String equipoLocalColor;
 
   const _MarcadorEstadio({
     required this.golesLocal,
     required this.golesVisitante,
     required this.colorBorde,
+    required this.partidoId,
+    required this.equipoLocalColor,
   });
+
+  @override
+  State<_MarcadorEstadio> createState() => _MarcadorEstadioState();
+}
+
+class _MarcadorEstadioState extends State<_MarcadorEstadio> {
+  /// Goles actualizados via realtime
+  late int _golesLocal;
+  late int _golesVisitante;
+
+  /// Canal de Supabase Realtime
+  RealtimeChannel? _golesChannel;
+
+  /// Cliente Supabase
+  final SupabaseClient _supabase = Supabase.instance.client;
+
+  @override
+  void initState() {
+    super.initState();
+    _golesLocal = widget.golesLocal;
+    _golesVisitante = widget.golesVisitante;
+    _suscribirseRealtimeGoles();
+  }
+
+  @override
+  void didUpdateWidget(_MarcadorEstadio oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Sincronizar si cambian los valores desde el widget padre
+    if (widget.golesLocal != oldWidget.golesLocal ||
+        widget.golesVisitante != oldWidget.golesVisitante) {
+      _golesLocal = widget.golesLocal;
+      _golesVisitante = widget.golesVisitante;
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_golesChannel != null) {
+      _supabase.removeChannel(_golesChannel!);
+    }
+    super.dispose();
+  }
+
+  /// Suscribe a Supabase Realtime para cambios en tabla goles
+  void _suscribirseRealtimeGoles() {
+    _golesChannel = _supabase
+        .channel('marcador_goles_${widget.partidoId}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'goles',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'partido_id',
+            value: widget.partidoId,
+          ),
+          callback: (payload) {
+            _recargarGoles();
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.delete,
+          schema: 'public',
+          table: 'goles',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'partido_id',
+            value: widget.partidoId,
+          ),
+          callback: (payload) {
+            _recargarGoles();
+          },
+        )
+        .subscribe();
+  }
+
+  /// Recarga los goles del partido desde la base de datos
+  Future<void> _recargarGoles() async {
+    try {
+      final response = await _supabase
+          .from('goles')
+          .select('equipo_anotador')
+          .eq('partido_id', widget.partidoId);
+
+      if (!mounted) return;
+
+      int golesLocal = 0;
+      int golesVisitante = 0;
+
+      for (final gol in response) {
+        final equipoAnotador = gol['equipo_anotador'] as String?;
+        if (equipoAnotador?.toLowerCase() ==
+            widget.equipoLocalColor.toLowerCase()) {
+          golesLocal++;
+        } else {
+          golesVisitante++;
+        }
+      }
+
+      setState(() {
+        _golesLocal = golesLocal;
+        _golesVisitante = golesVisitante;
+      });
+    } catch (e) {
+      debugPrint('Error recargando goles marcador: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: DesignTokens.spacingXl,
-        vertical: DesignTokens.spacingM,
+        horizontal: DesignTokens.spacingL,
+        vertical: DesignTokens.spacingS,
       ),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -945,16 +1064,16 @@ class _MarcadorEstadio extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
-        borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
         border: Border.all(
-          color: colorBorde,
-          width: 2,
+          color: widget.colorBorde,
+          width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: colorBorde.withValues(alpha: 0.3),
-            blurRadius: 12,
-            spreadRadius: 1,
+            color: widget.colorBorde.withValues(alpha: 0.2),
+            blurRadius: 6,
+            spreadRadius: 0,
           ),
         ],
       ),
@@ -962,38 +1081,38 @@ class _MarcadorEstadio extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Goles local
+          // Goles local - Compacto
           Text(
-            golesLocal.toString(),
+            _golesLocal.toString(),
             style: const TextStyle(
-              fontSize: 56,
+              fontSize: 36,
               fontWeight: FontWeight.w900,
               color: Colors.white,
-              letterSpacing: -2,
+              letterSpacing: -1,
             ),
           ),
 
-          // Separador
+          // Separador - Compacto
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spacingL),
+            padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spacingM),
             child: Text(
               '-',
               style: TextStyle(
-                fontSize: 40,
+                fontSize: 28,
                 fontWeight: FontWeight.w700,
                 color: Colors.white.withValues(alpha: 0.5),
               ),
             ),
           ),
 
-          // Goles visitante
+          // Goles visitante - Compacto
           Text(
-            golesVisitante.toString(),
+            _golesVisitante.toString(),
             style: const TextStyle(
-              fontSize: 56,
+              fontSize: 36,
               fontWeight: FontWeight.w900,
               color: Colors.white,
-              letterSpacing: -2,
+              letterSpacing: -1,
             ),
           ),
         ],
@@ -1002,7 +1121,7 @@ class _MarcadorEstadio extends StatelessWidget {
   }
 }
 
-/// Display de horarios del partido
+/// Display de horarios del partido - Compacto en una sola linea
 class _HorarioDisplay extends StatelessWidget {
   final String? horaInicio;
   final String? horaFinEstimada;
@@ -1028,10 +1147,13 @@ class _HorarioDisplay extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.all(DesignTokens.spacingM),
+      padding: const EdgeInsets.symmetric(
+        horizontal: DesignTokens.spacingS,
+        vertical: DesignTokens.spacingXs,
+      ),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusS),
         border: tiempoExtra
             ? Border.all(
                 color: DesignTokens.errorColor.withValues(alpha: 0.5),
@@ -1039,123 +1161,86 @@ class _HorarioDisplay extends StatelessWidget {
               )
             : null,
       ),
-      child: Column(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Badge de tiempo extra si aplica
           if (tiempoExtra) ...[
             Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: DesignTokens.spacingM,
-                vertical: DesignTokens.spacingXs,
+                horizontal: DesignTokens.spacingXs,
+                vertical: 2,
               ),
               decoration: BoxDecoration(
                 color: DesignTokens.errorColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
-                border: Border.all(
-                  color: DesignTokens.errorColor.withValues(alpha: 0.3),
-                ),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusS),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     Icons.timer_off,
-                    size: DesignTokens.iconSizeS,
+                    size: 12,
                     color: DesignTokens.errorColor,
                   ),
-                  const SizedBox(width: DesignTokens.spacingXs),
+                  const SizedBox(width: 2),
                   Text(
-                    'TIEMPO EXTRA',
-                    style: textTheme.labelMedium?.copyWith(
+                    'EXTRA',
+                    style: textTheme.labelSmall?.copyWith(
                       color: DesignTokens.errorColor,
                       fontWeight: DesignTokens.fontWeightBold,
-                      letterSpacing: 1,
+                      fontSize: 10,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: DesignTokens.spacingM),
+            const SizedBox(width: DesignTokens.spacingS),
           ],
 
-          // Horarios
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              // Hora inicio
-              Column(
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.schedule,
-                        size: DesignTokens.iconSizeS,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: DesignTokens.spacingXs),
-                      Text(
-                        'Inicio',
-                        style: textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: DesignTokens.spacingXs),
-                  Text(
-                    _formatearHora(horaInicio),
-                    style: textTheme.titleLarge?.copyWith(
-                      fontWeight: DesignTokens.fontWeightBold,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ],
-              ),
+          // Hora inicio
+          Icon(
+            Icons.schedule,
+            size: 12,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 2),
+          Text(
+            _formatearHora(horaInicio),
+            style: textTheme.labelMedium?.copyWith(
+              fontWeight: DesignTokens.fontWeightBold,
+              fontFamily: 'monospace',
+            ),
+          ),
 
-              // Separador
-              Container(
-                height: 40,
-                width: 1,
-                color: colorScheme.outlineVariant,
+          // Separador
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spacingXs),
+            child: Text(
+              '-',
+              style: textTheme.labelMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
               ),
+            ),
+          ),
 
-              // Hora fin estimada
-              Column(
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        tiempoExtra ? Icons.flag : Icons.timer,
-                        size: DesignTokens.iconSizeS,
-                        color: tiempoExtra
-                            ? DesignTokens.errorColor
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: DesignTokens.spacingXs),
-                      Text(
-                        tiempoExtra ? 'Debio terminar' : 'Fin est.',
-                        style: textTheme.labelSmall?.copyWith(
-                          color: tiempoExtra
-                              ? DesignTokens.errorColor
-                              : colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: DesignTokens.spacingXs),
-                  Text(
-                    _formatearHora(horaFinEstimada),
-                    style: textTheme.titleLarge?.copyWith(
-                      fontWeight: DesignTokens.fontWeightBold,
-                      fontFamily: 'monospace',
-                      color: tiempoExtra ? DesignTokens.errorColor : null,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          // Hora fin estimada
+          Icon(
+            tiempoExtra ? Icons.flag : Icons.timer,
+            size: 12,
+            color: tiempoExtra
+                ? DesignTokens.errorColor
+                : colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 2),
+          Text(
+            _formatearHora(horaFinEstimada),
+            style: textTheme.labelMedium?.copyWith(
+              fontWeight: DesignTokens.fontWeightBold,
+              fontFamily: 'monospace',
+              color: tiempoExtra ? DesignTokens.errorColor : null,
+            ),
           ),
         ],
       ),
@@ -1163,7 +1248,7 @@ class _HorarioDisplay extends StatelessWidget {
   }
 }
 
-/// Botones de accion estilo deportivo
+/// Botones de accion estilo deportivo - Compactos en una linea
 class _BotonesAccion extends StatelessWidget {
   final PartidoModel partido;
   final bool puedePausar;
@@ -1183,10 +1268,8 @@ class _BotonesAccion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: DesignTokens.spacingS,
-      runSpacing: DesignTokens.spacingS,
-      alignment: WrapAlignment.center,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         // Boton Pausar/Reanudar
         if (puedePausar)
@@ -1220,7 +1303,8 @@ class _BotonesAccion extends StatelessWidget {
           ),
 
         // Boton Anotar Gol
-        if (onAnotarGol != null)
+        if (onAnotarGol != null) ...[
+          const SizedBox(width: DesignTokens.spacingXs),
           _BotonAccionDeportivo(
             icono: Icons.sports_soccer,
             texto: 'Gol',
@@ -1228,21 +1312,24 @@ class _BotonesAccion extends StatelessWidget {
             onPressed: isProcesando ? null : () => onAnotarGol!(partido),
             filled: true,
           ),
+        ],
 
         // Boton Finalizar
-        if (onFinalizarPartido != null)
+        if (onFinalizarPartido != null) ...[
+          const SizedBox(width: DesignTokens.spacingXs),
           _BotonAccionDeportivo(
             icono: Icons.flag,
             texto: 'Finalizar',
             color: DesignTokens.errorColor,
             onPressed: isProcesando ? null : () => onFinalizarPartido!(partido),
           ),
+        ],
       ],
     );
   }
 }
 
-/// Boton individual de accion con estilo deportivo
+/// Boton individual de accion con estilo deportivo - Compacto
 class _BotonAccionDeportivo extends StatelessWidget {
   final IconData icono;
   final String texto;
@@ -1262,6 +1349,8 @@ class _BotonAccionDeportivo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
     if (filled) {
       return FilledButton.icon(
         onPressed: onPressed,
@@ -1269,20 +1358,23 @@ class _BotonAccionDeportivo extends StatelessWidget {
           backgroundColor: color,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(
-            horizontal: DesignTokens.spacingM,
-            vertical: DesignTokens.spacingS,
+            horizontal: DesignTokens.spacingS,
+            vertical: 4,
           ),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          textStyle: textTheme.labelSmall,
         ),
         icon: isProcesando
             ? const SizedBox(
-                width: 18,
-                height: 18,
+                width: 14,
+                height: 14,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   color: Colors.white,
                 ),
               )
-            : Icon(icono),
+            : Icon(icono, size: 14),
         label: Text(texto),
       );
     }
@@ -1293,20 +1385,23 @@ class _BotonAccionDeportivo extends StatelessWidget {
         foregroundColor: color,
         side: BorderSide(color: color),
         padding: const EdgeInsets.symmetric(
-          horizontal: DesignTokens.spacingM,
-          vertical: DesignTokens.spacingS,
+          horizontal: DesignTokens.spacingS,
+          vertical: 4,
         ),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        textStyle: textTheme.labelSmall,
       ),
       icon: isProcesando
           ? SizedBox(
-              width: 18,
-              height: 18,
+              width: 14,
+              height: 14,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 color: color,
               ),
             )
-          : Icon(icono),
+          : Icon(icono, size: 14),
       label: Text(texto),
     );
   }

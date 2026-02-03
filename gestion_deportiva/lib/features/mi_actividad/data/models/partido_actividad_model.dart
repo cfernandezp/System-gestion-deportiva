@@ -12,9 +12,10 @@ class PartidoActividadModel extends Equatable {
   final int golesLocal;
   final int golesVisitante;
   final String estado;
-  final int? minutoActual;
+  final int duracionMinutos;
+  final int tiempoPausadoSegundos;
   final String? horaInicio;
-  final String? horaFin;
+  final String? horaFinEstimada;
   final bool esMiPartido;
   final int misGoles;
   final List<GolDetalleModel> misGolesDetalle;
@@ -26,9 +27,10 @@ class PartidoActividadModel extends Equatable {
     required this.golesLocal,
     required this.golesVisitante,
     required this.estado,
-    this.minutoActual,
+    required this.duracionMinutos,
+    required this.tiempoPausadoSegundos,
     this.horaInicio,
-    this.horaFin,
+    this.horaFinEstimada,
     required this.esMiPartido,
     required this.misGoles,
     required this.misGolesDetalle,
@@ -50,9 +52,10 @@ class PartidoActividadModel extends Equatable {
       golesLocal: json['goles_local'] as int? ?? 0,
       golesVisitante: json['goles_visitante'] as int? ?? 0,
       estado: json['estado'] as String? ?? 'pendiente',
-      minutoActual: json['minuto_actual'] as int?,
+      duracionMinutos: json['duracion_minutos'] as int? ?? 0,
+      tiempoPausadoSegundos: json['tiempo_pausado_segundos'] as int? ?? 0,
       horaInicio: json['hora_inicio'] as String?,
-      horaFin: json['hora_fin'] as String?,
+      horaFinEstimada: json['hora_fin_estimada'] as String?,
       esMiPartido: json['es_mi_partido'] as bool? ?? false,
       misGoles: json['mis_goles'] as int? ?? 0,
       misGolesDetalle: misGolesDetalle,
@@ -68,9 +71,10 @@ class PartidoActividadModel extends Equatable {
       'goles_local': golesLocal,
       'goles_visitante': golesVisitante,
       'estado': estado,
-      if (minutoActual != null) 'minuto_actual': minutoActual,
+      'duracion_minutos': duracionMinutos,
+      'tiempo_pausado_segundos': tiempoPausadoSegundos,
       if (horaInicio != null) 'hora_inicio': horaInicio,
-      if (horaFin != null) 'hora_fin': horaFin,
+      if (horaFinEstimada != null) 'hora_fin_estimada': horaFinEstimada,
       'es_mi_partido': esMiPartido,
       'mis_goles': misGoles,
       'mis_goles_detalle': misGolesDetalle.map((e) => e.toJson()).toList(),
@@ -98,9 +102,10 @@ class PartidoActividadModel extends Equatable {
         golesLocal,
         golesVisitante,
         estado,
-        minutoActual,
+        duracionMinutos,
+        tiempoPausadoSegundos,
         horaInicio,
-        horaFin,
+        horaFinEstimada,
         esMiPartido,
         misGoles,
         misGolesDetalle,

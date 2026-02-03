@@ -54,12 +54,23 @@ DECLARE
 BEGIN
     -- ============================================
     -- Obtener usuario autenticado
+    -- IMPORTANTE: auth.uid() devuelve el ID de auth.users,
+    -- pero las inscripciones usan el ID de la tabla usuarios.
+    -- Debemos mapear auth_user_id -> usuario_id
     -- ============================================
-    v_usuario_id := auth.uid();
-
-    IF v_usuario_id IS NULL THEN
+    IF auth.uid() IS NULL THEN
         v_error_hint := 'no_autenticado';
         RAISE EXCEPTION 'Usuario no autenticado';
+    END IF;
+
+    -- Obtener el usuario_id de la tabla usuarios basado en auth_user_id
+    SELECT id INTO v_usuario_id
+    FROM usuarios
+    WHERE auth_user_id = auth.uid();
+
+    IF v_usuario_id IS NULL THEN
+        v_error_hint := 'usuario_no_encontrado';
+        RAISE EXCEPTION 'Usuario no encontrado en tabla usuarios';
     END IF;
 
     -- ============================================
@@ -131,9 +142,10 @@ BEGIN
                 'goles_local', p.goles_local,
                 'goles_visitante', p.goles_visitante,
                 'estado', p.estado::text,
-                'minuto_actual', p.minuto_actual,
+                'duracion_minutos', p.duracion_minutos,
+                'tiempo_pausado_segundos', p.tiempo_pausado_segundos,
                 'hora_inicio', p.hora_inicio AT TIME ZONE 'America/Lima',
-                'hora_fin', p.hora_fin AT TIME ZONE 'America/Lima',
+                'hora_fin_estimada', p.hora_fin_estimada AT TIME ZONE 'America/Lima',
                 -- RN-002: Es mi partido si mi color_equipo coincide con equipo_local O equipo_visitante
                 'es_mi_partido', CASE
                     WHEN v_mi_equipo.color_equipo IS NOT NULL AND
@@ -170,7 +182,7 @@ BEGIN
                      WHEN p.estado = 'finalizado' THEN 2
                      ELSE 3
                 END,
-                p.hora_fin DESC NULLS LAST,
+                p.hora_fin_estimada DESC NULLS LAST,
                 p.hora_inicio NULLS LAST,
                 p.created_at
         ),

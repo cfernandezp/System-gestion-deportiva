@@ -391,10 +391,10 @@ class _PartidoEnCursoMini extends StatelessWidget {
                   fontWeight: DesignTokens.fontWeightBold,
                 ),
               ),
-              if (partidoEnCurso.minutoActual != null) ...[
+              if (partidoEnCurso.enCurso && partidoEnCurso.duracionMinutos > 0) ...[
                 const SizedBox(width: DesignTokens.spacingS),
                 Text(
-                  "Min ${partidoEnCurso.minutoActual}'",
+                  "${partidoEnCurso.duracionMinutos} min",
                   style: textTheme.labelSmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),

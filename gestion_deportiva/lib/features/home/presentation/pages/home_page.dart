@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/widgets/app_bottom_nav_bar.dart';
 import '../../../../core/widgets/app_card.dart';
@@ -10,6 +11,10 @@ import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../auth/presentation/bloc/session/session.dart';
 // E004-HU-008: Mi Actividad en Vivo
+import '../../../mi_actividad/data/models/mi_equipo_actividad_model.dart';
+import '../../../mi_actividad/presentation/bloc/mi_actividad/mi_actividad_bloc.dart';
+import '../../../mi_actividad/presentation/bloc/mi_actividad/mi_actividad_event.dart';
+import '../../../mi_actividad/presentation/bloc/mi_actividad/mi_actividad_state.dart';
 import '../../../mi_actividad/presentation/widgets/mi_actividad_vivo_widget.dart';
 
 /// Pagina principal post-login - Dashboard CRM Moderno
@@ -396,7 +401,6 @@ class _MainDashboardContent extends StatelessWidget {
         }
 
         final isAdmin = rol.toLowerCase() == 'admin' || rol.toLowerCase() == 'administrador';
-        final accesos = _getAccesosPorRol(rol);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -441,27 +445,43 @@ class _MainDashboardContent extends StatelessWidget {
             const SizedBox(height: DesignTokens.spacingL),
 
             // Grid de accesos rapidos - 3 columnas en desktop
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: DesignTokens.spacingM,
-                mainAxisSpacing: DesignTokens.spacingM,
-                childAspectRatio: 1.3,
+            // Usa BlocProvider para obtener datos del equipo y habilitar "Mi Equipo" dinamicamente
+            BlocProvider(
+              create: (context) => sl<MiActividadBloc>()..add(const CargarMiActividadEvent()),
+              child: BlocBuilder<MiActividadBloc, MiActividadState>(
+                builder: (context, miActividadState) {
+                  bool tieneEquipo = false;
+                  if (miActividadState is MiActividadLoaded &&
+                      miActividadState.actividad.miEquipo != null) {
+                    tieneEquipo = true;
+                  }
+
+                  final accesos = _getAccesosPorRol(rol, tieneEquipo: tieneEquipo);
+
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      crossAxisSpacing: DesignTokens.spacingM,
+                      mainAxisSpacing: DesignTokens.spacingM,
+                      childAspectRatio: 1.3,
+                    ),
+                    itemCount: accesos.length,
+                    itemBuilder: (context, index) {
+                      final acceso = accesos[index];
+                      return _DesktopQuickAccessCard(
+                        title: acceso.title,
+                        description: acceso.description,
+                        icon: acceso.icon,
+                        color: acceso.color,
+                        route: acceso.route,
+                        enabled: acceso.enabled,
+                      );
+                    },
+                  );
+                },
               ),
-              itemCount: accesos.length,
-              itemBuilder: (context, index) {
-                final acceso = accesos[index];
-                return _DesktopQuickAccessCard(
-                  title: acceso.title,
-                  description: acceso.description,
-                  icon: acceso.icon,
-                  color: acceso.color,
-                  route: acceso.route,
-                  enabled: acceso.enabled,
-                );
-              },
             ),
 
             const SizedBox(height: DesignTokens.spacingXl),
@@ -594,8 +614,38 @@ class _MetricsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final metrics = isAdmin ? _getAdminMetrics() : _getPlayerMetrics();
+    // Para admin, usar metricas estaticas
+    if (isAdmin) {
+      return _buildMetricsGridView(context, _getAdminMetrics(), null);
+    }
 
+    // Para jugadores, usar BlocProvider para obtener datos del equipo
+    return BlocProvider(
+      create: (context) => sl<MiActividadBloc>()..add(const CargarMiActividadEvent()),
+      child: BlocBuilder<MiActividadBloc, MiActividadState>(
+        builder: (context, miActividadState) {
+          MiEquipoActividadModel? miEquipo;
+
+          if (miActividadState is MiActividadLoaded &&
+              miActividadState.actividad.miEquipo != null) {
+            miEquipo = miActividadState.actividad.miEquipo;
+          }
+
+          return _buildMetricsGridView(
+            context,
+            _getPlayerMetrics(miEquipo: miEquipo),
+            miEquipo,
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMetricsGridView(
+    BuildContext context,
+    List<_MetricData> metrics,
+    MiEquipoActividadModel? miEquipo,
+  ) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -649,7 +699,13 @@ class _MetricsGrid extends StatelessWidget {
     ];
   }
 
-  List<_MetricData> _getPlayerMetrics() {
+  List<_MetricData> _getPlayerMetrics({MiEquipoActividadModel? miEquipo}) {
+    // Obtener valor y color del equipo dinamicamente
+    final equipoValue = miEquipo?.color.toUpperCase() ?? '--';
+    final equipoColor = miEquipo != null
+        ? _hexToColor(miEquipo.colorHex)
+        : const Color(0xFF8B5CF6);
+
     return [
       _MetricData(
         title: 'Proximas pichangas',
@@ -671,11 +727,20 @@ class _MetricsGrid extends StatelessWidget {
       ),
       _MetricData(
         title: 'Mi equipo',
-        value: '--',
+        value: equipoValue,
         icon: Icons.group_outlined,
-        color: const Color(0xFF8B5CF6),
+        color: equipoColor,
       ),
     ];
+  }
+
+  /// Convierte codigo hexadecimal a Color
+  Color _hexToColor(String hex) {
+    hex = hex.replaceAll('#', '');
+    if (hex.length == 6) {
+      hex = 'FF$hex';
+    }
+    return Color(int.parse(hex, radix: 16));
   }
 }
 
@@ -1201,40 +1266,54 @@ Widget _buildQuickAccessSection(BuildContext context, {required bool isMobile}) 
         rol = state.rol;
       }
 
-      final accesos = _getAccesosPorRol(rol);
+      // Usar BlocProvider para obtener datos del equipo y habilitar "Mi Equipo" dinamicamente
+      return BlocProvider(
+        create: (context) => sl<MiActividadBloc>()..add(const CargarMiActividadEvent()),
+        child: BlocBuilder<MiActividadBloc, MiActividadState>(
+          builder: (context, miActividadState) {
+            bool tieneEquipo = false;
+            if (miActividadState is MiActividadLoaded &&
+                miActividadState.actividad.miEquipo != null) {
+              tieneEquipo = true;
+            }
 
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Accesos rapidos',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: DesignTokens.fontWeightSemiBold,
-            ),
-          ),
-          const SizedBox(height: DesignTokens.spacingM),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: isMobile ? 2 : 4,
-              crossAxisSpacing: DesignTokens.spacingM,
-              mainAxisSpacing: DesignTokens.spacingM,
-              childAspectRatio: isMobile ? 1.2 : 1.5,
-            ),
-            itemCount: accesos.length,
-            itemBuilder: (context, index) {
-              final acceso = accesos[index];
-              return _QuickAccessCard(
-                title: acceso.title,
-                icon: acceso.icon,
-                color: acceso.color,
-                route: acceso.route,
-                enabled: acceso.enabled,
-              );
-            },
-          ),
-        ],
+            final accesos = _getAccesosPorRol(rol, tieneEquipo: tieneEquipo);
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Accesos rapidos',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: DesignTokens.fontWeightSemiBold,
+                  ),
+                ),
+                const SizedBox(height: DesignTokens.spacingM),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: isMobile ? 2 : 4,
+                    crossAxisSpacing: DesignTokens.spacingM,
+                    mainAxisSpacing: DesignTokens.spacingM,
+                    childAspectRatio: isMobile ? 1.2 : 1.5,
+                  ),
+                  itemCount: accesos.length,
+                  itemBuilder: (context, index) {
+                    final acceso = accesos[index];
+                    return _QuickAccessCard(
+                      title: acceso.title,
+                      icon: acceso.icon,
+                      color: acceso.color,
+                      route: acceso.route,
+                      enabled: acceso.enabled,
+                    );
+                  },
+                ),
+              ],
+            );
+          },
+        ),
       );
     },
   );
@@ -1245,7 +1324,8 @@ Widget _buildQuickAccessSection(BuildContext context, {required bool isMobile}) 
 // ============================================
 
 /// Obtiene accesos rapidos segun el rol del usuario
-List<_QuickAccessItem> _getAccesosPorRol(String rol) {
+/// [tieneEquipo]: indica si el jugador tiene equipo asignado en pichanga activa
+List<_QuickAccessItem> _getAccesosPorRol(String rol, {bool tieneEquipo = false}) {
   final List<_QuickAccessItem> accesosComunes = [
     _QuickAccessItem(
       title: 'Mi Perfil',
@@ -1261,6 +1341,15 @@ List<_QuickAccessItem> _getAccesosPorRol(String rol) {
     case 'administrador':
     case 'admin':
       return [
+        // E004-HU-008: Mi Actividad en Vivo (admin tambien puede ser jugador inscrito)
+        _QuickAccessItem(
+          title: 'Mi Actividad',
+          description: 'Ver mi actividad en vivo',
+          icon: Icons.sports_soccer,
+          color: DesignTokens.primaryColor,
+          route: '/mi-actividad',
+          enabled: true,
+        ),
         _QuickAccessItem(
           title: 'Usuarios',
           description: 'Gestionar usuarios y roles del sistema',
@@ -1308,13 +1397,17 @@ List<_QuickAccessItem> _getAccesosPorRol(String rol) {
           route: '/mi-actividad',
           enabled: true,
         ),
+        // Card "Mi Equipo" - habilitada dinamicamente si tiene equipo asignado
+        // Navega a /mi-actividad donde se muestra el detalle del equipo
         _QuickAccessItem(
           title: 'Mi Equipo',
-          description: 'Ver informacion de mi equipo',
+          description: tieneEquipo
+              ? 'Ver tu equipo asignado'
+              : 'Ver informacion de mi equipo',
           icon: Icons.groups_outlined,
           color: DesignTokens.secondaryColor,
-          route: '/mi-equipo',
-          enabled: false,
+          route: '/mi-actividad',
+          enabled: tieneEquipo,
         ),
         _QuickAccessItem(
           title: 'Estadisticas',

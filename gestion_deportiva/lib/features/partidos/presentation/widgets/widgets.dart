@@ -28,3 +28,10 @@ export 'sugerencia_rotacion_card.dart';
 
 // Lista de partidos
 export 'lista_partidos_widget.dart';
+
+// E004-HU-007: Resumen de Jornada
+export 'tabla_posiciones_widget.dart';
+export 'goleadores_fecha_widget.dart';
+export 'estadisticas_jornada_widget.dart';
+export 'resumen_jornada_card.dart';
+export 'compartir_resumen_button.dart';
