@@ -40,6 +40,9 @@ import '../../features/solicitudes/presentation/pages/solicitudes_pendientes_pag
 import '../../features/mi_actividad/presentation/bloc/mi_actividad/mi_actividad_bloc.dart';
 import '../../features/mi_actividad/presentation/bloc/mi_actividad/mi_actividad_event.dart';
 import '../../features/mi_actividad/presentation/pages/mi_actividad_page.dart';
+// E006-HU-001: Ranking de Goleadores
+import '../../features/estadisticas/presentation/bloc/ranking_goleadores/ranking_goleadores.dart';
+import '../../features/estadisticas/presentation/pages/ranking_goleadores_page.dart';
 
 /// Notificador que escucha cambios en el SessionBloc y notifica al GoRouter
 /// Esto resuelve la race condition entre login exitoso y la redireccion
@@ -115,6 +118,8 @@ class AppRouter {
   static const String adminSolicitudes = '/admin/solicitudes';
   // E004-HU-008: Mi Actividad en Vivo
   static const String miActividad = '/mi-actividad';
+  // E006-HU-001: Ranking de Goleadores
+  static const String rankingGoleadores = '/ranking-goleadores';
 
   /// Rutas publicas (no requieren autenticacion)
   static const List<String> _publicRoutes = [
@@ -393,6 +398,21 @@ class AppRouter {
             create: (context) => sl<MiActividadBloc>()
               ..add(const CargarMiActividadEvent()),
             child: const MiActividadPage(),
+          ),
+        ),
+      ),
+
+      // E006-HU-001: Ranking de Goleadores
+      // CA-001 a CA-007: Ranking de goleadores con podio, filtros y destacado
+      GoRoute(
+        path: '/ranking-goleadores',
+        name: 'rankingGoleadores',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: BlocProvider(
+            create: (context) => sl<RankingGoleadoresBloc>()
+              ..add(const CargarRankingEvent()),
+            child: const RankingGoleadoresPage(),
           ),
         ),
       ),
