@@ -10,20 +10,22 @@ import '../../../../core/widgets/app_text_field.dart';
 import '../bloc/login/login.dart';
 import '../bloc/session/session.dart';
 
-/// Pagina de inicio de sesion
-/// Implementa HU-002: Inicio de Sesion
+/// E001-HU-002: Pagina de Inicio de Sesion
 ///
 /// Criterios de Aceptacion:
-/// - CA-001: Formulario con email y contrasena
-/// - CA-002: Login exitoso -> navegar a home
-/// - CA-003: Mostrar error generico si credenciales invalidas
-/// - CA-004: Validar campos obligatorios
-/// - CA-005: Link a registro
-/// - CA-006: Link a recuperacion de contrasena
+/// - CA-001: Login exitoso con un solo grupo -> home directo
+/// - CA-002: Login exitoso con multiples grupos -> seleccion de grupo
+/// - CA-003: Credenciales incorrectas -> mensaje generico
+/// - CA-004: Proteccion contra intentos repetidos (bloqueo temporal)
+/// - CA-005: Cuenta pendiente de activacion -> informar
+/// - CA-006: Sin grupos -> crear grupo
 ///
-/// Layout Responsive:
-/// - Mobile (<600px): Formulario ocupa ancho completo con padding
-/// - Tablet/Desktop (>=600px): Card centrada con ancho maximo 420px
+/// Reglas de Negocio:
+/// - RN-001: Autenticacion por celular y contrasena
+/// - RN-002: Bloqueo temporal tras 5 intentos fallidos (15 min)
+/// - RN-003: Mensaje generico para credenciales invalidas
+/// - RN-004: Navegacion post-login segun cantidad de grupos
+/// - RN-005: Restriccion login para cuentas pendientes de activacion
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
@@ -45,11 +47,11 @@ class _LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<_LoginView> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _celularController = TextEditingController();
   final _passwordController = TextEditingController();
 
   // Focus nodes para navegacion
-  final _emailFocus = FocusNode();
+  final _celularFocus = FocusNode();
   final _passwordFocus = FocusNode();
 
   // Errores de validacion
@@ -57,13 +59,14 @@ class _LoginViewState extends State<_LoginView> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _celularController.dispose();
     _passwordController.dispose();
-    _emailFocus.dispose();
+    _celularFocus.dispose();
     _passwordFocus.dispose();
     super.dispose();
   }
 
+  /// RN-001: Submit con celular y contrasena
   void _onSubmit() {
     // Limpiar errores previos
     setState(() {
@@ -72,7 +75,7 @@ class _LoginViewState extends State<_LoginView> {
 
     context.read<LoginBloc>().add(
           LoginSubmitEvent(
-            email: _emailController.text,
+            celular: _celularController.text,
             password: _passwordController.text,
           ),
         );
@@ -93,10 +96,8 @@ class _LoginViewState extends State<_LoginView> {
       body: BlocConsumer<LoginBloc, LoginState>(
         listener: (context, state) {
           if (state is LoginSuccess) {
-            // CA-002: Login exitoso
-            // Actualizar SessionBloc con datos del usuario autenticado
-            // La navegacion a home es automatica via GoRouter.refreshListenable
-            // que escucha cambios en SessionBloc y re-evalua redirecciones
+            // CA-001/CA-002/CA-006: Login exitoso
+            // La navegacion es automatica via GoRouter.refreshListenable
             context.read<SessionBloc>().add(
                   SessionAuthenticatedEvent(
                     usuarioId: state.response.usuarioId,
@@ -105,18 +106,16 @@ class _LoginViewState extends State<_LoginView> {
                     rol: state.response.rol,
                   ),
                 );
-            // NOTA: NO navegamos manualmente - el router lo hace automaticamente
-            // cuando detecta SessionAuthenticated via refreshListenable
           } else if (state is LoginError) {
-            // CA-003: Mostrar mensaje de error apropiado
+            // CA-003/CA-005: Mostrar mensaje de error apropiado
             _mostrarErrorSnackBar(context, state);
           } else if (state is LoginValidationError) {
-            // CA-004: Actualizar errores de campo
+            // Actualizar errores de campo
             setState(() {
               _fieldErrors = state.errores;
             });
           } else if (state is LoginBloqueoInfo && state.bloqueado) {
-            // RN-007: Mostrar mensaje de bloqueo
+            // RN-002/CA-004: Mostrar mensaje de bloqueo
             _mostrarBloqueoSnackBar(context, state);
           }
         },
@@ -140,7 +139,7 @@ class _LoginViewState extends State<_LoginView> {
                       _buildHeader(theme, colorScheme),
                       const SizedBox(height: DesignTokens.spacingXl),
 
-                      // CA-001: Formulario en Card
+                      // Formulario en Card
                       AppCard(
                         variant: isMobile
                             ? AppCardVariant.standard
@@ -166,7 +165,7 @@ class _LoginViewState extends State<_LoginView> {
                               ),
                               const SizedBox(height: DesignTokens.spacingS),
                               Text(
-                                'Ingresa tus credenciales para acceder',
+                                'Ingresa tu celular y contrasena',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: colorScheme.onSurfaceVariant,
                                 ),
@@ -174,18 +173,22 @@ class _LoginViewState extends State<_LoginView> {
                               ),
                               const SizedBox(height: DesignTokens.spacingL),
 
-                              // CA-001: Campo Email
-                              AppTextField.email(
-                                controller: _emailController,
-                                focusNode: _emailFocus,
-                                errorText: _fieldErrors['email'],
+                              // RN-001: Campo Celular (9 digitos, inicia con 9)
+                              AppTextField.number(
+                                controller: _celularController,
+                                focusNode: _celularFocus,
+                                label: 'Numero de celular',
+                                hint: '9XXXXXXXX',
+                                prefixIcon: Icons.phone_android,
+                                maxLength: 9,
+                                errorText: _fieldErrors['celular'],
                                 enabled: !isLoading,
                                 onSubmitted: (_) =>
                                     _passwordFocus.requestFocus(),
                               ),
                               const SizedBox(height: DesignTokens.spacingM),
 
-                              // CA-001: Campo Password
+                              // RN-001: Campo Password
                               AppTextField.password(
                                 controller: _passwordController,
                                 focusNode: _passwordFocus,
@@ -196,7 +199,7 @@ class _LoginViewState extends State<_LoginView> {
                               ),
                               const SizedBox(height: DesignTokens.spacingS),
 
-                              // CA-006: Link a recuperacion de contrasena (HU-003)
+                              // Link a recuperacion de contrasena
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
@@ -236,7 +239,7 @@ class _LoginViewState extends State<_LoginView> {
                       ),
                       const SizedBox(height: DesignTokens.spacingL),
 
-                      // CA-005: Link a registro
+                      // Link a registro
                       _buildRegistroLink(theme, isLoading),
                     ],
                   ),
@@ -286,7 +289,7 @@ class _LoginViewState extends State<_LoginView> {
     );
   }
 
-  /// CA-005: Link para ir a registro
+  /// Link para ir a registro
   Widget _buildRegistroLink(ThemeData theme, bool isLoading) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -314,8 +317,8 @@ class _LoginViewState extends State<_LoginView> {
     );
   }
 
-  /// CA-003: Muestra SnackBar con mensaje de error apropiado
-  /// RN-002, RN-004, RN-007: Mensajes diferenciados segun tipo de error
+  /// CA-003/CA-005: Muestra SnackBar con mensaje de error apropiado
+  /// RN-002, RN-003, RN-005: Mensajes diferenciados segun tipo de error
   void _mostrarErrorSnackBar(BuildContext context, LoginError state) {
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -326,6 +329,11 @@ class _LoginViewState extends State<_LoginView> {
       case LoginErrorType.credencialesInvalidas:
         icon = Icons.lock_outline;
         backgroundColor = colorScheme.error;
+        break;
+      case LoginErrorType.cuentaPendienteActivacion:
+        // CA-005/RN-005: Cuenta pendiente de activacion
+        icon = Icons.hourglass_empty;
+        backgroundColor = Colors.orange;
         break;
       case LoginErrorType.cuentaPendiente:
         icon = Icons.hourglass_empty;
@@ -369,7 +377,8 @@ class _LoginViewState extends State<_LoginView> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(DesignTokens.radiusS),
         ),
-        duration: state.errorType == LoginErrorType.cuentaPendiente ||
+        duration: state.errorType == LoginErrorType.cuentaPendienteActivacion ||
+                state.errorType == LoginErrorType.cuentaPendiente ||
                 state.errorType == LoginErrorType.cuentaRechazada
             ? const Duration(seconds: 5)
             : const Duration(seconds: 4),
@@ -377,7 +386,7 @@ class _LoginViewState extends State<_LoginView> {
     );
   }
 
-  /// RN-007: Muestra SnackBar con informacion de bloqueo
+  /// RN-002/CA-004: Muestra SnackBar con informacion de bloqueo
   void _mostrarBloqueoSnackBar(BuildContext context, LoginBloqueoInfo state) {
     final mensaje = state.minutosRestantes != null
         ? 'Cuenta bloqueada. Intenta en ${state.minutosRestantes} minutos.'

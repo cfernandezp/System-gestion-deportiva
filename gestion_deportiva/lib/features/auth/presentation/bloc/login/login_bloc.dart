@@ -5,22 +5,22 @@ import '../../../domain/repositories/auth_repository.dart';
 import 'login_event.dart';
 import 'login_state.dart';
 
-/// Bloc para manejar el inicio de sesion
-/// Implementa HU-002: Inicio de Sesion
+/// E001-HU-002: Bloc para manejar el inicio de sesion
 ///
 /// Criterios de Aceptacion:
-/// - CA-001: Formulario con email y contrasena
-/// - CA-002: Login exitoso -> navegar a home
-/// - CA-003: Mostrar error generico si credenciales invalidas
-/// - CA-004: Validar campos obligatorios
-/// - CA-005: Link a registro
-/// - CA-006: Link a recuperacion de contrasena
+/// - CA-001: Login exitoso con un solo grupo -> home directo
+/// - CA-002: Login exitoso con multiples grupos -> seleccion de grupo
+/// - CA-003: Credenciales incorrectas -> mensaje generico
+/// - CA-004: Proteccion contra intentos repetidos (bloqueo temporal)
+/// - CA-005: Cuenta pendiente de activacion -> informar
+/// - CA-006: Sin grupos -> crear grupo
 ///
 /// Reglas de Negocio:
-/// - RN-001: Campos email y contrasena obligatorios
-/// - RN-002: Mostrar mensaje diferenciado si cuenta pendiente/rechazada
-/// - RN-004: Mensaje generico para credenciales invalidas
-/// - RN-007: Mostrar mensaje de bloqueo con minutos restantes
+/// - RN-001: Autenticacion por celular y contrasena
+/// - RN-002: Bloqueo temporal tras 5 intentos fallidos (15 min)
+/// - RN-003: Mensaje generico para credenciales invalidas
+/// - RN-004: Navegacion post-login segun cantidad de grupos
+/// - RN-005: Restriccion login para cuentas pendientes de activacion
 class LoginBloc extends Bloc<LoginEvent, LoginState> {
   final AuthRepository repository;
 
@@ -30,15 +30,22 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
     on<VerificarBloqueoEvent>(_onVerificarBloqueo);
   }
 
+  /// Convierte celular a email derivado para Supabase Auth
+  /// Misma convencion que E001-HU-001 (registro)
+  String _celularAEmailDerivado(String celular) {
+    final celularLimpio = celular.replaceAll(RegExp(r'[^0-9]'), '');
+    return '$celularLimpio@gestiondeportiva.app';
+  }
+
   /// Maneja el envio del formulario de login
-  /// CA-002, CA-003, CA-004
+  /// CA-001 a CA-006
   Future<void> _onLoginSubmit(
     LoginSubmitEvent event,
     Emitter<LoginState> emit,
   ) async {
-    // CA-004, RN-001: Validaciones frontend primero
+    // RN-001: Validaciones frontend primero
     final erroresValidacion = _validarFormulario(
-      email: event.email,
+      celular: event.celular,
       password: event.password,
     );
 
@@ -49,15 +56,17 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
 
     emit(const LoginLoading());
 
-    // Llamar al backend
+    // Convertir celular a email derivado para backend
+    final emailDerivado = _celularAEmailDerivado(event.celular);
+
+    // Llamar al backend con email derivado
     final result = await repository.iniciarSesion(
-      email: event.email,
+      email: emailDerivado,
       password: event.password,
     );
 
     result.fold(
       (failure) {
-        // Mapear hints a tipos de error y mensajes amigables
         final errorInfo = _mapearErrorBackend(failure);
         emit(LoginError(
           message: errorInfo.message,
@@ -78,19 +87,20 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
     emit(const LoginInitial());
   }
 
-  /// Verifica el estado de bloqueo de un email
-  /// RN-007: Proteccion contra fuerza bruta
+  /// Verifica el estado de bloqueo de un celular
+  /// RN-002: Proteccion contra fuerza bruta
   Future<void> _onVerificarBloqueo(
     VerificarBloqueoEvent event,
     Emitter<LoginState> emit,
   ) async {
-    if (event.email.isEmpty) return;
+    if (event.celular.isEmpty) return;
 
-    final result = await repository.verificarBloqueoLogin(email: event.email);
+    final emailDerivado = _celularAEmailDerivado(event.celular);
+    final result = await repository.verificarBloqueoLogin(email: emailDerivado);
 
     result.fold(
       (failure) {
-        // Si falla la verificacion, no mostramos error, solo continuamos
+        // Si falla la verificacion, no mostramos error
       },
       (bloqueoInfo) {
         if (bloqueoInfo.bloqueado) {
@@ -110,18 +120,21 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
   }
 
   /// Validaciones frontend del formulario
-  /// RN-001: Campos obligatorios
+  /// RN-001: Celular y contrasena obligatorios
   Map<String, String> _validarFormulario({
-    required String email,
+    required String celular,
     required String password,
   }) {
     final errores = <String, String>{};
 
-    // RN-001: Email obligatorio
-    if (email.trim().isEmpty) {
-      errores['email'] = 'El email es obligatorio';
-    } else if (!_esEmailValido(email)) {
-      errores['email'] = 'Ingresa un email valido';
+    // RN-001: Celular obligatorio con formato Peru
+    final celularLimpio = celular.replaceAll(RegExp(r'[^0-9]'), '');
+    if (celularLimpio.isEmpty) {
+      errores['celular'] = 'El numero de celular es obligatorio';
+    } else if (celularLimpio.length != 9) {
+      errores['celular'] = 'El celular debe tener 9 digitos';
+    } else if (!celularLimpio.startsWith('9')) {
+      errores['celular'] = 'El celular debe iniciar con 9';
     }
 
     // RN-001: Password obligatorio
@@ -132,18 +145,9 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
     return errores;
   }
 
-  /// Valida formato de email
-  bool _esEmailValido(String email) {
-    final regex = RegExp(
-      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    );
-    return regex.hasMatch(email.trim());
-  }
-
   /// Mapea hints del backend a tipos de error y mensajes amigables
-  /// RN-002: cuenta_pendiente, cuenta_rechazada
-  /// RN-004: credenciales_invalidas
-  /// RN-007: cuenta_bloqueada
+  /// RN-003: Mensaje generico para credenciales invalidas
+  /// RN-005: Cuenta pendiente de activacion
   _LoginErrorInfo _mapearErrorBackend(Failure failure) {
     String mensaje = failure.message;
     LoginErrorType errorType = LoginErrorType.servidor;
@@ -155,28 +159,34 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
 
       switch (failure.hint) {
         case 'credenciales_invalidas':
-          // RN-004: Mensaje generico por seguridad
-          mensaje = 'Email o contrasena incorrectos';
+          // RN-003: Mensaje generico por seguridad
+          mensaje = 'Credenciales incorrectas';
           errorType = LoginErrorType.credencialesInvalidas;
           break;
 
+        case 'usuario_pendiente':
         case 'cuenta_pendiente':
-          // RN-002: Cuenta pendiente de aprobacion
+          // RN-005 / CA-005: Cuenta pendiente de activacion
           mensaje =
-              'Tu cuenta esta pendiente de aprobacion. Un administrador revisara tu solicitud.';
-          errorType = LoginErrorType.cuentaPendiente;
+              'Tu cuenta esta pendiente de activacion. Completa el proceso de activacion para poder acceder.';
+          errorType = LoginErrorType.cuentaPendienteActivacion;
           break;
 
+        case 'usuario_rechazado':
         case 'cuenta_rechazada':
-          // RN-002: Cuenta rechazada
           mensaje =
-              'Tu solicitud de registro fue rechazada. Contacta al administrador para mas informacion.';
+              'Tu cuenta no tiene acceso al sistema. Contacta al administrador.';
+          errorType = LoginErrorType.cuentaRechazada;
+          break;
+
+        case 'usuario_inactivo':
+          mensaje =
+              'Tu cuenta ha sido desactivada. Contacta al administrador.';
           errorType = LoginErrorType.cuentaRechazada;
           break;
 
         case 'cuenta_bloqueada':
-          // RN-007: Cuenta bloqueada por intentos fallidos
-          // Extraer minutos restantes del mensaje si esta disponible
+          // RN-002: Cuenta bloqueada por intentos fallidos
           final regExp = RegExp(r'(\d+)\s*minuto');
           final match = regExp.firstMatch(failure.message);
           if (match != null) {
@@ -194,7 +204,6 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
           break;
 
         default:
-          // Error generico del servidor
           mensaje = failure.message;
           errorType = LoginErrorType.servidor;
       }

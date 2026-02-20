@@ -2,8 +2,7 @@ import 'package:equatable/equatable.dart';
 
 import '../../../data/models/login_response_model.dart';
 
-/// Estados del Bloc de Login
-/// HU-002: Inicio de Sesion
+/// E001-HU-002: Estados del Bloc de Login
 abstract class LoginState extends Equatable {
   const LoginState();
 
@@ -22,7 +21,9 @@ class LoginLoading extends LoginState {
 }
 
 /// Estado: Login exitoso
-/// CA-002: Navegar a home
+/// CA-001: Un grupo -> home directo
+/// CA-002: Multiples grupos -> seleccion (futuro)
+/// CA-006: Sin grupos -> crear grupo (futuro)
 class LoginSuccess extends LoginState {
   final LoginResponseModel response;
 
@@ -32,18 +33,21 @@ class LoginSuccess extends LoginState {
   List<Object?> get props => [response];
 }
 
-/// Tipos de error de login para RN-002, RN-004, RN-007
+/// Tipos de error de login
 enum LoginErrorType {
-  /// RN-004: Credenciales invalidas (mensaje generico)
+  /// RN-003: Credenciales invalidas (mensaje generico)
   credencialesInvalidas,
 
-  /// RN-002: Cuenta pendiente de aprobacion
+  /// CA-005 / RN-005: Cuenta pendiente de activacion (jugador invitado)
+  cuentaPendienteActivacion,
+
+  /// Cuenta pendiente de aprobacion (flujo legacy)
   cuentaPendiente,
 
-  /// RN-002: Cuenta rechazada
+  /// Cuenta rechazada
   cuentaRechazada,
 
-  /// RN-007: Cuenta bloqueada por intentos fallidos
+  /// RN-002: Cuenta bloqueada por intentos fallidos
   cuentaBloqueada,
 
   /// Error de validacion de campos
@@ -54,7 +58,7 @@ enum LoginErrorType {
 }
 
 /// Estado: Error en login
-/// CA-003: Mostrar mensaje de error apropiado
+/// CA-003: Mensaje generico para credenciales incorrectas
 class LoginError extends LoginState {
   final String message;
   final LoginErrorType errorType;
@@ -73,7 +77,6 @@ class LoginError extends LoginState {
 }
 
 /// Estado: Error de validacion frontend
-/// CA-004: Campos obligatorios
 class LoginValidationError extends LoginState {
   final Map<String, String> errores;
 
@@ -84,7 +87,7 @@ class LoginValidationError extends LoginState {
 }
 
 /// Estado: Informacion de bloqueo
-/// RN-007: Mostrar intentos restantes
+/// RN-002: Mostrar intentos restantes y tiempo de bloqueo
 class LoginBloqueoInfo extends LoginState {
   final bool bloqueado;
   final int intentosRestantes;

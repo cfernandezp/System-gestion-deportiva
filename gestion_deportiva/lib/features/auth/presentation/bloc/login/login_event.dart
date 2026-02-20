@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 
-/// Eventos del Bloc de Login
-/// HU-002: Inicio de Sesion
+/// E001-HU-002: Eventos del Bloc de Login
+/// RN-001: Autenticacion por celular y contrasena
 abstract class LoginEvent extends Equatable {
   const LoginEvent();
 
@@ -10,19 +10,18 @@ abstract class LoginEvent extends Equatable {
 }
 
 /// Evento: Enviar formulario de login
-/// CA-002: Login exitoso
-/// CA-003: Credenciales invalidas
+/// CA-001, CA-002, CA-003: Login con celular y contrasena
 class LoginSubmitEvent extends LoginEvent {
-  final String email;
+  final String celular;
   final String password;
 
   const LoginSubmitEvent({
-    required this.email,
+    required this.celular,
     required this.password,
   });
 
   @override
-  List<Object?> get props => [email, password];
+  List<Object?> get props => [celular, password];
 }
 
 /// Evento: Resetear estado del formulario
@@ -31,12 +30,12 @@ class LoginResetEvent extends LoginEvent {
 }
 
 /// Evento: Verificar bloqueo antes de intentar login
-/// RN-007: Verificar si el email esta bloqueado
+/// RN-002: Verificar si el celular esta bloqueado
 class VerificarBloqueoEvent extends LoginEvent {
-  final String email;
+  final String celular;
 
-  const VerificarBloqueoEvent({required this.email});
+  const VerificarBloqueoEvent({required this.celular});
 
   @override
-  List<Object?> get props => [email];
+  List<Object?> get props => [celular];
 }
