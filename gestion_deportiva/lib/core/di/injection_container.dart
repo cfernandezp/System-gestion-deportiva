@@ -1,4 +1,5 @@
 import 'package:get_it/get_it.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../network/supabase_client.dart';
@@ -83,6 +84,12 @@ import '../../features/estadisticas/data/repositories/estadisticas_repository_im
 import '../../features/estadisticas/domain/repositories/estadisticas_repository.dart';
 import '../../features/estadisticas/presentation/bloc/ranking_goleadores/ranking_goleadores_bloc.dart';
 
+// Settings Feature (E000-HU-001: Sistema de Temas)
+import '../../features/settings/data/datasources/theme_local_datasource.dart';
+import '../../features/settings/data/repositories/theme_repository_impl.dart';
+import '../../features/settings/domain/repositories/theme_repository.dart';
+import '../../features/settings/presentation/bloc/theme/theme_bloc.dart';
+
 /// Service Locator global
 final sl = GetIt.instance;
 
@@ -90,6 +97,10 @@ final sl = GetIt.instance;
 /// Llamar en main.dart antes de runApp
 Future<void> initializeDependencies() async {
   // ==================== Core ====================
+
+  // SharedPreferences (E000-HU-001: Persistencia local de tema)
+  final sharedPreferences = await SharedPreferences.getInstance();
+  sl.registerLazySingleton<SharedPreferences>(() => sharedPreferences);
 
   // Supabase Client
   sl.registerLazySingleton<SupabaseClient>(() => SupabaseConfig.client);
@@ -277,5 +288,20 @@ Future<void> initializeDependencies() async {
   // DataSource
   sl.registerLazySingleton<EstadisticasRemoteDataSource>(
     () => EstadisticasRemoteDataSourceImpl(supabase: sl()),
+  );
+
+  // -------------------- Settings (E000-HU-001: Sistema de Temas) --------------------
+
+  // Blocs
+  sl.registerLazySingleton(() => ThemeBloc(repository: sl()));
+
+  // Repository
+  sl.registerLazySingleton<ThemeRepository>(
+    () => ThemeRepositoryImpl(localDataSource: sl()),
+  );
+
+  // DataSource
+  sl.registerLazySingleton<ThemeLocalDataSource>(
+    () => ThemeLocalDataSourceImpl(prefs: sl()),
   );
 }

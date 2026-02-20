@@ -43,6 +43,9 @@ import '../../features/mi_actividad/presentation/pages/mi_actividad_page.dart';
 // E006-HU-001: Ranking de Goleadores
 import '../../features/estadisticas/presentation/bloc/ranking_goleadores/ranking_goleadores.dart';
 import '../../features/estadisticas/presentation/pages/ranking_goleadores_page.dart';
+// E000-HU-001: Sistema de Temas - Configuracion
+import '../../features/settings/presentation/bloc/theme/theme.dart';
+import '../../features/settings/presentation/pages/settings_page.dart';
 
 /// Notificador que escucha cambios en el SessionBloc y notifica al GoRouter
 /// Esto resuelve la race condition entre login exitoso y la redireccion
@@ -120,6 +123,8 @@ class AppRouter {
   static const String miActividad = '/mi-actividad';
   // E006-HU-001: Ranking de Goleadores
   static const String rankingGoleadores = '/ranking-goleadores';
+  // E000-HU-001: Sistema de Temas - Configuracion
+  static const String configuracion = '/configuracion';
 
   /// Rutas publicas (no requieren autenticacion)
   static const List<String> _publicRoutes = [
@@ -413,6 +418,20 @@ class AppRouter {
             create: (context) => sl<RankingGoleadoresBloc>()
               ..add(const CargarRankingEvent()),
             child: const RankingGoleadoresPage(),
+          ),
+        ),
+      ),
+
+      // E000-HU-001: Configuracion - Sistema de Temas
+      // CA-003: Selector de tema accesible desde configuracion
+      GoRoute(
+        path: '/configuracion',
+        name: 'configuracion',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: BlocProvider.value(
+            value: sl<ThemeBloc>(),
+            child: const SettingsPage(),
           ),
         ),
       ),
