@@ -46,6 +46,9 @@ import '../../features/estadisticas/presentation/pages/ranking_goleadores_page.d
 // E000-HU-001: Sistema de Temas - Configuracion
 import '../../features/settings/presentation/bloc/theme/theme.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
+// E000-HU-003: Pantalla de Upgrade
+import '../../features/upgrade/presentation/models/upgrade_reason.dart';
+import '../../features/upgrade/presentation/pages/upgrade_page.dart';
 
 /// Notificador que escucha cambios en el SessionBloc y notifica al GoRouter
 /// Esto resuelve la race condition entre login exitoso y la redireccion
@@ -125,6 +128,8 @@ class AppRouter {
   static const String rankingGoleadores = '/ranking-goleadores';
   // E000-HU-001: Sistema de Temas - Configuracion
   static const String configuracion = '/configuracion';
+  // E000-HU-003: Pantalla de Upgrade
+  static const String upgrade = '/upgrade';
 
   /// Rutas publicas (no requieren autenticacion)
   static const List<String> _publicRoutes = [
@@ -434,6 +439,22 @@ class AppRouter {
             child: const SettingsPage(),
           ),
         ),
+      ),
+
+      // E000-HU-003: Pantalla de Upgrade
+      // CA-001, CA-002: Redireccion desde feature bloqueada o limite alcanzado
+      // Recibe UpgradeReason via extra para mensaje contextualizado (RN-002)
+      GoRoute(
+        path: '/upgrade',
+        name: 'upgrade',
+        pageBuilder: (context, state) {
+          final reason = state.extra as UpgradeReason? ??
+              const UpgradeReason.explorar();
+          return _buildPageWithFadeTransition(
+            key: state.pageKey,
+            child: UpgradePage(reason: reason),
+          );
+        },
       ),
     ],
 
