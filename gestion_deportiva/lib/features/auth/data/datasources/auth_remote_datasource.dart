@@ -5,6 +5,7 @@ import '../../../../core/errors/exceptions.dart';
 import '../models/cerrar_sesion_response_model.dart';
 import '../models/login_response_model.dart';
 import '../models/recuperacion_response_model.dart';
+import '../models/registro_admin_response_model.dart';
 import '../models/registro_response_model.dart';
 import '../models/validacion_password_model.dart';
 import '../models/verificar_estado_model.dart';
@@ -72,6 +73,20 @@ abstract class AuthRemoteDataSource {
     required String token,
     required String nuevaContrasena,
     required String confirmarContrasena,
+  });
+
+  /// E001-HU-001: Registra un nuevo administrador con celular como identificador
+  /// Paso 1: Crea usuario en auth.users via signUp (email derivado del celular)
+  /// Paso 2: Llama RPC registrar_administrador para crear perfil
+  /// RN-001: Celular como identificador unico
+  /// RN-006: Cuenta activa inmediatamente
+  Future<RegistroAdminResponseModel> registrarAdministrador({
+    required String celular,
+    required String nombreCompleto,
+    required String password,
+    required String preguntaSeguridad,
+    required String respuestaSeguridad,
+    String? emailRespaldo,
   });
 }
 
@@ -634,6 +649,125 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     } catch (e) {
       throw ServerException(
         message: 'Error de conexion al restablecer contrasena: ${e.toString()}',
+      );
+    }
+  }
+
+  /// E001-HU-001: Registrar administrador con celular
+  /// Flujo: signUp con email derivado -> RPC registrar_administrador
+  /// RN-001: Celular como identificador unico
+  /// RN-006: Cuenta activa inmediatamente (no cerrar sesion post-registro)
+  @override
+  Future<RegistroAdminResponseModel> registrarAdministrador({
+    required String celular,
+    required String nombreCompleto,
+    required String password,
+    required String preguntaSeguridad,
+    required String respuestaSeguridad,
+    String? emailRespaldo,
+  }) async {
+    String? authUserId;
+
+    // RN-001: Derivar email a partir del celular para Supabase Auth
+    final emailDerivado = '$celular@gestiondeportiva.app';
+
+    debugPrint('========== REGISTRO ADMIN - INICIO ==========');
+    debugPrint('[REG_ADMIN] Celular: $celular');
+    debugPrint('[REG_ADMIN] Nombre: $nombreCompleto');
+    debugPrint('[REG_ADMIN] Email derivado: $emailDerivado');
+
+    try {
+      // PASO 1: Crear usuario en auth.users usando Supabase Auth
+      debugPrint('[REG_ADMIN] PASO 1: Llamando supabase.auth.signUp()...');
+      final authResponse = await supabase.auth.signUp(
+        email: emailDerivado,
+        password: password,
+        data: {
+          'nombre_completo': nombreCompleto,
+          'celular': celular,
+        },
+      );
+
+      if (authResponse.user == null) {
+        debugPrint('[REG_ADMIN] ERROR: authResponse.user es NULL');
+        throw ServerException(
+          message: 'Error al crear usuario en autenticacion',
+          code: 'AUTH_SIGNUP_FAILED',
+          hint: 'signup_failed',
+        );
+      }
+
+      authUserId = authResponse.user!.id;
+      debugPrint('[REG_ADMIN] Usuario auth creado con ID: $authUserId');
+
+      // PASO 2: Completar registro en tabla usuarios via RPC
+      debugPrint('[REG_ADMIN] PASO 2: Llamando RPC registrar_administrador()...');
+      final response = await supabase.rpc(
+        'registrar_administrador',
+        params: {
+          'p_auth_user_id': authUserId,
+          'p_celular': celular,
+          'p_nombre_completo': nombreCompleto,
+          'p_pregunta_seguridad': preguntaSeguridad,
+          'p_respuesta_seguridad': respuestaSeguridad,
+          'p_email_respaldo': emailRespaldo,
+        },
+      );
+
+      debugPrint('[REG_ADMIN] RPC registrar_administrador response: $response');
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        debugPrint('[REG_ADMIN] EXITO: Registro admin completado');
+        // RN-006: NO cerrar sesion - cuenta activa inmediatamente
+        debugPrint('========== REGISTRO ADMIN - FIN (EXITO) ==========');
+        return RegistroAdminResponseModel.fromJson(responseMap);
+      } else {
+        debugPrint('[REG_ADMIN] ERROR: registrar_administrador fallo');
+        // Rollback: eliminar usuario de auth si falla el perfil
+        await _rollbackAuthUser(authUserId);
+
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al completar registro de administrador',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on supabase_lib.AuthException catch (e) {
+      debugPrint('[REG_ADMIN] AuthException: ${e.message}');
+      debugPrint('========== REGISTRO ADMIN - FIN (AUTH ERROR) ==========');
+
+      String hint = 'auth_error';
+      String message = e.message;
+
+      // CA-002: Celular ya registrado (email derivado ya existe en auth)
+      if (e.message.contains('already registered') ||
+          e.message.contains('already exists')) {
+        hint = 'celular_duplicado';
+        message = 'Este numero de celular ya esta registrado. Intenta iniciar sesion o recuperar tu contrasena.';
+      } else if (e.message.contains('Password')) {
+        hint = 'password_invalido';
+        message = 'La contrasena no cumple los requisitos de seguridad';
+      }
+
+      throw ServerException(
+        message: message,
+        code: 'AUTH_ERROR',
+        hint: hint,
+      );
+    } on ServerException {
+      debugPrint('========== REGISTRO ADMIN - FIN (SERVER ERROR) ==========');
+      rethrow;
+    } catch (e) {
+      debugPrint('[REG_ADMIN] Exception generica: ${e.runtimeType}: $e');
+      debugPrint('========== REGISTRO ADMIN - FIN (EXCEPTION) ==========');
+      if (authUserId != null) {
+        await _rollbackAuthUser(authUserId);
+      }
+      throw ServerException(
+        message: 'Error de conexion al registrar administrador: ${e.toString()}',
       );
     }
   }

@@ -11,6 +11,7 @@ import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/presentation/bloc/login/login_bloc.dart';
 import '../../features/auth/presentation/bloc/registro/registro_bloc.dart';
+import '../../features/auth/presentation/bloc/registro_admin/registro_admin_bloc.dart';
 import '../../features/auth/presentation/bloc/recuperacion/recuperacion_bloc.dart';
 import '../../features/auth/presentation/bloc/session/session_bloc.dart';
 
@@ -114,6 +115,8 @@ Future<void> initializeDependencies() async {
 
   // Blocs
   sl.registerFactory(() => RegistroBloc(repository: sl()));
+  // E001-HU-001: Registro de Administrador con celular
+  sl.registerFactory(() => RegistroAdminBloc(repository: sl()));
   sl.registerFactory(() => LoginBloc(repository: sl()));
   // RecuperacionBloc: Factory para flujo de recuperacion de contrasena (HU-003)
   sl.registerFactory(() => RecuperacionBloc(repository: sl()));

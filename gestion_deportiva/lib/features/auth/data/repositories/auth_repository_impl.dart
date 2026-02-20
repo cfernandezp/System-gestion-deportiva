@@ -7,6 +7,7 @@ import '../datasources/auth_remote_datasource.dart';
 import '../models/cerrar_sesion_response_model.dart';
 import '../models/login_response_model.dart';
 import '../models/recuperacion_response_model.dart';
+import '../models/registro_admin_response_model.dart';
 import '../models/registro_response_model.dart';
 import '../models/validacion_password_model.dart';
 import '../models/verificar_estado_model.dart';
@@ -175,6 +176,35 @@ class AuthRepositoryImpl implements AuthRepository {
         token: token,
         nuevaContrasena: nuevaContrasena,
         confirmarContrasena: confirmarContrasena,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    }
+  }
+
+  /// E001-HU-001: Registrar administrador
+  @override
+  Future<Either<Failure, RegistroAdminResponseModel>> registrarAdministrador({
+    required String celular,
+    required String nombreCompleto,
+    required String password,
+    required String preguntaSeguridad,
+    required String respuestaSeguridad,
+    String? emailRespaldo,
+  }) async {
+    try {
+      final result = await remoteDataSource.registrarAdministrador(
+        celular: celular,
+        nombreCompleto: nombreCompleto,
+        password: password,
+        preguntaSeguridad: preguntaSeguridad,
+        respuestaSeguridad: respuestaSeguridad,
+        emailRespaldo: emailRespaldo,
       );
       return Right(result);
     } on ServerException catch (e) {

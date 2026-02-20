@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,23 +8,29 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_text_field.dart';
-import '../bloc/registro/registro.dart';
+import '../bloc/registro_admin/registro_admin.dart';
+import '../bloc/session/session.dart';
 import '../widgets/password_strength_indicator.dart';
-import '../widgets/registro_success_dialog.dart';
 
-/// Pagina de registro de usuario
-/// Implementa CA-001 a CA-005 y RN-002, RN-003, RN-009, RN-010
+/// E001-HU-001: Pagina de registro de administrador
+/// Registro con celular como identificador principal
 ///
-/// Layout Responsive:
-/// - Mobile (<600px): Formulario ocupa ancho completo con padding
-/// - Tablet/Desktop (>=600px): Card centrada con ancho maximo 420px
+/// Criterios de Aceptacion:
+/// - CA-001: Registro exitoso con celular, nombre, contrasena
+/// - CA-002: Celular ya registrado -> mensaje y sugerir login
+/// - CA-003: Validacion de formato celular Peru (9 digitos, inicia con 9)
+/// - CA-004: Validacion de contrasena segura
+/// - CA-005: Nombre obligatorio
+/// - CA-006: Pregunta de seguridad obligatoria
+/// - CA-007: Email de respaldo opcional
+/// - CA-008: Redireccion post-registro a crear primer grupo
 class RegistroPage extends StatelessWidget {
   const RegistroPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => sl<RegistroBloc>(),
+      create: (context) => sl<RegistroAdminBloc>(),
       child: const _RegistroView(),
     );
   }
@@ -39,15 +46,19 @@ class _RegistroView extends StatefulWidget {
 class _RegistroViewState extends State<_RegistroView> {
   final _formKey = GlobalKey<FormState>();
   final _nombreController = TextEditingController();
-  final _emailController = TextEditingController();
+  final _celularController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _respuestaController = TextEditingController();
+  final _emailRespaldoController = TextEditingController();
 
   // Focus nodes para navegacion
   final _nombreFocus = FocusNode();
-  final _emailFocus = FocusNode();
+  final _celularFocus = FocusNode();
   final _passwordFocus = FocusNode();
   final _confirmPasswordFocus = FocusNode();
+  final _respuestaFocus = FocusNode();
+  final _emailRespaldoFocus = FocusNode();
 
   // Errores de validacion del servidor
   Map<String, String> _fieldErrors = {};
@@ -58,16 +69,31 @@ class _RegistroViewState extends State<_RegistroView> {
   // CA-004: Error cuando contrasenas no coinciden
   String? _confirmPasswordError;
 
+  // CA-006 / RN-004: Pregunta de seguridad seleccionada
+  String? _preguntaSeleccionada;
+
+  /// RN-004: Lista predefinida de preguntas de seguridad
+  static const List<String> _preguntasSeguridad = [
+    'Nombre de tu primer equipo',
+    'Ciudad donde naciste',
+    'Nombre de tu mejor amigo',
+    'Apodo de infancia',
+  ];
+
   @override
   void dispose() {
     _nombreController.dispose();
-    _emailController.dispose();
+    _celularController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _respuestaController.dispose();
+    _emailRespaldoController.dispose();
     _nombreFocus.dispose();
-    _emailFocus.dispose();
+    _celularFocus.dispose();
     _passwordFocus.dispose();
     _confirmPasswordFocus.dispose();
+    _respuestaFocus.dispose();
+    _emailRespaldoFocus.dispose();
     super.dispose();
   }
 
@@ -78,12 +104,17 @@ class _RegistroViewState extends State<_RegistroView> {
       _confirmPasswordError = null;
     });
 
-    context.read<RegistroBloc>().add(
-          RegistroSubmitEvent(
+    context.read<RegistroAdminBloc>().add(
+          RegistroAdminSubmitEvent(
+            celular: _celularController.text,
             nombreCompleto: _nombreController.text,
-            email: _emailController.text,
             password: _passwordController.text,
             confirmPassword: _confirmPasswordController.text,
+            preguntaSeguridad: _preguntaSeleccionada ?? '',
+            respuestaSeguridad: _respuestaController.text,
+            emailRespaldo: _emailRespaldoController.text.isNotEmpty
+                ? _emailRespaldoController.text
+                : null,
           ),
         );
   }
@@ -97,14 +128,13 @@ class _RegistroViewState extends State<_RegistroView> {
       }
     });
 
-    // Validar password en tiempo real (CA-003)
-    context.read<RegistroBloc>().add(
-          ValidarPasswordEvent(password: password),
+    // CA-004: Validar password en tiempo real
+    context.read<RegistroAdminBloc>().add(
+          ValidarPasswordAdminEvent(password: password),
         );
   }
 
   void _onConfirmPasswordChanged(String confirmPassword) {
-    // CA-004: Validar coincidencia en tiempo real
     _validatePasswordMatch();
   }
 
@@ -127,28 +157,29 @@ class _RegistroViewState extends State<_RegistroView> {
     final colorScheme = theme.colorScheme;
     final size = MediaQuery.sizeOf(context);
 
-    // Determinar si es mobile o tablet/desktop
     final isMobile = size.width < DesignTokens.breakpointMobile;
     final maxFormWidth = 420.0;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      body: BlocConsumer<RegistroBloc, RegistroState>(
+      body: BlocConsumer<RegistroAdminBloc, RegistroAdminState>(
         listener: (context, state) {
-          if (state is RegistroSuccess) {
-            // CA-005: Mostrar dialogo de exito con pendiente de aprobacion
-            RegistroSuccessDialog.show(
-              context,
-              mensaje: state.response.mensaje,
-              onDismiss: () {
-                // Navegar a login
-                if (context.mounted) {
-                  context.go('/login');
-                }
-              },
-            );
-          } else if (state is RegistroError) {
-            // CA-002: Mostrar error (email duplicado u otros)
+          if (state is RegistroAdminSuccess) {
+            // CA-008 / RN-006: Cuenta activa inmediatamente
+            // Actualizar SessionBloc y navegar
+            // La sesion ya esta activa (no se cerro post-registro)
+            context.read<SessionBloc>().add(
+                  SessionAuthenticatedEvent(
+                    usuarioId: state.response.usuarioId,
+                    nombreCompleto: state.response.nombreCompleto,
+                    email: '${state.response.celular}@gestiondeportiva.app',
+                    rol: state.response.rol,
+                  ),
+                );
+            // CA-008: Redirigir a home (crear grupo sera una pantalla futura)
+            // El GoRouter redirige automaticamente via refreshListenable
+          } else if (state is RegistroAdminError) {
+            // CA-002: Mostrar error (celular duplicado u otros)
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Row(
@@ -171,11 +202,9 @@ class _RegistroViewState extends State<_RegistroView> {
                 ),
               ),
             );
-          } else if (state is RegistroValidationError) {
-            // Actualizar errores de campo
+          } else if (state is RegistroAdminValidationError) {
             setState(() {
               _fieldErrors = state.errores;
-              // CA-004: Si hay error de confirmacion, mostrarlo
               if (state.errores.containsKey('confirmPassword')) {
                 _confirmPasswordError = state.errores['confirmPassword'];
               }
@@ -183,13 +212,14 @@ class _RegistroViewState extends State<_RegistroView> {
           }
         },
         builder: (context, state) {
-          final isLoading = state is RegistroLoading;
+          final isLoading = state is RegistroAdminLoading;
 
           return SafeArea(
             child: Center(
               child: SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
-                  horizontal: isMobile ? DesignTokens.spacingM : DesignTokens.spacingL,
+                  horizontal:
+                      isMobile ? DesignTokens.spacingM : DesignTokens.spacingL,
                   vertical: DesignTokens.spacingL,
                 ),
                 child: ConstrainedBox(
@@ -201,14 +231,16 @@ class _RegistroViewState extends State<_RegistroView> {
                       _buildHeader(theme, colorScheme),
                       const SizedBox(height: DesignTokens.spacingXl),
 
-                      // CA-001: Formulario en Card
+                      // Formulario en Card
                       AppCard(
                         variant: isMobile
                             ? AppCardVariant.standard
                             : AppCardVariant.elevated,
                         margin: EdgeInsets.zero,
                         padding: EdgeInsets.all(
-                          isMobile ? DesignTokens.spacingM : DesignTokens.spacingL,
+                          isMobile
+                              ? DesignTokens.spacingM
+                              : DesignTokens.spacingL,
                         ),
                         child: Form(
                           key: _formKey,
@@ -217,7 +249,7 @@ class _RegistroViewState extends State<_RegistroView> {
                             children: [
                               // Titulo del formulario
                               Text(
-                                'Crear cuenta',
+                                'Crear cuenta de administrador',
                                 style: theme.textTheme.titleLarge?.copyWith(
                                   fontWeight: DesignTokens.fontWeightBold,
                                 ),
@@ -225,7 +257,7 @@ class _RegistroViewState extends State<_RegistroView> {
                               ),
                               const SizedBox(height: DesignTokens.spacingS),
                               Text(
-                                'Tu cuenta sera revisada por un administrador',
+                                'Registrate para organizar tus partidos',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: colorScheme.onSurfaceVariant,
                                 ),
@@ -233,7 +265,7 @@ class _RegistroViewState extends State<_RegistroView> {
                               ),
                               const SizedBox(height: DesignTokens.spacingL),
 
-                              // CA-001: Campo Nombre completo
+                              // CA-005: Campo Nombre completo
                               AppTextField(
                                 controller: _nombreController,
                                 focusNode: _nombreFocus,
@@ -244,21 +276,33 @@ class _RegistroViewState extends State<_RegistroView> {
                                 errorText: _fieldErrors['nombreCompleto'],
                                 enabled: !isLoading,
                                 textInputAction: TextInputAction.next,
-                                onSubmitted: (_) => _emailFocus.requestFocus(),
+                                onSubmitted: (_) =>
+                                    _celularFocus.requestFocus(),
                               ),
                               const SizedBox(height: DesignTokens.spacingM),
 
-                              // CA-001: Campo Email
-                              AppTextField.email(
-                                controller: _emailController,
-                                focusNode: _emailFocus,
-                                errorText: _fieldErrors['email'],
+                              // CA-003 / RN-002: Campo Celular
+                              AppTextField(
+                                controller: _celularController,
+                                focusNode: _celularFocus,
+                                label: 'Numero de celular',
+                                hint: '9XX XXX XXX',
+                                prefixIcon: Icons.phone_android,
+                                keyboardType: TextInputType.phone,
+                                errorText: _fieldErrors['celular'],
                                 enabled: !isLoading,
-                                onSubmitted: (_) => _passwordFocus.requestFocus(),
+                                textInputAction: TextInputAction.next,
+                                maxLength: 9,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(9),
+                                ],
+                                onSubmitted: (_) =>
+                                    _passwordFocus.requestFocus(),
                               ),
                               const SizedBox(height: DesignTokens.spacingM),
 
-                              // CA-001: Campo Password
+                              // CA-004 / RN-003: Campo Password
                               AppTextField.password(
                                 controller: _passwordController,
                                 focusNode: _passwordFocus,
@@ -271,14 +315,13 @@ class _RegistroViewState extends State<_RegistroView> {
                               ),
                               const SizedBox(height: DesignTokens.spacingM),
 
-                              // CA-003: Indicador visual de requisitos de contrasena
+                              // CA-004: Indicador visual de requisitos
                               PasswordStrengthIndicator(
                                 password: _currentPassword,
                               ),
                               const SizedBox(height: DesignTokens.spacingM),
 
-                              // CA-001: Campo Confirmar password
-                              // CA-004: Feedback visual cuando no coinciden
+                              // CA-004: Confirmar password
                               AppTextField.password(
                                 controller: _confirmPasswordController,
                                 focusNode: _confirmPasswordFocus,
@@ -288,16 +331,60 @@ class _RegistroViewState extends State<_RegistroView> {
                                     _fieldErrors['confirmPassword'],
                                 enabled: !isLoading,
                                 onChanged: _onConfirmPasswordChanged,
-                                onSubmitted: (_) => _onSubmit(),
-                                // Mostrar check verde si coinciden
                                 showSuccessState: _confirmPasswordController
                                         .text.isNotEmpty &&
                                     _passwordController.text ==
                                         _confirmPasswordController.text,
                               ),
+                              const SizedBox(height: DesignTokens.spacingL),
+
+                              // Separador visual - Seguridad
+                              _buildSectionDivider(
+                                  theme, colorScheme, 'Seguridad'),
+                              const SizedBox(height: DesignTokens.spacingM),
+
+                              // CA-006 / RN-004: Pregunta de seguridad
+                              _buildPreguntaSeguridad(
+                                  theme, colorScheme, isLoading),
+                              const SizedBox(height: DesignTokens.spacingM),
+
+                              // CA-006 / RN-004: Respuesta de seguridad
+                              AppTextField(
+                                controller: _respuestaController,
+                                focusNode: _respuestaFocus,
+                                label: 'Respuesta',
+                                hint: 'Tu respuesta a la pregunta',
+                                prefixIcon: Icons.lock_outline,
+                                textCapitalization: TextCapitalization.none,
+                                errorText: _fieldErrors['respuestaSeguridad'],
+                                enabled: !isLoading,
+                                textInputAction: TextInputAction.next,
+                                onSubmitted: (_) =>
+                                    _emailRespaldoFocus.requestFocus(),
+                              ),
+                              const SizedBox(height: DesignTokens.spacingM),
+
+                              // CA-007 / RN-005: Email de respaldo (opcional)
+                              AppTextField.email(
+                                controller: _emailRespaldoController,
+                                focusNode: _emailRespaldoFocus,
+                                label: 'Email de respaldo (opcional)',
+                                hint: 'tu@correo.com',
+                                errorText: _fieldErrors['emailRespaldo'],
+                                enabled: !isLoading,
+                                onSubmitted: (_) => _onSubmit(),
+                              ),
+                              const SizedBox(height: DesignTokens.spacingXs),
+                              Text(
+                                'Solo se usara para recuperar tu contrasena si falla la pregunta de seguridad',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontSize: 11,
+                                ),
+                              ),
                               const SizedBox(height: DesignTokens.spacingXl),
 
-                              // Boton de registro con estado de carga
+                              // Boton de registro
                               AppButton(
                                 label: 'Crear cuenta',
                                 onPressed: isLoading ? null : _onSubmit,
@@ -329,7 +416,6 @@ class _RegistroViewState extends State<_RegistroView> {
   Widget _buildHeader(ThemeData theme, ColorScheme colorScheme) {
     return Column(
       children: [
-        // Icono de la app
         Container(
           width: 80,
           height: 80,
@@ -357,6 +443,106 @@ class _RegistroViewState extends State<_RegistroView> {
             fontWeight: DesignTokens.fontWeightBold,
             color: colorScheme.onSurface,
           ),
+        ),
+      ],
+    );
+  }
+
+  /// Separador visual con titulo de seccion
+  Widget _buildSectionDivider(
+      ThemeData theme, ColorScheme colorScheme, String titulo) {
+    return Row(
+      children: [
+        Expanded(
+          child: Divider(color: colorScheme.outlineVariant),
+        ),
+        Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: DesignTokens.spacingS),
+          child: Text(
+            titulo,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: DesignTokens.fontWeightSemiBold,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Divider(color: colorScheme.outlineVariant),
+        ),
+      ],
+    );
+  }
+
+  /// CA-006 / RN-004: Dropdown de preguntas de seguridad
+  Widget _buildPreguntaSeguridad(
+      ThemeData theme, ColorScheme colorScheme, bool isLoading) {
+    final hasError = _fieldErrors.containsKey('preguntaSeguridad');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Pregunta de seguridad',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: hasError ? colorScheme.error : colorScheme.onSurfaceVariant,
+            fontWeight: DesignTokens.fontWeightMedium,
+          ),
+        ),
+        const SizedBox(height: DesignTokens.spacingXs),
+        DropdownButtonFormField<String>(
+          initialValue: _preguntaSeleccionada,
+          decoration: InputDecoration(
+            prefixIcon: Icon(
+              Icons.help_outline,
+              color: hasError ? colorScheme.error : colorScheme.onSurfaceVariant,
+            ),
+            hintText: 'Selecciona una pregunta',
+            errorText: _fieldErrors['preguntaSeguridad'],
+            filled: true,
+            fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+              borderSide: BorderSide(color: colorScheme.outline),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+              borderSide: BorderSide(color: colorScheme.outline),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+              borderSide: BorderSide(color: colorScheme.primary, width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+              borderSide: BorderSide(color: colorScheme.error),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spacingM,
+              vertical: DesignTokens.spacingS,
+            ),
+          ),
+          isExpanded: true,
+          items: _preguntasSeguridad.map((pregunta) {
+            return DropdownMenuItem<String>(
+              value: pregunta,
+              child: Text(
+                pregunta,
+                style: theme.textTheme.bodyMedium,
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+          onChanged: isLoading
+              ? null
+              : (value) {
+                  setState(() {
+                    _preguntaSeleccionada = value;
+                    // Limpiar error de pregunta al seleccionar
+                    _fieldErrors.remove('preguntaSeguridad');
+                  });
+                  _respuestaFocus.requestFocus();
+                },
         ),
       ],
     );

@@ -4,6 +4,7 @@ import '../../../../core/errors/failures.dart';
 import '../../data/models/cerrar_sesion_response_model.dart';
 import '../../data/models/login_response_model.dart';
 import '../../data/models/recuperacion_response_model.dart';
+import '../../data/models/registro_admin_response_model.dart';
 import '../../data/models/registro_response_model.dart';
 import '../../data/models/validacion_password_model.dart';
 import '../../data/models/verificar_estado_model.dart';
@@ -69,5 +70,17 @@ abstract class AuthRepository {
     required String token,
     required String nuevaContrasena,
     required String confirmarContrasena,
+  });
+
+  /// E001-HU-001: Registra un nuevo administrador
+  /// RN-001: Celular como identificador unico
+  /// RN-006: Cuenta activa inmediatamente
+  Future<Either<Failure, RegistroAdminResponseModel>> registrarAdministrador({
+    required String celular,
+    required String nombreCompleto,
+    required String password,
+    required String preguntaSeguridad,
+    required String respuestaSeguridad,
+    String? emailRespaldo,
   });
 }
