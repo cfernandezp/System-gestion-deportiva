@@ -91,6 +91,12 @@ import '../../features/settings/data/repositories/theme_repository_impl.dart';
 import '../../features/settings/domain/repositories/theme_repository.dart';
 import '../../features/settings/presentation/bloc/theme/theme_bloc.dart';
 
+// Planes Feature (E000-HU-002: Infraestructura de Planes y Limites)
+import '../../features/planes/data/datasources/planes_remote_datasource.dart';
+import '../../features/planes/data/repositories/planes_repository_impl.dart';
+import '../../features/planes/domain/repositories/planes_repository.dart';
+import '../../features/planes/domain/services/plan_service.dart';
+
 /// Service Locator global
 final sl = GetIt.instance;
 
@@ -306,5 +312,22 @@ Future<void> initializeDependencies() async {
   // DataSource
   sl.registerLazySingleton<ThemeLocalDataSource>(
     () => ThemeLocalDataSourceImpl(prefs: sl()),
+  );
+
+  // -------------------- Planes (E000-HU-002: Infraestructura de Planes y Limites) --------------------
+
+  // Service (singleton: cache del plan del admin, consumido por todos los features)
+  sl.registerLazySingleton<PlanService>(
+    () => PlanService(repository: sl()),
+  );
+
+  // Repository
+  sl.registerLazySingleton<PlanesRepository>(
+    () => PlanesRepositoryImpl(remoteDataSource: sl()),
+  );
+
+  // DataSource
+  sl.registerLazySingleton<PlanesRemoteDataSource>(
+    () => PlanesRemoteDataSourceImpl(supabase: sl()),
   );
 }
