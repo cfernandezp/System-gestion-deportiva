@@ -14,6 +14,7 @@ class MiembrosGrupoBloc extends Bloc<MiembrosGrupoEvent, MiembrosGrupoState> {
     on<CargarMiembrosGrupoEvent>(_onCargarMiembros);
     on<FiltrarPorRolEvent>(_onFiltrarPorRol);
     on<BuscarMiembroEvent>(_onBuscarMiembro);
+    on<EliminarJugadorEvent>(_onEliminarJugador);
   }
 
   Future<void> _onCargarMiembros(
@@ -53,5 +54,24 @@ class MiembrosGrupoBloc extends Bloc<MiembrosGrupoEvent, MiembrosGrupoState> {
     if (currentState is MiembrosGrupoLoaded) {
       emit(currentState.copyWith(busqueda: event.query));
     }
+  }
+
+  /// E002-HU-006: Eliminar jugador del grupo
+  /// CA-001, RN-001 a RN-005
+  Future<void> _onEliminarJugador(
+    EliminarJugadorEvent event,
+    Emitter<MiembrosGrupoState> emit,
+  ) async {
+    emit(MiembrosGrupoLoading());
+
+    final result = await repository.eliminarJugadorGrupo(
+      grupoId: event.grupoId,
+      miembroId: event.miembroId,
+    );
+
+    result.fold(
+      (failure) => emit(MiembrosGrupoError(failure.message)),
+      (_) => emit(EliminarJugadorSuccess(event.nombreJugador)),
+    );
   }
 }

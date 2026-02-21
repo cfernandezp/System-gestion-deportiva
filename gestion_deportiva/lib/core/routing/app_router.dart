@@ -585,6 +585,7 @@ class AppRouter {
 
       // E001-HU-004: Ver Miembros del Grupo
       // CA-005: Lista de miembros con estado
+      // E002-HU-006: Eliminar Jugador del Grupo (requiere miRol)
       GoRoute(
         path: '/grupos/:id/miembros',
         name: 'miembrosGrupo',
@@ -592,6 +593,7 @@ class AppRouter {
           final grupoId = state.pathParameters['id'] ?? '';
           final grupoActual = sl<GrupoActualCubit>().grupoActual;
           final esAdminOCoadmin = grupoActual?.esAdminOCoadmin ?? false;
+          final miRol = grupoActual?.miRol ?? 'jugador';
           return _buildPageWithFadeTransition(
             key: state.pageKey,
             child: BlocProvider(
@@ -600,6 +602,7 @@ class AppRouter {
               child: MiembrosGrupoPage(
                 grupoId: grupoId,
                 esAdminOCoadmin: esAdminOCoadmin,
+                miRol: miRol,
               ),
             ),
           );

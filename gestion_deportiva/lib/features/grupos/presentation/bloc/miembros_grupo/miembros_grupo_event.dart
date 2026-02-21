@@ -40,3 +40,19 @@ class BuscarMiembroEvent extends MiembrosGrupoEvent {
   @override
   List<Object?> get props => [query];
 }
+
+/// E002-HU-006 CA-001: Eliminar jugador del grupo
+class EliminarJugadorEvent extends MiembrosGrupoEvent {
+  final String grupoId;
+  final String miembroId;
+  final String nombreJugador;
+
+  const EliminarJugadorEvent({
+    required this.grupoId,
+    required this.miembroId,
+    required this.nombreJugador,
+  });
+
+  @override
+  List<Object?> get props => [grupoId, miembroId, nombreJugador];
+}

@@ -210,4 +210,28 @@ class GruposRepositoryImpl implements GruposRepository {
       ));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> eliminarJugadorGrupo({
+    required String grupoId,
+    required String miembroId,
+  }) async {
+    try {
+      await remoteDataSource.eliminarJugadorGrupo(
+        grupoId: grupoId,
+        miembroId: miembroId,
+      );
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado: ${e.toString()}',
+      ));
+    }
+  }
 }

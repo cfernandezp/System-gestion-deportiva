@@ -11,15 +11,18 @@ import '../bloc/miembros_grupo/miembros_grupo_state.dart';
 
 /// E002-HU-005: Ver Miembros del Grupo
 /// CA-001 a CA-005, RN-001 a RN-005
+/// E002-HU-006: Eliminar Jugador del Grupo
 /// Patron mobile: ListView con Cards, busqueda, filtros por rol, privacidad celular
 class MiembrosGrupoPage extends StatefulWidget {
   final String grupoId;
   final bool esAdminOCoadmin;
+  final String miRol; // 'admin', 'coadmin', 'jugador', 'invitado'
 
   const MiembrosGrupoPage({
     super.key,
     required this.grupoId,
     required this.esAdminOCoadmin,
+    this.miRol = 'jugador',
   });
 
   @override
@@ -59,6 +62,67 @@ class _MiembrosGrupoPageState extends State<MiembrosGrupoPage> {
     return widget.esAdminOCoadmin || _esMiembro(miembro);
   }
 
+  /// E002-HU-006: Determina si se puede eliminar un miembro segun permisos
+  bool _puedeEliminar(MiembroGrupoModel miembro) {
+    // Solo admin/coadmin pueden eliminar (RN-001)
+    if (!widget.esAdminOCoadmin) return false;
+    // No te puedes eliminar a ti mismo
+    if (_esMiembro(miembro)) return false;
+    // RN-002: Admin creador (rol 'admin') NO puede ser eliminado
+    if (miembro.rol == 'admin') return false;
+    // RN-003: Coadmin solo puede eliminar jugadores e invitados
+    if (widget.miRol == 'coadmin') {
+      return miembro.rol == 'jugador' || miembro.rol == 'invitado';
+    }
+    // RN-004: Admin puede eliminar coadmins, jugadores e invitados
+    return true;
+  }
+
+  /// E002-HU-006 CA-005/RN-006: Dialogo de confirmacion antes de eliminar
+  Future<void> _mostrarDialogoEliminar(MiembroGrupoModel miembro) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar del grupo'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Eliminar a "${miembro.displayName}" del grupo?'),
+            const SizedBox(height: DesignTokens.spacingM),
+            Text(
+              'Esta accion eliminara al jugador de este grupo pero no afectara su cuenta ni su participacion en otros grupos.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: DesignTokens.errorColor,
+            ),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true && mounted) {
+      context.read<MiembrosGrupoBloc>().add(EliminarJugadorEvent(
+        grupoId: widget.grupoId,
+        miembroId: miembro.miembroId,
+        nombreJugador: miembro.displayName,
+      ));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -69,7 +133,24 @@ class _MiembrosGrupoPageState extends State<MiembrosGrupoPage> {
         title: const Text('Miembros del Grupo'),
         centerTitle: true,
       ),
-      body: BlocBuilder<MiembrosGrupoBloc, MiembrosGrupoState>(
+      body: BlocConsumer<MiembrosGrupoBloc, MiembrosGrupoState>(
+        listener: (context, state) {
+          // E002-HU-006: Notificar exito y recargar miembros
+          if (state is EliminarJugadorSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  '"${state.nombreJugador}" fue eliminado del grupo',
+                ),
+                backgroundColor: DesignTokens.successColor,
+              ),
+            );
+            // Recargar lista de miembros
+            context
+                .read<MiembrosGrupoBloc>()
+                .add(CargarMiembrosGrupoEvent(grupoId: widget.grupoId));
+          }
+        },
         builder: (context, state) {
           if (state is MiembrosGrupoLoading) {
             return const Center(child: CircularProgressIndicator());
@@ -372,6 +453,10 @@ class _MiembrosGrupoPageState extends State<MiembrosGrupoPage> {
           miembro: miembro,
           mostrarCelularCompleto: _mostrarCelularCompleto(miembro),
           esAdminOCoadmin: widget.esAdminOCoadmin,
+          puedeEliminar: _puedeEliminar(miembro),
+          onEliminar: _puedeEliminar(miembro)
+              ? () => _mostrarDialogoEliminar(miembro)
+              : null,
         );
       },
     );
@@ -381,15 +466,20 @@ class _MiembrosGrupoPageState extends State<MiembrosGrupoPage> {
 /// Card de miembro individual
 /// CA-001: Nombre, celular (con privacidad), rol, estado
 /// CA-002: Admin/coadmin ven celular completo y estado detallado
+/// E002-HU-006: Boton eliminar si tiene permisos
 class _MiembroCard extends StatelessWidget {
   final MiembroGrupoModel miembro;
   final bool mostrarCelularCompleto;
   final bool esAdminOCoadmin;
+  final bool puedeEliminar;
+  final VoidCallback? onEliminar;
 
   const _MiembroCard({
     required this.miembro,
     required this.mostrarCelularCompleto,
     required this.esAdminOCoadmin,
+    this.puedeEliminar = false,
+    this.onEliminar,
   });
 
   @override
@@ -471,17 +561,25 @@ class _MiembroCard extends StatelessWidget {
           ],
         ),
         isThreeLine: true,
-        trailing: miembro.estaPendiente
-            ? const Icon(
-                Icons.schedule,
-                size: DesignTokens.iconSizeS,
-                color: DesignTokens.accentColor,
+        trailing: puedeEliminar
+            ? IconButton(
+                icon: const Icon(Icons.delete_outline),
+                color: DesignTokens.errorColor,
+                iconSize: DesignTokens.iconSizeM,
+                tooltip: 'Eliminar del grupo',
+                onPressed: onEliminar,
               )
-            : const Icon(
-                Icons.check_circle,
-                size: DesignTokens.iconSizeS,
-                color: DesignTokens.successColor,
-              ),
+            : miembro.estaPendiente
+                ? const Icon(
+                    Icons.schedule,
+                    size: DesignTokens.iconSizeS,
+                    color: DesignTokens.accentColor,
+                  )
+                : const Icon(
+                    Icons.check_circle,
+                    size: DesignTokens.iconSizeS,
+                    color: DesignTokens.successColor,
+                  ),
       ),
     );
   }

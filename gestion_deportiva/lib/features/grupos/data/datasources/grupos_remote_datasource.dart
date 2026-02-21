@@ -63,6 +63,13 @@ abstract class GruposRemoteDataSource {
     String? reglas,
     String? logoUrl,
   });
+
+  /// E002-HU-006: RPC eliminar_jugador_grupo
+  /// CA-001, RN-001 a RN-005: Elimina (desactiva) un miembro del grupo
+  Future<void> eliminarJugadorGrupo({
+    required String grupoId,
+    required String miembroId,
+  });
 }
 
 /// Implementacion con Supabase
@@ -363,6 +370,43 @@ class GruposRemoteDataSourceImpl implements GruposRemoteDataSource {
       rethrow;
     } catch (e) {
       debugPrint('[GruposDS] Error editarGrupo: $e');
+      throw ServerException(message: 'Error de conexion: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> eliminarJugadorGrupo({
+    required String grupoId,
+    required String miembroId,
+  }) async {
+    try {
+      debugPrint('[GruposDS] Eliminando miembro $miembroId del grupo $grupoId');
+
+      final response = await supabase.rpc(
+        'eliminar_jugador_grupo',
+        params: {
+          'p_grupo_id': grupoId,
+          'p_miembro_id': miembroId,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        debugPrint('[GruposDS] Miembro eliminado exitosamente');
+        return;
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al eliminar jugador',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      debugPrint('[GruposDS] Error eliminarJugador: $e');
       throw ServerException(message: 'Error de conexion: ${e.toString()}');
     }
   }

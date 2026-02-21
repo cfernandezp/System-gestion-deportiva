@@ -97,3 +97,13 @@ class MiembrosGrupoError extends MiembrosGrupoState {
   @override
   List<Object?> get props => [message];
 }
+
+/// E002-HU-006: Jugador eliminado exitosamente
+class EliminarJugadorSuccess extends MiembrosGrupoState {
+  final String nombreJugador;
+
+  const EliminarJugadorSuccess(this.nombreJugador);
+
+  @override
+  List<Object?> get props => [nombreJugador];
+}

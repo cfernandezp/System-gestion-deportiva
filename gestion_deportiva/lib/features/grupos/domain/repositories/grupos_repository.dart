@@ -61,4 +61,10 @@ abstract class GruposRepository {
     String? reglas,
     String? logoUrl,
   });
+
+  /// E002-HU-006: Elimina jugador del grupo
+  Future<Either<Failure, void>> eliminarJugadorGrupo({
+    required String grupoId,
+    required String miembroId,
+  });
 }
