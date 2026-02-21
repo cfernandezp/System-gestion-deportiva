@@ -54,27 +54,47 @@ abstract class AuthRemoteDataSource {
   /// HU-004: CA-002, RN-002
   Future<CerrarSesionResponseModel> cerrarSesion();
 
-  /// Solicita recuperacion de contrasena
-  /// RPC: solicitar_recuperacion_contrasena(p_email)
-  /// HU-003: CA-001, CA-002, CA-003, RN-001
-  Future<SolicitudRecuperacionModel> solicitarRecuperacion({
-    required String email,
+  /// E001-HU-007: Identifica el tipo de recuperacion segun el celular
+  /// RPC: identificar_tipo_recuperacion(p_celular) -> anon
+  Future<TipoRecuperacionModel> identificarTipoRecuperacion({
+    required String celular,
   });
 
-  /// Valida token de recuperacion de contrasena
-  /// RPC: validar_token_recuperacion(p_token)
-  /// HU-003: CA-004, CA-005, RN-002, RN-003
-  Future<ValidarTokenModel> validarTokenRecuperacion({
-    required String token,
+  /// E001-HU-007: Genera codigo de recuperacion para un jugador (admin-side)
+  /// RPC: generar_codigo_recuperacion(p_celular_jugador) -> authenticated
+  Future<GenerarCodigoModel> generarCodigoRecuperacion({
+    required String celularJugador,
   });
 
-  /// Restablece contrasena con token valido
-  /// RPC: restablecer_contrasena(p_token, p_nueva_contrasena, p_confirmar_contrasena)
-  /// HU-003: CA-004, CA-005, CA-006, RN-002, RN-003, RN-004, RN-005, RN-006
-  Future<RestablecerContrasenaModel> restablecerContrasena({
-    required String token,
+  /// E001-HU-007: Valida un codigo de recuperacion
+  /// RPC: validar_codigo_recuperacion(p_celular, p_codigo) -> anon
+  Future<ValidarCodigoModel> validarCodigoRecuperacion({
+    required String celular,
+    required String codigo,
+  });
+
+  /// E001-HU-007: Restablece contrasena usando codigo validado
+  /// RPC: restablecer_contrasena_con_codigo(p_celular, p_codigo, p_nueva_contrasena, p_confirmar_contrasena) -> anon
+  Future<RestablecerResultModel> restablecerContrasenaConCodigo({
+    required String celular,
+    required String codigo,
     required String nuevaContrasena,
     required String confirmarContrasena,
+  });
+
+  /// E001-HU-007: Restablece contrasena usando pregunta de seguridad (admin)
+  /// RPC: restablecer_contrasena_con_pregunta(p_celular, p_respuesta, p_nueva_contrasena, p_confirmar_contrasena) -> anon
+  Future<RestablecerResultModel> restablecerContrasenaConPregunta({
+    required String celular,
+    required String respuesta,
+    required String nuevaContrasena,
+    required String confirmarContrasena,
+  });
+
+  /// E001-HU-007: Solicita recuperacion via email de respaldo (admin)
+  /// RPC: solicitar_recuperacion_email_admin(p_celular) -> anon
+  Future<RecuperacionEmailModel> solicitarRecuperacionEmailAdmin({
+    required String celular,
   });
 
   /// E001-HU-005: Verifica si un celular tiene invitacion pendiente
@@ -568,27 +588,27 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
   }
 
+  /// E001-HU-007: Identifica tipo de recuperacion
   @override
-  Future<SolicitudRecuperacionModel> solicitarRecuperacion({
-    required String email,
+  Future<TipoRecuperacionModel> identificarTipoRecuperacion({
+    required String celular,
   }) async {
     try {
       final response = await supabase.rpc(
-        'solicitar_recuperacion_contrasena',
+        'identificar_tipo_recuperacion',
         params: {
-          'p_email': email,
+          'p_celular': celular,
         },
       );
 
       final responseMap = response as Map<String, dynamic>;
 
-      // RN-001: Siempre retorna success con mensaje generico por seguridad
       if (responseMap['success'] == true) {
-        return SolicitudRecuperacionModel.fromJson(responseMap);
+        return TipoRecuperacionModel.fromJson(responseMap);
       } else {
         final error = responseMap['error'] as Map<String, dynamic>? ?? {};
         throw ServerException(
-          message: error['message'] ?? 'Error al solicitar recuperacion',
+          message: error['message'] ?? 'Error al identificar tipo de recuperacion',
           code: error['code'],
           hint: error['hint'],
         );
@@ -597,31 +617,32 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       rethrow;
     } catch (e) {
       throw ServerException(
-        message: 'Error de conexion al solicitar recuperacion: ${e.toString()}',
+        message: 'Error de conexion al identificar recuperacion: ${e.toString()}',
       );
     }
   }
 
+  /// E001-HU-007: Genera codigo de recuperacion para jugador (requiere auth)
   @override
-  Future<ValidarTokenModel> validarTokenRecuperacion({
-    required String token,
+  Future<GenerarCodigoModel> generarCodigoRecuperacion({
+    required String celularJugador,
   }) async {
     try {
       final response = await supabase.rpc(
-        'validar_token_recuperacion',
+        'generar_codigo_recuperacion',
         params: {
-          'p_token': token,
+          'p_celular_jugador': celularJugador,
         },
       );
 
       final responseMap = response as Map<String, dynamic>;
 
       if (responseMap['success'] == true) {
-        return ValidarTokenModel.fromJson(responseMap);
+        return GenerarCodigoModel.fromJson(responseMap);
       } else {
         final error = responseMap['error'] as Map<String, dynamic>? ?? {};
         throw ServerException(
-          message: error['message'] ?? 'Error al validar token',
+          message: error['message'] ?? 'Error al generar codigo de recuperacion',
           code: error['code'],
           hint: error['hint'],
         );
@@ -630,22 +651,61 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       rethrow;
     } catch (e) {
       throw ServerException(
-        message: 'Error de conexion al validar token: ${e.toString()}',
+        message: 'Error de conexion al generar codigo: ${e.toString()}',
       );
     }
   }
 
+  /// E001-HU-007: Valida codigo de recuperacion
   @override
-  Future<RestablecerContrasenaModel> restablecerContrasena({
-    required String token,
+  Future<ValidarCodigoModel> validarCodigoRecuperacion({
+    required String celular,
+    required String codigo,
+  }) async {
+    try {
+      final response = await supabase.rpc(
+        'validar_codigo_recuperacion',
+        params: {
+          'p_celular': celular,
+          'p_codigo': codigo,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return ValidarCodigoModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al validar codigo',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al validar codigo: ${e.toString()}',
+      );
+    }
+  }
+
+  /// E001-HU-007: Restablece contrasena con codigo validado
+  @override
+  Future<RestablecerResultModel> restablecerContrasenaConCodigo({
+    required String celular,
+    required String codigo,
     required String nuevaContrasena,
     required String confirmarContrasena,
   }) async {
     try {
       final response = await supabase.rpc(
-        'restablecer_contrasena',
+        'restablecer_contrasena_con_codigo',
         params: {
-          'p_token': token,
+          'p_celular': celular,
+          'p_codigo': codigo,
           'p_nueva_contrasena': nuevaContrasena,
           'p_confirmar_contrasena': confirmarContrasena,
         },
@@ -654,7 +714,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final responseMap = response as Map<String, dynamic>;
 
       if (responseMap['success'] == true) {
-        return RestablecerContrasenaModel.fromJson(responseMap);
+        return RestablecerResultModel.fromJson(responseMap);
       } else {
         final error = responseMap['error'] as Map<String, dynamic>? ?? {};
         throw ServerException(
@@ -668,6 +728,92 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     } catch (e) {
       throw ServerException(
         message: 'Error de conexion al restablecer contrasena: ${e.toString()}',
+      );
+    }
+  }
+
+  /// E001-HU-007: Restablece contrasena con pregunta de seguridad (admin)
+  /// NOTA: El error response puede incluir campos extra (tiene_email_respaldo, email_respaldo_mascara)
+  /// Se propagan via hint con formato "hint|email_mascara" para parseo en el bloc
+  @override
+  Future<RestablecerResultModel> restablecerContrasenaConPregunta({
+    required String celular,
+    required String respuesta,
+    required String nuevaContrasena,
+    required String confirmarContrasena,
+  }) async {
+    try {
+      final response = await supabase.rpc(
+        'restablecer_contrasena_con_pregunta',
+        params: {
+          'p_celular': celular,
+          'p_respuesta': respuesta,
+          'p_nueva_contrasena': nuevaContrasena,
+          'p_confirmar_contrasena': confirmarContrasena,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return RestablecerResultModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        final hint = error['hint'] as String? ?? '';
+
+        // Propagar email_respaldo_mascara en el hint para errores de pregunta
+        // Formato: "respuesta_incorrecta_con_email|j***@gmail.com"
+        String hintConDatos = hint;
+        if (hint == 'respuesta_incorrecta_con_email') {
+          final emailMascara = error['email_respaldo_mascara'] ?? '';
+          hintConDatos = '$hint|$emailMascara';
+        }
+
+        throw ServerException(
+          message: error['message'] ?? 'Error al restablecer contrasena',
+          code: error['code'],
+          hint: hintConDatos,
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al restablecer contrasena: ${e.toString()}',
+      );
+    }
+  }
+
+  /// E001-HU-007: Solicita recuperacion via email de respaldo (admin)
+  @override
+  Future<RecuperacionEmailModel> solicitarRecuperacionEmailAdmin({
+    required String celular,
+  }) async {
+    try {
+      final response = await supabase.rpc(
+        'solicitar_recuperacion_email_admin',
+        params: {
+          'p_celular': celular,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return RecuperacionEmailModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al solicitar recuperacion por email',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al solicitar recuperacion: ${e.toString()}',
       );
     }
   }

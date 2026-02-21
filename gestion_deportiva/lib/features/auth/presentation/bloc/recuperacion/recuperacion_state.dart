@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 /// Estados del Bloc de Recuperacion de Contrasena
-/// HU-003: Recuperacion de Contrasena
+/// E001-HU-007: Recuperacion de Contrasena (celular-based)
 abstract class RecuperacionState extends Equatable {
   const RecuperacionState();
 
@@ -9,7 +9,7 @@ abstract class RecuperacionState extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Estado: Inicial (formulario vacio)
+/// Estado: Inicial (formulario de celular vacio)
 class RecuperacionInitial extends RecuperacionState {
   const RecuperacionInitial();
 }
@@ -19,130 +19,129 @@ class RecuperacionLoading extends RecuperacionState {
   const RecuperacionLoading();
 }
 
-/// Estado: Email de recuperacion enviado
-/// CA-002: Email enviado con instrucciones
-/// RN-001: Mensaje generico por seguridad
-class RecuperacionEmailEnviado extends RecuperacionState {
-  final String mensaje;
-  final String? token; // Token para desarrollo/testing (no mostrar en produccion)
+/// Estado: Tipo de recuperacion identificado
+/// Contiene informacion para decidir el siguiente paso del flujo
+class TipoRecuperacionIdentificado extends RecuperacionState {
+  /// Tipo: 'admin', 'jugador', 'no_encontrado'
+  final String tipo;
+  final String celular;
+  final String? preguntaSeguridad;
+  final bool? tieneEmailRespaldo;
+  final String? emailRespaldoMascara;
+  final String? mensaje;
 
-  const RecuperacionEmailEnviado({
-    required this.mensaje,
-    this.token,
+  const TipoRecuperacionIdentificado({
+    required this.tipo,
+    required this.celular,
+    this.preguntaSeguridad,
+    this.tieneEmailRespaldo,
+    this.emailRespaldoMascara,
+    this.mensaje,
   });
 
   @override
-  List<Object?> get props => [mensaje, token];
+  List<Object?> get props => [
+        tipo,
+        celular,
+        preguntaSeguridad,
+        tieneEmailRespaldo,
+        emailRespaldoMascara,
+        mensaje,
+      ];
 }
 
-/// Estado: Token valido, mostrar formulario de nueva contrasena
-/// CA-004: Enlace valido
-class RecuperacionTokenValido extends RecuperacionState {
-  final String email;
-  final String? nombre;
-  final int? minutosRestantes;
+/// Estado: Codigo validado exitosamente - mostrar formulario nueva contrasena
+class CodigoValidado extends RecuperacionState {
+  final String celular;
+  final String codigo;
 
-  const RecuperacionTokenValido({
-    required this.email,
-    this.nombre,
-    this.minutosRestantes,
+  const CodigoValidado({
+    required this.celular,
+    required this.codigo,
   });
 
   @override
-  List<Object?> get props => [email, nombre, minutosRestantes];
+  List<Object?> get props => [celular, codigo];
 }
 
-/// Tipos de error de token
-enum TokenErrorType {
-  /// Token no proporcionado
-  tokenRequerido,
-
-  /// Token no existe
-  tokenInvalido,
-
-  /// Token ya fue usado
-  tokenUsado,
-
-  /// Token expiro (RN-002)
-  tokenExpirado,
-}
-
-/// Estado: Token invalido
-/// CA-005: Enlace expirado o invalido
-class RecuperacionTokenInvalido extends RecuperacionState {
-  final String mensaje;
-  final TokenErrorType errorType;
-
-  const RecuperacionTokenInvalido({
-    required this.mensaje,
-    required this.errorType,
-  });
-
-  @override
-  List<Object?> get props => [mensaje, errorType];
-}
-
-/// Estado: Contrasena actualizada exitosamente
-/// CA-006: Nueva contrasena establecida
-/// RN-006: Sesiones cerradas
-class RecuperacionContrasenaActualizada extends RecuperacionState {
-  final String email;
+/// Estado: Contrasena restablecida exitosamente
+class RecuperacionExitosa extends RecuperacionState {
   final String mensaje;
   final bool sesionesCerradas;
 
-  const RecuperacionContrasenaActualizada({
-    required this.email,
+  const RecuperacionExitosa({
     required this.mensaje,
     required this.sesionesCerradas,
   });
 
   @override
-  List<Object?> get props => [email, mensaje, sesionesCerradas];
+  List<Object?> get props => [mensaje, sesionesCerradas];
 }
 
-/// Tipos de error de recuperacion
-enum RecuperacionErrorType {
-  /// Error de validacion frontend
-  validacion,
+/// Estado: Respuesta de pregunta incorrecta, pero tiene email de respaldo
+class RespuestaIncorrectaConEmail extends RecuperacionState {
+  final String celular;
+  final String emailMascara;
 
-  /// Error de conexion
-  conexion,
+  const RespuestaIncorrectaConEmail({
+    required this.celular,
+    required this.emailMascara,
+  });
 
-  /// Contrasenas no coinciden (RN-005)
-  contrasenasNoCoinciden,
-
-  /// Contrasena no cumple requisitos (RN-004)
-  contrasenaInvalida,
-
-  /// Contrasena igual a anterior (RN-004)
-  contrasenaIgualAnterior,
-
-  /// Error generico del servidor
-  servidor,
+  @override
+  List<Object?> get props => [celular, emailMascara];
 }
 
-/// Estado: Error en recuperacion
+/// Estado: Respuesta de pregunta incorrecta, sin email de respaldo
+class RespuestaIncorrectaSinEmail extends RecuperacionState {
+  final String celular;
+  final String mensaje;
+
+  const RespuestaIncorrectaSinEmail({
+    required this.celular,
+    required this.mensaje,
+  });
+
+  @override
+  List<Object?> get props => [celular, mensaje];
+}
+
+/// Estado: Email de recuperacion enviado al admin
+class EmailRecuperacionEnviado extends RecuperacionState {
+  final String emailMascara;
+  final String celular;
+  final String? debugCodigo;
+
+  const EmailRecuperacionEnviado({
+    required this.emailMascara,
+    required this.celular,
+    this.debugCodigo,
+  });
+
+  @override
+  List<Object?> get props => [emailMascara, celular, debugCodigo];
+}
+
+/// Estado: Cuenta bloqueada temporalmente
+class RecuperacionBloqueada extends RecuperacionState {
+  final String mensaje;
+
+  const RecuperacionBloqueada({required this.mensaje});
+
+  @override
+  List<Object?> get props => [mensaje];
+}
+
+/// Estado: Error generico en recuperacion
 class RecuperacionError extends RecuperacionState {
   final String mensaje;
-  final RecuperacionErrorType errorType;
   final String? hint;
 
   const RecuperacionError({
     required this.mensaje,
-    required this.errorType,
     this.hint,
   });
 
   @override
-  List<Object?> get props => [mensaje, errorType, hint];
-}
-
-/// Estado: Error de validacion frontend
-class RecuperacionValidationError extends RecuperacionState {
-  final Map<String, String> errores;
-
-  const RecuperacionValidationError({required this.errores});
-
-  @override
-  List<Object?> get props => [errores];
+  List<Object?> get props => [mensaje, hint];
 }

@@ -6,172 +6,221 @@ import 'recuperacion_event.dart';
 import 'recuperacion_state.dart';
 
 /// Bloc para manejar la recuperacion de contrasena
-/// Implementa HU-003: Recuperacion de Contrasena
+/// Implementa E001-HU-007: Recuperacion de Contrasena
 ///
-/// Criterios de Aceptacion:
-/// - CA-001: Formulario con campo email
-/// - CA-002: Email de recuperacion enviado
-/// - CA-003: Mensaje uniforme (email exista o no)
-/// - CA-004: Validar enlace de recuperacion
-/// - CA-005: Mensaje de enlace expirado
-/// - CA-006: Establecer nueva contrasena
-///
-/// Reglas de Negocio:
-/// - RN-001: Mensaje uniforme (no revelar si email existe)
-/// - RN-002: Enlace valido por 1 hora
-/// - RN-003: Uso unico del enlace
-/// - RN-004: Requisitos de nueva contrasena + diferente a anterior
-/// - RN-005: Confirmacion debe coincidir
-/// - RN-006: Cerrar sesiones al cambiar contrasena
+/// Flujo multi-paso:
+/// 1. Identificar tipo (admin/jugador/no_encontrado)
+/// 2A. Jugador: codigo del admin -> validar -> nueva contrasena
+/// 2B. Admin: pregunta seguridad -> nueva contrasena
+/// 2C. Admin fallback: email de respaldo -> codigo -> nueva contrasena
 class RecuperacionBloc extends Bloc<RecuperacionEvent, RecuperacionState> {
   final AuthRepository repository;
 
   RecuperacionBloc({required this.repository})
       : super(const RecuperacionInitial()) {
-    on<SolicitarRecuperacionEvent>(_onSolicitarRecuperacion);
-    on<ValidarTokenEvent>(_onValidarToken);
-    on<RestablecerContrasenaEvent>(_onRestablecerContrasena);
+    on<IdentificarTipoRecuperacionEvent>(_onIdentificarTipo);
+    on<ValidarCodigoEvent>(_onValidarCodigo);
+    on<RestablecerConCodigoEvent>(_onRestablecerConCodigo);
+    on<RestablecerConPreguntaEvent>(_onRestablecerConPregunta);
+    on<SolicitarEmailRecuperacionEvent>(_onSolicitarEmailRecuperacion);
     on<RecuperacionResetEvent>(_onReset);
   }
 
-  /// Maneja solicitud de recuperacion de contrasena
-  /// CA-001, CA-002, CA-003, RN-001
-  Future<void> _onSolicitarRecuperacion(
-    SolicitarRecuperacionEvent event,
+  /// Paso 1: Identificar tipo de recuperacion segun celular
+  Future<void> _onIdentificarTipo(
+    IdentificarTipoRecuperacionEvent event,
     Emitter<RecuperacionState> emit,
   ) async {
-    // Validacion frontend
-    final errores = _validarEmail(event.email);
-    if (errores.isNotEmpty) {
-      emit(RecuperacionValidationError(errores: errores));
-      return;
-    }
-
     emit(const RecuperacionLoading());
 
-    final result = await repository.solicitarRecuperacion(email: event.email);
+    final result = await repository.identificarTipoRecuperacion(
+      celular: event.celular,
+    );
 
     result.fold(
       (failure) {
-        final errorInfo = _mapearErrorBackend(failure);
-        emit(RecuperacionError(
-          mensaje: errorInfo.mensaje,
-          errorType: errorInfo.errorType,
-          hint: errorInfo.hint,
-        ));
+        if (_esBloqueado(failure)) {
+          emit(RecuperacionBloqueada(mensaje: failure.message));
+        } else {
+          emit(RecuperacionError(
+            mensaje: failure.message,
+            hint: failure is ServerFailure ? failure.hint : null,
+          ));
+        }
       },
-      (response) {
-        // RN-001: Siempre mostramos mensaje generico
-        emit(RecuperacionEmailEnviado(
-          mensaje: response.mensaje,
-          token: response.token, // Para desarrollo/testing
+      (tipoRecuperacion) {
+        emit(TipoRecuperacionIdentificado(
+          tipo: tipoRecuperacion.tipo,
+          celular: event.celular,
+          preguntaSeguridad: tipoRecuperacion.preguntaSeguridad,
+          tieneEmailRespaldo: tipoRecuperacion.tieneEmailRespaldo,
+          emailRespaldoMascara: tipoRecuperacion.emailRespaldoMascara,
+          mensaje: tipoRecuperacion.mensaje,
         ));
       },
     );
   }
 
-  /// Maneja validacion de token de recuperacion
-  /// CA-004, CA-005
-  Future<void> _onValidarToken(
-    ValidarTokenEvent event,
+  /// Paso 2A/3: Validar codigo de recuperacion
+  Future<void> _onValidarCodigo(
+    ValidarCodigoEvent event,
     Emitter<RecuperacionState> emit,
   ) async {
-    if (event.token.isEmpty) {
-      emit(const RecuperacionTokenInvalido(
-        mensaje: 'Token de recuperacion no proporcionado',
-        errorType: TokenErrorType.tokenRequerido,
-      ));
-      return;
-    }
-
     emit(const RecuperacionLoading());
 
-    final result = await repository.validarTokenRecuperacion(token: event.token);
+    final result = await repository.validarCodigoRecuperacion(
+      celular: event.celular,
+      codigo: event.codigo,
+    );
 
     result.fold(
       (failure) {
-        final tokenError = _mapearErrorToken(failure);
-        emit(RecuperacionTokenInvalido(
-          mensaje: tokenError.mensaje,
-          errorType: tokenError.errorType,
-        ));
+        if (_esBloqueado(failure)) {
+          emit(RecuperacionBloqueada(mensaje: failure.message));
+        } else {
+          emit(RecuperacionError(
+            mensaje: failure.message,
+            hint: failure is ServerFailure ? failure.hint : null,
+          ));
+        }
       },
-      (response) {
-        if (response.valido) {
-          emit(RecuperacionTokenValido(
-            email: response.email ?? '',
-            nombre: response.nombre,
-            minutosRestantes: response.minutosRestantes,
+      (validacion) {
+        if (validacion.codigoValido) {
+          emit(CodigoValidado(
+            celular: event.celular,
+            codigo: event.codigo,
           ));
         } else {
-          emit(const RecuperacionTokenInvalido(
-            mensaje: 'El enlace de recuperacion no es valido',
-            errorType: TokenErrorType.tokenInvalido,
+          emit(RecuperacionError(
+            mensaje: 'El codigo ingresado no es valido',
+            hint: 'codigo_invalido',
           ));
         }
       },
     );
   }
 
-  /// Maneja restablecimiento de contrasena
-  /// CA-006, RN-004, RN-005, RN-006
-  Future<void> _onRestablecerContrasena(
-    RestablecerContrasenaEvent event,
+  /// Paso final (jugador/email): Restablecer contrasena con codigo
+  Future<void> _onRestablecerConCodigo(
+    RestablecerConCodigoEvent event,
     Emitter<RecuperacionState> emit,
   ) async {
-    // Validacion frontend
-    final errores = _validarContrasenas(
-      event.nuevaContrasena,
-      event.confirmarContrasena,
-    );
-    if (errores.isNotEmpty) {
-      emit(RecuperacionValidationError(errores: errores));
-      return;
-    }
-
     emit(const RecuperacionLoading());
 
-    final result = await repository.restablecerContrasena(
-      token: event.token,
+    final result = await repository.restablecerContrasenaConCodigo(
+      celular: event.celular,
+      codigo: event.codigo,
       nuevaContrasena: event.nuevaContrasena,
       confirmarContrasena: event.confirmarContrasena,
     );
 
     result.fold(
       (failure) {
-        // Verificar si es error de token
-        if (failure is ServerFailure) {
-          final hint = failure.hint;
-          if (hint == 'token_invalido' ||
-              hint == 'token_usado' ||
-              hint == 'token_expirado') {
-            final tokenError = _mapearErrorToken(failure);
-            emit(RecuperacionTokenInvalido(
-              mensaje: tokenError.mensaje,
-              errorType: tokenError.errorType,
-            ));
-            return;
-          }
+        if (_esBloqueado(failure)) {
+          emit(RecuperacionBloqueada(mensaje: failure.message));
+        } else {
+          emit(RecuperacionError(
+            mensaje: failure.message,
+            hint: failure is ServerFailure ? failure.hint : null,
+          ));
         }
-
-        final errorInfo = _mapearErrorRestablecimiento(failure);
-        emit(RecuperacionError(
-          mensaje: errorInfo.mensaje,
-          errorType: errorInfo.errorType,
-          hint: errorInfo.hint,
-        ));
       },
-      (response) {
-        emit(RecuperacionContrasenaActualizada(
-          email: response.email,
-          mensaje: response.mensaje,
-          sesionesCerradas: response.sesionesCerradas,
+      (resultado) {
+        emit(RecuperacionExitosa(
+          mensaje: resultado.mensaje,
+          sesionesCerradas: resultado.sesionesCerradas,
         ));
       },
     );
   }
 
-  /// Resetea el estado del bloc
+  /// Paso 2B (admin): Restablecer contrasena con pregunta de seguridad
+  /// Maneja respuestas incorrectas con/sin email de respaldo
+  Future<void> _onRestablecerConPregunta(
+    RestablecerConPreguntaEvent event,
+    Emitter<RecuperacionState> emit,
+  ) async {
+    emit(const RecuperacionLoading());
+
+    final result = await repository.restablecerContrasenaConPregunta(
+      celular: event.celular,
+      respuesta: event.respuesta,
+      nuevaContrasena: event.nuevaContrasena,
+      confirmarContrasena: event.confirmarContrasena,
+    );
+
+    result.fold(
+      (failure) {
+        if (_esBloqueado(failure)) {
+          emit(RecuperacionBloqueada(mensaje: failure.message));
+          return;
+        }
+
+        final hint = failure is ServerFailure ? failure.hint ?? '' : '';
+
+        // Parsear hint para detectar respuesta incorrecta con datos extra
+        // Formato del datasource: "respuesta_incorrecta_con_email|j***@gmail.com"
+        if (hint.startsWith('respuesta_incorrecta_con_email')) {
+          final parts = hint.split('|');
+          final emailMascara = parts.length > 1 ? parts[1] : '';
+          emit(RespuestaIncorrectaConEmail(
+            celular: event.celular,
+            emailMascara: emailMascara,
+          ));
+        } else if (hint == 'respuesta_incorrecta_sin_email') {
+          emit(RespuestaIncorrectaSinEmail(
+            celular: event.celular,
+            mensaje: failure.message,
+          ));
+        } else {
+          emit(RecuperacionError(
+            mensaje: failure.message,
+            hint: hint,
+          ));
+        }
+      },
+      (resultado) {
+        emit(RecuperacionExitosa(
+          mensaje: resultado.mensaje,
+          sesionesCerradas: resultado.sesionesCerradas,
+        ));
+      },
+    );
+  }
+
+  /// Solicitar recuperacion via email de respaldo (admin fallback)
+  Future<void> _onSolicitarEmailRecuperacion(
+    SolicitarEmailRecuperacionEvent event,
+    Emitter<RecuperacionState> emit,
+  ) async {
+    emit(const RecuperacionLoading());
+
+    final result = await repository.solicitarRecuperacionEmailAdmin(
+      celular: event.celular,
+    );
+
+    result.fold(
+      (failure) {
+        if (_esBloqueado(failure)) {
+          emit(RecuperacionBloqueada(mensaje: failure.message));
+        } else {
+          emit(RecuperacionError(
+            mensaje: failure.message,
+            hint: failure is ServerFailure ? failure.hint : null,
+          ));
+        }
+      },
+      (emailResult) {
+        emit(EmailRecuperacionEnviado(
+          emailMascara: emailResult.emailRespaldoMascara,
+          celular: event.celular,
+          debugCodigo: emailResult.debugCodigo,
+        ));
+      },
+    );
+  }
+
+  /// Resetear estado del bloc
   void _onReset(
     RecuperacionResetEvent event,
     Emitter<RecuperacionState> emit,
@@ -179,136 +228,11 @@ class RecuperacionBloc extends Bloc<RecuperacionEvent, RecuperacionState> {
     emit(const RecuperacionInitial());
   }
 
-  /// Validacion frontend del email
-  Map<String, String> _validarEmail(String email) {
-    final errores = <String, String>{};
-
-    if (email.trim().isEmpty) {
-      errores['email'] = 'El email es obligatorio';
-    } else if (!_esEmailValido(email)) {
-      errores['email'] = 'Ingresa un email valido';
-    }
-
-    return errores;
-  }
-
-  /// Validacion frontend de contrasenas
-  /// RN-005: Confirmacion debe coincidir
-  Map<String, String> _validarContrasenas(
-    String nueva,
-    String confirmar,
-  ) {
-    final errores = <String, String>{};
-
-    if (nueva.isEmpty) {
-      errores['nuevaContrasena'] = 'La contrasena es obligatoria';
-    } else if (nueva.length < 8) {
-      errores['nuevaContrasena'] = 'Minimo 8 caracteres';
-    }
-
-    if (confirmar.isEmpty) {
-      errores['confirmarContrasena'] = 'Confirma tu contrasena';
-    } else if (nueva != confirmar) {
-      errores['confirmarContrasena'] = 'Las contrasenas no coinciden';
-    }
-
-    return errores;
-  }
-
-  /// Valida formato de email
-  bool _esEmailValido(String email) {
-    final regex = RegExp(
-      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    );
-    return regex.hasMatch(email.trim());
-  }
-
-  /// Mapea errores de token del backend
-  _TokenErrorInfo _mapearErrorToken(Failure failure) {
-    String mensaje = failure.message;
-    TokenErrorType errorType = TokenErrorType.tokenInvalido;
-
+  /// Verifica si el error es de bloqueo temporal
+  bool _esBloqueado(Failure failure) {
     if (failure is ServerFailure) {
-      switch (failure.hint) {
-        case 'token_requerido':
-          mensaje = 'Token de recuperacion no proporcionado';
-          errorType = TokenErrorType.tokenRequerido;
-          break;
-        case 'token_invalido':
-          mensaje = 'El enlace de recuperacion no es valido';
-          errorType = TokenErrorType.tokenInvalido;
-          break;
-        case 'token_usado':
-          mensaje = 'Este enlace ya fue utilizado. Solicita uno nuevo.';
-          errorType = TokenErrorType.tokenUsado;
-          break;
-        case 'token_expirado':
-          mensaje = 'El enlace ha expirado. Solicita uno nuevo.';
-          errorType = TokenErrorType.tokenExpirado;
-          break;
-        default:
-          mensaje = failure.message;
-          errorType = TokenErrorType.tokenInvalido;
-      }
+      return failure.hint == 'cuenta_bloqueada_temporalmente';
     }
-
-    return _TokenErrorInfo(mensaje: mensaje, errorType: errorType);
+    return false;
   }
-
-  /// Mapea errores generales del backend
-  _ErrorInfo _mapearErrorBackend(Failure failure) {
-    return _ErrorInfo(
-      mensaje: failure.message,
-      errorType: RecuperacionErrorType.servidor,
-      hint: failure is ServerFailure ? failure.hint : null,
-    );
-  }
-
-  /// Mapea errores de restablecimiento del backend
-  _ErrorInfo _mapearErrorRestablecimiento(Failure failure) {
-    String mensaje = failure.message;
-    RecuperacionErrorType errorType = RecuperacionErrorType.servidor;
-    String? hint;
-
-    if (failure is ServerFailure) {
-      hint = failure.hint;
-
-      switch (failure.hint) {
-        case 'contrasenas_no_coinciden':
-          mensaje = 'Las contrasenas no coinciden';
-          errorType = RecuperacionErrorType.contrasenasNoCoinciden;
-          break;
-        case 'contrasena_invalida':
-          mensaje = 'La contrasena no cumple los requisitos de seguridad';
-          errorType = RecuperacionErrorType.contrasenaInvalida;
-          break;
-        case 'contrasena_igual_anterior':
-          mensaje = 'La nueva contrasena debe ser diferente a la anterior';
-          errorType = RecuperacionErrorType.contrasenaIgualAnterior;
-          break;
-        default:
-          mensaje = failure.message;
-          errorType = RecuperacionErrorType.servidor;
-      }
-    }
-
-    return _ErrorInfo(mensaje: mensaje, errorType: errorType, hint: hint);
-  }
-}
-
-/// Clase auxiliar para mapeo de errores de token
-class _TokenErrorInfo {
-  final String mensaje;
-  final TokenErrorType errorType;
-
-  _TokenErrorInfo({required this.mensaje, required this.errorType});
-}
-
-/// Clase auxiliar para mapeo de errores generales
-class _ErrorInfo {
-  final String mensaje;
-  final RecuperacionErrorType errorType;
-  final String? hint;
-
-  _ErrorInfo({required this.mensaje, required this.errorType, this.hint});
 }

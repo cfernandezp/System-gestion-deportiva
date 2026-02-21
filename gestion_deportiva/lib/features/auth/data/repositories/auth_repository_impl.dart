@@ -131,13 +131,14 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  /// E001-HU-007: Identificar tipo de recuperacion
   @override
-  Future<Either<Failure, SolicitudRecuperacionModel>> solicitarRecuperacion({
-    required String email,
+  Future<Either<Failure, TipoRecuperacionModel>> identificarTipoRecuperacion({
+    required String celular,
   }) async {
     try {
-      final result = await remoteDataSource.solicitarRecuperacion(
-        email: email,
+      final result = await remoteDataSource.identificarTipoRecuperacion(
+        celular: celular,
       );
       return Right(result);
     } on ServerException catch (e) {
@@ -149,13 +150,14 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  /// E001-HU-007: Generar codigo de recuperacion
   @override
-  Future<Either<Failure, ValidarTokenModel>> validarTokenRecuperacion({
-    required String token,
+  Future<Either<Failure, GenerarCodigoModel>> generarCodigoRecuperacion({
+    required String celularJugador,
   }) async {
     try {
-      final result = await remoteDataSource.validarTokenRecuperacion(
-        token: token,
+      final result = await remoteDataSource.generarCodigoRecuperacion(
+        celularJugador: celularJugador,
       );
       return Right(result);
     } on ServerException catch (e) {
@@ -167,17 +169,85 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  /// E001-HU-007: Validar codigo de recuperacion
   @override
-  Future<Either<Failure, RestablecerContrasenaModel>> restablecerContrasena({
-    required String token,
+  Future<Either<Failure, ValidarCodigoModel>> validarCodigoRecuperacion({
+    required String celular,
+    required String codigo,
+  }) async {
+    try {
+      final result = await remoteDataSource.validarCodigoRecuperacion(
+        celular: celular,
+        codigo: codigo,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    }
+  }
+
+  /// E001-HU-007: Restablecer contrasena con codigo
+  @override
+  Future<Either<Failure, RestablecerResultModel>> restablecerContrasenaConCodigo({
+    required String celular,
+    required String codigo,
     required String nuevaContrasena,
     required String confirmarContrasena,
   }) async {
     try {
-      final result = await remoteDataSource.restablecerContrasena(
-        token: token,
+      final result = await remoteDataSource.restablecerContrasenaConCodigo(
+        celular: celular,
+        codigo: codigo,
         nuevaContrasena: nuevaContrasena,
         confirmarContrasena: confirmarContrasena,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    }
+  }
+
+  /// E001-HU-007: Restablecer contrasena con pregunta de seguridad
+  @override
+  Future<Either<Failure, RestablecerResultModel>> restablecerContrasenaConPregunta({
+    required String celular,
+    required String respuesta,
+    required String nuevaContrasena,
+    required String confirmarContrasena,
+  }) async {
+    try {
+      final result = await remoteDataSource.restablecerContrasenaConPregunta(
+        celular: celular,
+        respuesta: respuesta,
+        nuevaContrasena: nuevaContrasena,
+        confirmarContrasena: confirmarContrasena,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    }
+  }
+
+  /// E001-HU-007: Solicitar recuperacion via email admin
+  @override
+  Future<Either<Failure, RecuperacionEmailModel>> solicitarRecuperacionEmailAdmin({
+    required String celular,
+  }) async {
+    try {
+      final result = await remoteDataSource.solicitarRecuperacionEmailAdmin(
+        celular: celular,
       );
       return Right(result);
     } on ServerException catch (e) {

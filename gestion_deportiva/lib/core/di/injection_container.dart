@@ -13,6 +13,7 @@ import '../../features/auth/presentation/bloc/login/login_bloc.dart';
 import '../../features/auth/presentation/bloc/registro/registro_bloc.dart';
 import '../../features/auth/presentation/bloc/registro_admin/registro_admin_bloc.dart';
 import '../../features/auth/presentation/bloc/recuperacion/recuperacion_bloc.dart';
+import '../../features/auth/presentation/bloc/generar_codigo/generar_codigo_bloc.dart';
 import '../../features/auth/presentation/bloc/activacion_cuenta/activacion_cuenta_bloc.dart';
 import '../../features/auth/presentation/bloc/session/session_bloc.dart';
 
@@ -140,6 +141,8 @@ Future<void> initializeDependencies() async {
   sl.registerFactory(() => RecuperacionBloc(repository: sl()));
   // E001-HU-005: Activacion de Cuenta de Jugador Invitado
   sl.registerFactory(() => ActivacionCuentaBloc(repository: sl()));
+  // E001-HU-007: Generar Codigo de Recuperacion (admin-side)
+  sl.registerFactory(() => GenerarCodigoBloc(repository: sl()));
   // SessionBloc: Singleton para mantener estado de sesion global (HU-004)
   sl.registerLazySingleton(() => SessionBloc(
         repository: sl(),

@@ -9,8 +9,10 @@ import '../../features/admin/presentation/pages/usuarios_page.dart';
 import '../../features/auth/presentation/bloc/session/session.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/registro_page.dart';
+// E001-HU-007: Recuperacion de Contrasena
 import '../../features/auth/presentation/pages/solicitar_recuperacion_page.dart';
-import '../../features/auth/presentation/pages/restablecer_contrasena_page.dart';
+// E001-HU-007: Generar Codigo de Recuperacion (admin-side)
+import '../../features/auth/presentation/pages/generar_codigo_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 // E002-HU-001: Ver Perfil Propio
 import '../../features/profile/presentation/bloc/perfil/perfil.dart';
@@ -63,6 +65,8 @@ import '../../features/grupos/presentation/bloc/seleccion_grupo/seleccion_grupo_
 import '../../features/grupos/presentation/pages/seleccion_grupo_page.dart';
 // E001-HU-005: Activacion de Cuenta de Jugador Invitado
 import '../../features/auth/presentation/pages/activacion_cuenta_page.dart';
+// Splash Screen
+import '../../features/splash/presentation/pages/splash_page.dart';
 // E001-HU-004: Invitar Jugador al Grupo
 import '../../features/grupos/presentation/bloc/invitar_jugador/invitar_jugador_bloc.dart';
 import '../../features/grupos/presentation/bloc/miembros_grupo/miembros_grupo_bloc.dart';
@@ -120,13 +124,15 @@ class AppRouter {
     );
   }
   /// Rutas de la aplicacion
-  static const String home = '/';
+  static const String splash = '/';
+  static const String home = '/home';
   static const String login = '/login';
   static const String registro = '/registro';
   static const String adminUsuarios = '/admin/usuarios';
-  // HU-003: Recuperacion de contrasena
+  // E001-HU-007: Recuperacion de contrasena
   static const String recuperarContrasena = '/recuperar-contrasena';
-  static const String restablecerContrasena = '/restablecer-contrasena';
+  // E001-HU-007: Generar codigo de recuperacion (admin-side, protegida)
+  static const String generarCodigoRecuperacion = '/admin/generar-codigo-recuperacion';
   // E002-HU-001: Ver Perfil Propio
   static const String perfil = '/perfil';
   // E002-HU-003: Lista de Jugadores
@@ -164,10 +170,10 @@ class AppRouter {
 
   /// Rutas publicas (no requieren autenticacion)
   static const List<String> _publicRoutes = [
+    splash,
     login,
     registro,
-    recuperarContrasena,
-    '/restablecer-contrasena', // Incluye parametro :token
+    recuperarContrasena, // E001-HU-007: Recuperacion sin login
     activarCuenta, // E001-HU-005: Activacion sin login
   ];
 
@@ -248,6 +254,11 @@ class AppRouter {
         return login;
       }
 
+      // No redirigir desde la splash (deja que navegue sola a /home)
+      if (currentPath == splash) {
+        return null;
+      }
+
       // E001-HU-003: Si esta autenticado y trata de acceder a login/registro/activacion,
       // ir a seleccion de grupo (en vez de home directo)
       if (isAuthenticated && (currentPath == login || currentPath == registro || currentPath == activarCuenta)) {
@@ -267,10 +278,20 @@ class AppRouter {
     },
 
     routes: [
+      // Splash Screen: muestra logo ChocoApp al abrir la app
+      GoRoute(
+        path: '/',
+        name: 'splash',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: const SplashPage(),
+        ),
+      ),
+
       // Ruta home (protegida) - HU-004
       // CA-001: LogoutButton visible en AppBar
       GoRoute(
-        path: '/',
+        path: '/home',
         name: 'home',
         pageBuilder: (context, state) => _buildPageWithFadeTransition(
           key: state.pageKey,
@@ -320,8 +341,7 @@ class AppRouter {
         ),
       ),
 
-      // HU-003: Recuperacion de contrasena
-      // CA-001: Solicitar recuperacion con email
+      // E001-HU-007: Recuperacion de contrasena (ruta publica)
       GoRoute(
         path: '/recuperar-contrasena',
         name: 'recuperarContrasena',
@@ -331,17 +351,14 @@ class AppRouter {
         ),
       ),
 
-      // CA-004, CA-005, CA-006: Restablecer contrasena con token
+      // E001-HU-007: Generar codigo de recuperacion (admin-side, ruta protegida)
       GoRoute(
-        path: '/restablecer-contrasena/:token',
-        name: 'restablecerContrasena',
-        pageBuilder: (context, state) {
-          final token = state.pathParameters['token'] ?? '';
-          return _buildPageWithFadeTransition(
-            key: state.pageKey,
-            child: RestablecerContrasenaPage(token: token),
-          );
-        },
+        path: '/admin/generar-codigo-recuperacion',
+        name: 'generarCodigoRecuperacion',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: const GenerarCodigoPage(),
+        ),
       ),
 
       // E002-HU-001: Ver Perfil Propio
@@ -632,7 +649,7 @@ class AppRouter {
             Text('Ruta: \${state.uri.path}'),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () => context.go('/'),
+              onPressed: () => context.go('/home'),
               child: const Text('Ir al inicio'),
             ),
           ],

@@ -1,158 +1,227 @@
 import 'package:equatable/equatable.dart';
 
-/// Modelo de respuesta para solicitar recuperacion de contrasena
-/// Mapea la respuesta JSON de la funcion RPC solicitar_recuperacion_contrasena
+/// Modelo de respuesta para identificar tipo de recuperacion
+/// E001-HU-007: Recuperacion de Contrasena
+/// RPC: identificar_tipo_recuperacion(p_celular)
 ///
-/// Response Success del Backend:
+/// Response:
 /// ```json
 /// {
 ///   "success": true,
 ///   "data": {
-///     "email_enviado": true,
-///     "token": "abc123...",
-///     "token_id": "uuid",
-///     "expira_en_minutos": 60,
-///     "usuario_nombre": "Juan Perez"
-///   },
-///   "message": "Si el email esta registrado, recibiras instrucciones..."
+///     "tipo": "admin"|"jugador"|"no_encontrado",
+///     "pregunta_seguridad": "...",
+///     "tiene_email_respaldo": true,
+///     "email_respaldo_mascara": "j***@gmail.com",
+///     "mensaje": "..."
+///   }
 /// }
 /// ```
-class SolicitudRecuperacionModel extends Equatable {
-  final bool emailEnviado;
-  final String? token;
-  final String? tokenId;
-  final int? expiraEnMinutos;
-  final String? usuarioNombre;
-  final String mensaje;
+class TipoRecuperacionModel extends Equatable {
+  final String tipo;
+  final String? preguntaSeguridad;
+  final bool? tieneEmailRespaldo;
+  final String? emailRespaldoMascara;
+  final String? mensaje;
 
-  const SolicitudRecuperacionModel({
-    required this.emailEnviado,
-    this.token,
-    this.tokenId,
-    this.expiraEnMinutos,
-    this.usuarioNombre,
-    required this.mensaje,
+  const TipoRecuperacionModel({
+    required this.tipo,
+    this.preguntaSeguridad,
+    this.tieneEmailRespaldo,
+    this.emailRespaldoMascara,
+    this.mensaje,
   });
 
   /// Crea instancia desde JSON del backend
   /// Mapeo: snake_case -> camelCase
-  factory SolicitudRecuperacionModel.fromJson(Map<String, dynamic> json) {
+  factory TipoRecuperacionModel.fromJson(Map<String, dynamic> json) {
     final data = json['data'] as Map<String, dynamic>? ?? {};
-    return SolicitudRecuperacionModel(
-      emailEnviado: data['email_enviado'] ?? false,
-      token: data['token'],
-      tokenId: data['token_id'],
-      expiraEnMinutos: data['expira_en_minutos'],
-      usuarioNombre: data['usuario_nombre'],
-      mensaje: json['message'] ?? '',
+    return TipoRecuperacionModel(
+      tipo: data['tipo'] ?? 'no_encontrado',
+      preguntaSeguridad: data['pregunta_seguridad'],
+      tieneEmailRespaldo: data['tiene_email_respaldo'],
+      emailRespaldoMascara: data['email_respaldo_mascara'],
+      mensaje: data['mensaje'],
     );
   }
 
   @override
   List<Object?> get props => [
-        emailEnviado,
-        token,
-        tokenId,
+        tipo,
+        preguntaSeguridad,
+        tieneEmailRespaldo,
+        emailRespaldoMascara,
+        mensaje,
+      ];
+}
+
+/// Modelo de respuesta para generar codigo de recuperacion (admin genera para jugador)
+/// E001-HU-007: Recuperacion de Contrasena
+/// RPC: generar_codigo_recuperacion(p_celular_jugador) -> authenticated
+///
+/// Response:
+/// ```json
+/// {
+///   "success": true,
+///   "data": {
+///     "codigo": "123456",
+///     "celular_jugador": "987654321",
+///     "expira_en_minutos": 30,
+///     "mensaje_para_jugador": "..."
+///   },
+///   "message": "..."
+/// }
+/// ```
+class GenerarCodigoModel extends Equatable {
+  final String codigo;
+  final String celularJugador;
+  final int expiraEnMinutos;
+  final String mensajeParaJugador;
+
+  const GenerarCodigoModel({
+    required this.codigo,
+    required this.celularJugador,
+    required this.expiraEnMinutos,
+    required this.mensajeParaJugador,
+  });
+
+  /// Crea instancia desde JSON del backend
+  /// Mapeo: snake_case -> camelCase
+  factory GenerarCodigoModel.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] as Map<String, dynamic>? ?? {};
+    return GenerarCodigoModel(
+      codigo: data['codigo'] ?? '',
+      celularJugador: data['celular_jugador'] ?? '',
+      expiraEnMinutos: data['expira_en_minutos'] ?? 30,
+      mensajeParaJugador: data['mensaje_para_jugador'] ?? '',
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+        codigo,
+        celularJugador,
         expiraEnMinutos,
-        usuarioNombre,
-        mensaje,
+        mensajeParaJugador,
       ];
 }
 
-/// Modelo de respuesta para validar token de recuperacion
-/// Mapea la respuesta JSON de la funcion RPC validar_token_recuperacion
+/// Modelo de respuesta para validar codigo de recuperacion
+/// E001-HU-007: Recuperacion de Contrasena
+/// RPC: validar_codigo_recuperacion(p_celular, p_codigo)
 ///
-/// Response Success del Backend:
+/// Response:
 /// ```json
 /// {
 ///   "success": true,
 ///   "data": {
-///     "valido": true,
-///     "email": "user@email.com",
-///     "nombre": "Usuario",
-///     "minutos_restantes": 45
-///   },
-///   "message": "Token valido"
+///     "codigo_valido": true,
+///     "celular": "987654321"
+///   }
 /// }
 /// ```
-class ValidarTokenModel extends Equatable {
-  final bool valido;
-  final String? email;
-  final String? nombre;
-  final int? minutosRestantes;
-  final String mensaje;
+class ValidarCodigoModel extends Equatable {
+  final bool codigoValido;
+  final String celular;
 
-  const ValidarTokenModel({
-    required this.valido,
-    this.email,
-    this.nombre,
-    this.minutosRestantes,
-    required this.mensaje,
+  const ValidarCodigoModel({
+    required this.codigoValido,
+    required this.celular,
   });
 
   /// Crea instancia desde JSON del backend
   /// Mapeo: snake_case -> camelCase
-  factory ValidarTokenModel.fromJson(Map<String, dynamic> json) {
+  factory ValidarCodigoModel.fromJson(Map<String, dynamic> json) {
     final data = json['data'] as Map<String, dynamic>? ?? {};
-    return ValidarTokenModel(
-      valido: data['valido'] ?? false,
-      email: data['email'],
-      nombre: data['nombre'],
-      minutosRestantes: data['minutos_restantes'],
-      mensaje: json['message'] ?? '',
+    return ValidarCodigoModel(
+      codigoValido: data['codigo_valido'] ?? false,
+      celular: data['celular'] ?? '',
     );
   }
 
   @override
-  List<Object?> get props => [
-        valido,
-        email,
-        nombre,
-        minutosRestantes,
-        mensaje,
-      ];
+  List<Object?> get props => [codigoValido, celular];
 }
 
-/// Modelo de respuesta para restablecer contrasena
-/// Mapea la respuesta JSON de la funcion RPC restablecer_contrasena
+/// Modelo de respuesta para restablecer contrasena (con codigo o pregunta)
+/// E001-HU-007: Recuperacion de Contrasena
+/// RPC: restablecer_contrasena_con_codigo / restablecer_contrasena_con_pregunta
 ///
-/// Response Success del Backend:
+/// Response:
 /// ```json
 /// {
 ///   "success": true,
 ///   "data": {
-///     "email": "user@email.com",
+///     "contrasena_actualizada": true,
 ///     "sesiones_cerradas": true
 ///   },
-///   "message": "Contrasena actualizada exitosamente..."
+///   "message": "..."
 /// }
 /// ```
-class RestablecerContrasenaModel extends Equatable {
-  final String email;
+class RestablecerResultModel extends Equatable {
+  final bool contrasenaActualizada;
   final bool sesionesCerradas;
   final String mensaje;
 
-  const RestablecerContrasenaModel({
-    required this.email,
+  const RestablecerResultModel({
+    required this.contrasenaActualizada,
     required this.sesionesCerradas,
     required this.mensaje,
   });
 
   /// Crea instancia desde JSON del backend
   /// Mapeo: snake_case -> camelCase
-  factory RestablecerContrasenaModel.fromJson(Map<String, dynamic> json) {
+  factory RestablecerResultModel.fromJson(Map<String, dynamic> json) {
     final data = json['data'] as Map<String, dynamic>? ?? {};
-    return RestablecerContrasenaModel(
-      email: data['email'] ?? '',
+    return RestablecerResultModel(
+      contrasenaActualizada: data['contrasena_actualizada'] ?? false,
       sesionesCerradas: data['sesiones_cerradas'] ?? false,
       mensaje: json['message'] ?? '',
     );
   }
 
   @override
-  List<Object?> get props => [
-        email,
-        sesionesCerradas,
-        mensaje,
-      ];
+  List<Object?> get props => [contrasenaActualizada, sesionesCerradas, mensaje];
+}
+
+/// Modelo de respuesta para recuperacion via email de admin
+/// E001-HU-007: Recuperacion de Contrasena
+/// RPC: solicitar_recuperacion_email_admin(p_celular)
+///
+/// Response:
+/// ```json
+/// {
+///   "success": true,
+///   "data": {
+///     "email_respaldo_mascara": "j***@gmail.com",
+///     "expira_en_minutos": 30,
+///     "_debug_codigo": "123456"
+///   },
+///   "message": "..."
+/// }
+/// ```
+class RecuperacionEmailModel extends Equatable {
+  final String emailRespaldoMascara;
+  final int expiraEnMinutos;
+  final String? debugCodigo;
+
+  const RecuperacionEmailModel({
+    required this.emailRespaldoMascara,
+    required this.expiraEnMinutos,
+    this.debugCodigo,
+  });
+
+  /// Crea instancia desde JSON del backend
+  /// Mapeo: snake_case -> camelCase
+  factory RecuperacionEmailModel.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] as Map<String, dynamic>? ?? {};
+    return RecuperacionEmailModel(
+      emailRespaldoMascara: data['email_respaldo_mascara'] ?? '',
+      expiraEnMinutos: data['expira_en_minutos'] ?? 30,
+      debugCodigo: data['_debug_codigo'],
+    );
+  }
+
+  @override
+  List<Object?> get props => [emailRespaldoMascara, expiraEnMinutos, debugCodigo];
 }

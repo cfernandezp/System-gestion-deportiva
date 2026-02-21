@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 /// Eventos del Bloc de Recuperacion de Contrasena
-/// HU-003: Recuperacion de Contrasena
+/// E001-HU-007: Recuperacion de Contrasena (celular-based)
 abstract class RecuperacionEvent extends Equatable {
   const RecuperacionEvent();
 
@@ -9,46 +9,78 @@ abstract class RecuperacionEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-/// Evento: Solicitar recuperacion de contrasena
-/// CA-001, CA-002, CA-003, RN-001
-class SolicitarRecuperacionEvent extends RecuperacionEvent {
-  final String email;
+/// Evento: Identificar tipo de recuperacion segun celular
+/// Determina si es admin, jugador o no encontrado
+class IdentificarTipoRecuperacionEvent extends RecuperacionEvent {
+  final String celular;
 
-  const SolicitarRecuperacionEvent({required this.email});
-
-  @override
-  List<Object?> get props => [email];
-}
-
-/// Evento: Validar token de recuperacion
-/// CA-004, CA-005
-class ValidarTokenEvent extends RecuperacionEvent {
-  final String token;
-
-  const ValidarTokenEvent({required this.token});
+  const IdentificarTipoRecuperacionEvent({required this.celular});
 
   @override
-  List<Object?> get props => [token];
+  List<Object?> get props => [celular];
 }
 
-/// Evento: Restablecer contrasena con token
-/// CA-006, RN-004, RN-005, RN-006
-class RestablecerContrasenaEvent extends RecuperacionEvent {
-  final String token;
+/// Evento: Validar codigo de recuperacion (jugador o admin via email)
+class ValidarCodigoEvent extends RecuperacionEvent {
+  final String celular;
+  final String codigo;
+
+  const ValidarCodigoEvent({
+    required this.celular,
+    required this.codigo,
+  });
+
+  @override
+  List<Object?> get props => [celular, codigo];
+}
+
+/// Evento: Restablecer contrasena usando codigo validado
+class RestablecerConCodigoEvent extends RecuperacionEvent {
+  final String celular;
+  final String codigo;
   final String nuevaContrasena;
   final String confirmarContrasena;
 
-  const RestablecerContrasenaEvent({
-    required this.token,
+  const RestablecerConCodigoEvent({
+    required this.celular,
+    required this.codigo,
     required this.nuevaContrasena,
     required this.confirmarContrasena,
   });
 
   @override
-  List<Object?> get props => [token, nuevaContrasena, confirmarContrasena];
+  List<Object?> get props => [celular, codigo, nuevaContrasena, confirmarContrasena];
 }
 
-/// Evento: Resetear estado del bloc
+/// Evento: Restablecer contrasena usando pregunta de seguridad (admin)
+class RestablecerConPreguntaEvent extends RecuperacionEvent {
+  final String celular;
+  final String respuesta;
+  final String nuevaContrasena;
+  final String confirmarContrasena;
+
+  const RestablecerConPreguntaEvent({
+    required this.celular,
+    required this.respuesta,
+    required this.nuevaContrasena,
+    required this.confirmarContrasena,
+  });
+
+  @override
+  List<Object?> get props => [celular, respuesta, nuevaContrasena, confirmarContrasena];
+}
+
+/// Evento: Solicitar recuperacion via email de respaldo (admin)
+class SolicitarEmailRecuperacionEvent extends RecuperacionEvent {
+  final String celular;
+
+  const SolicitarEmailRecuperacionEvent({required this.celular});
+
+  @override
+  List<Object?> get props => [celular];
+}
+
+/// Evento: Resetear estado del bloc (volver al inicio)
 class RecuperacionResetEvent extends RecuperacionEvent {
   const RecuperacionResetEvent();
 }

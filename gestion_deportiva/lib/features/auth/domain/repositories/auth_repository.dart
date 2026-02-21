@@ -3,8 +3,8 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/errors/failures.dart';
 import '../../data/models/cerrar_sesion_response_model.dart';
 import '../../data/models/login_response_model.dart';
-import '../../data/models/recuperacion_response_model.dart';
 import '../../data/models/registro_admin_response_model.dart';
+import '../../data/models/recuperacion_response_model.dart';
 import '../../data/models/activacion_cuenta_response_model.dart';
 import '../../data/models/registro_response_model.dart';
 import '../../data/models/validacion_password_model.dart';
@@ -54,24 +54,41 @@ abstract class AuthRepository {
   /// Retorna [CerrarSesionResponseModel] si exito, [Failure] si error
   Future<Either<Failure, CerrarSesionResponseModel>> cerrarSesion();
 
-  /// Solicita recuperacion de contrasena
-  /// HU-003: CA-001, CA-002, CA-003, RN-001
-  Future<Either<Failure, SolicitudRecuperacionModel>> solicitarRecuperacion({
-    required String email,
+  /// E001-HU-007: Identifica tipo de recuperacion segun celular
+  Future<Either<Failure, TipoRecuperacionModel>> identificarTipoRecuperacion({
+    required String celular,
   });
 
-  /// Valida token de recuperacion
-  /// HU-003: CA-004, CA-005
-  Future<Either<Failure, ValidarTokenModel>> validarTokenRecuperacion({
-    required String token,
+  /// E001-HU-007: Genera codigo de recuperacion para jugador (admin-side)
+  Future<Either<Failure, GenerarCodigoModel>> generarCodigoRecuperacion({
+    required String celularJugador,
   });
 
-  /// Restablece contrasena con token valido
-  /// HU-003: CA-006, RN-004, RN-005, RN-006
-  Future<Either<Failure, RestablecerContrasenaModel>> restablecerContrasena({
-    required String token,
+  /// E001-HU-007: Valida codigo de recuperacion
+  Future<Either<Failure, ValidarCodigoModel>> validarCodigoRecuperacion({
+    required String celular,
+    required String codigo,
+  });
+
+  /// E001-HU-007: Restablece contrasena con codigo validado
+  Future<Either<Failure, RestablecerResultModel>> restablecerContrasenaConCodigo({
+    required String celular,
+    required String codigo,
     required String nuevaContrasena,
     required String confirmarContrasena,
+  });
+
+  /// E001-HU-007: Restablece contrasena con pregunta de seguridad (admin)
+  Future<Either<Failure, RestablecerResultModel>> restablecerContrasenaConPregunta({
+    required String celular,
+    required String respuesta,
+    required String nuevaContrasena,
+    required String confirmarContrasena,
+  });
+
+  /// E001-HU-007: Solicita recuperacion via email de respaldo (admin)
+  Future<Either<Failure, RecuperacionEmailModel>> solicitarRecuperacionEmailAdmin({
+    required String celular,
   });
 
   /// E001-HU-001: Registra un nuevo administrador
