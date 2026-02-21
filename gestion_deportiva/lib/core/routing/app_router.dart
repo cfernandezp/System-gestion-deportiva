@@ -61,6 +61,8 @@ import '../../features/grupos/presentation/cubit/grupo_actual_cubit.dart';
 import '../../features/grupos/presentation/bloc/seleccion_grupo/seleccion_grupo_bloc.dart';
 import '../../features/grupos/presentation/bloc/seleccion_grupo/seleccion_grupo_event.dart';
 import '../../features/grupos/presentation/pages/seleccion_grupo_page.dart';
+// E001-HU-005: Activacion de Cuenta de Jugador Invitado
+import '../../features/auth/presentation/pages/activacion_cuenta_page.dart';
 // E001-HU-004: Invitar Jugador al Grupo
 import '../../features/grupos/presentation/bloc/invitar_jugador/invitar_jugador_bloc.dart';
 import '../../features/grupos/presentation/bloc/miembros_grupo/miembros_grupo_bloc.dart';
@@ -155,6 +157,8 @@ class AppRouter {
   // E001-HU-004: Invitar Jugador al Grupo
   static const String miembrosGrupo = '/grupos/:id/miembros';
   static const String invitarJugador = '/grupos/:id/invitar';
+  // E001-HU-005: Activacion de Cuenta de Jugador Invitado
+  static const String activarCuenta = '/activar-cuenta';
   // E000-HU-003: Pantalla de Upgrade
   static const String upgrade = '/upgrade';
 
@@ -164,6 +168,7 @@ class AppRouter {
     registro,
     recuperarContrasena,
     '/restablecer-contrasena', // Incluye parametro :token
+    activarCuenta, // E001-HU-005: Activacion sin login
   ];
 
   /// Verifica si una ruta es publica
@@ -243,9 +248,9 @@ class AppRouter {
         return login;
       }
 
-      // E001-HU-003: Si esta autenticado y trata de acceder a login/registro,
+      // E001-HU-003: Si esta autenticado y trata de acceder a login/registro/activacion,
       // ir a seleccion de grupo (en vez de home directo)
-      if (isAuthenticated && (currentPath == login || currentPath == registro)) {
+      if (isAuthenticated && (currentPath == login || currentPath == registro || currentPath == activarCuenta)) {
         return seleccionarGrupo;
       }
 
@@ -290,6 +295,17 @@ class AppRouter {
         pageBuilder: (context, state) => _buildPageWithFadeTransition(
           key: state.pageKey,
           child: const RegistroPage(),
+        ),
+      ),
+
+      // E001-HU-005: Activacion de Cuenta de Jugador Invitado
+      // Ruta publica: accesible desde login sin autenticacion
+      GoRoute(
+        path: '/activar-cuenta',
+        name: 'activarCuenta',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: const ActivacionCuentaPage(),
         ),
       ),
 

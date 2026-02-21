@@ -8,9 +8,11 @@ import '../models/cerrar_sesion_response_model.dart';
 import '../models/login_response_model.dart';
 import '../models/recuperacion_response_model.dart';
 import '../models/registro_admin_response_model.dart';
+import '../models/activacion_cuenta_response_model.dart';
 import '../models/registro_response_model.dart';
 import '../models/validacion_password_model.dart';
 import '../models/verificar_estado_model.dart';
+import '../models/verificar_invitacion_model.dart';
 
 /// Implementacion del repositorio de autenticacion
 /// Maneja errores y convierte excepciones a Failures
@@ -205,6 +207,48 @@ class AuthRepositoryImpl implements AuthRepository {
         preguntaSeguridad: preguntaSeguridad,
         respuestaSeguridad: respuestaSeguridad,
         emailRespaldo: emailRespaldo,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    }
+  }
+
+  /// E001-HU-005: Verificar invitacion pendiente
+  @override
+  Future<Either<Failure, VerificarInvitacionModel>> verificarInvitacionPendiente({
+    required String celular,
+  }) async {
+    try {
+      final result = await remoteDataSource.verificarInvitacionPendiente(
+        celular: celular,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    }
+  }
+
+  /// E001-HU-005: Activar cuenta de jugador invitado
+  @override
+  Future<Either<Failure, ActivacionCuentaResponseModel>> activarCuentaJugador({
+    required String celular,
+    required String nombreCompleto,
+    required String password,
+  }) async {
+    try {
+      final result = await remoteDataSource.activarCuentaJugador(
+        celular: celular,
+        nombreCompleto: nombreCompleto,
+        password: password,
       );
       return Right(result);
     } on ServerException catch (e) {

@@ -5,9 +5,11 @@ import '../../data/models/cerrar_sesion_response_model.dart';
 import '../../data/models/login_response_model.dart';
 import '../../data/models/recuperacion_response_model.dart';
 import '../../data/models/registro_admin_response_model.dart';
+import '../../data/models/activacion_cuenta_response_model.dart';
 import '../../data/models/registro_response_model.dart';
 import '../../data/models/validacion_password_model.dart';
 import '../../data/models/verificar_estado_model.dart';
+import '../../data/models/verificar_invitacion_model.dart';
 
 /// Interface del repositorio de autenticacion
 /// Define el contrato para operaciones de auth
@@ -82,5 +84,19 @@ abstract class AuthRepository {
     required String preguntaSeguridad,
     required String respuestaSeguridad,
     String? emailRespaldo,
+  });
+
+  /// E001-HU-005: Verifica si un celular tiene invitacion pendiente
+  /// CA-001, CA-002, CA-004
+  Future<Either<Failure, VerificarInvitacionModel>> verificarInvitacionPendiente({
+    required String celular,
+  });
+
+  /// E001-HU-005: Activa cuenta de jugador invitado
+  /// CA-001, CA-005, CA-006, RN-002, RN-003, RN-005
+  Future<Either<Failure, ActivacionCuentaResponseModel>> activarCuentaJugador({
+    required String celular,
+    required String nombreCompleto,
+    required String password,
   });
 }

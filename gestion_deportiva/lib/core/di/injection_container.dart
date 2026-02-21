@@ -13,6 +13,7 @@ import '../../features/auth/presentation/bloc/login/login_bloc.dart';
 import '../../features/auth/presentation/bloc/registro/registro_bloc.dart';
 import '../../features/auth/presentation/bloc/registro_admin/registro_admin_bloc.dart';
 import '../../features/auth/presentation/bloc/recuperacion/recuperacion_bloc.dart';
+import '../../features/auth/presentation/bloc/activacion_cuenta/activacion_cuenta_bloc.dart';
 import '../../features/auth/presentation/bloc/session/session_bloc.dart';
 
 // Admin Feature (HU-005: Gestion de Roles)
@@ -137,6 +138,8 @@ Future<void> initializeDependencies() async {
   sl.registerFactory(() => LoginBloc(repository: sl()));
   // RecuperacionBloc: Factory para flujo de recuperacion de contrasena (HU-003)
   sl.registerFactory(() => RecuperacionBloc(repository: sl()));
+  // E001-HU-005: Activacion de Cuenta de Jugador Invitado
+  sl.registerFactory(() => ActivacionCuentaBloc(repository: sl()));
   // SessionBloc: Singleton para mantener estado de sesion global (HU-004)
   sl.registerLazySingleton(() => SessionBloc(
         repository: sl(),

@@ -241,6 +241,11 @@ class _LoginViewState extends State<_LoginView> {
 
                       // Link a registro
                       _buildRegistroLink(theme, isLoading),
+
+                      const SizedBox(height: DesignTokens.spacingS),
+
+                      // E001-HU-005: Link a activacion de cuenta
+                      _buildActivacionLink(theme, isLoading),
                     ],
                   ),
                 ),
@@ -314,6 +319,29 @@ class _LoginViewState extends State<_LoginView> {
           ),
         ),
       ],
+    );
+  }
+
+  /// E001-HU-005: Link para activar cuenta de jugador invitado
+  Widget _buildActivacionLink(ThemeData theme, bool isLoading) {
+    return TextButton.icon(
+      onPressed: isLoading
+          ? null
+          : () {
+              context.go('/activar-cuenta');
+            },
+      icon: Icon(
+        Icons.person_add_alt_1,
+        size: 18,
+        color: theme.colorScheme.secondary,
+      ),
+      label: Text(
+        'Fui invitado a un grupo',
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.secondary,
+          fontWeight: DesignTokens.fontWeightSemiBold,
+        ),
+      ),
     );
   }
 

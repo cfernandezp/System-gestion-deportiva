@@ -6,9 +6,11 @@ import '../models/cerrar_sesion_response_model.dart';
 import '../models/login_response_model.dart';
 import '../models/recuperacion_response_model.dart';
 import '../models/registro_admin_response_model.dart';
+import '../models/activacion_cuenta_response_model.dart';
 import '../models/registro_response_model.dart';
 import '../models/validacion_password_model.dart';
 import '../models/verificar_estado_model.dart';
+import '../models/verificar_invitacion_model.dart';
 
 /// Interface del DataSource remoto de autenticacion
 abstract class AuthRemoteDataSource {
@@ -73,6 +75,23 @@ abstract class AuthRemoteDataSource {
     required String token,
     required String nuevaContrasena,
     required String confirmarContrasena,
+  });
+
+  /// E001-HU-005: Verifica si un celular tiene invitacion pendiente
+  /// RPC: verificar_invitacion_pendiente(p_celular)
+  /// CA-001, CA-002, CA-004
+  Future<VerificarInvitacionModel> verificarInvitacionPendiente({
+    required String celular,
+  });
+
+  /// E001-HU-005: Activa cuenta de jugador invitado
+  /// Paso 1: Crea usuario en auth.users via signUp (email derivado del celular)
+  /// Paso 2: Llama RPC activar_cuenta_jugador para vincular y activar
+  /// CA-001, CA-005, CA-006, RN-002, RN-003, RN-005
+  Future<ActivacionCuentaResponseModel> activarCuentaJugador({
+    required String celular,
+    required String nombreCompleto,
+    required String password,
   });
 
   /// E001-HU-001: Registra un nuevo administrador con celular como identificador
@@ -768,6 +787,164 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
       throw ServerException(
         message: 'Error de conexion al registrar administrador: ${e.toString()}',
+      );
+    }
+  }
+
+  /// E001-HU-005: Verificar si un celular tiene invitacion pendiente
+  /// CA-001, CA-002, CA-004: Verificacion sin autenticacion
+  @override
+  Future<VerificarInvitacionModel> verificarInvitacionPendiente({
+    required String celular,
+  }) async {
+    debugPrint('========== VERIFICAR INVITACION - INICIO ==========');
+    debugPrint('[INVITACION] Celular: $celular');
+
+    try {
+      final response = await supabase.rpc(
+        'verificar_invitacion_pendiente',
+        params: {
+          'p_celular': celular,
+        },
+      );
+
+      debugPrint('[INVITACION] Response: $response');
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        debugPrint('========== VERIFICAR INVITACION - FIN (EXITO) ==========');
+        return VerificarInvitacionModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al verificar invitacion',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      debugPrint('========== VERIFICAR INVITACION - FIN (SERVER ERROR) ==========');
+      rethrow;
+    } catch (e) {
+      debugPrint('[INVITACION] Exception: ${e.runtimeType}: $e');
+      debugPrint('========== VERIFICAR INVITACION - FIN (EXCEPTION) ==========');
+      throw ServerException(
+        message: 'Error de conexion al verificar invitacion: ${e.toString()}',
+      );
+    }
+  }
+
+  /// E001-HU-005: Activar cuenta de jugador invitado
+  /// Flujo: signUp con email derivado -> RPC activar_cuenta_jugador
+  /// CA-001, CA-005, CA-006, RN-002, RN-003, RN-005
+  @override
+  Future<ActivacionCuentaResponseModel> activarCuentaJugador({
+    required String celular,
+    required String nombreCompleto,
+    required String password,
+  }) async {
+    String? authUserId;
+
+    // Email derivado del celular (mismo patron que admin)
+    final emailDerivado = '$celular@gestiondeportiva.app';
+
+    debugPrint('========== ACTIVAR CUENTA - INICIO ==========');
+    debugPrint('[ACTIVAR] Celular: $celular');
+    debugPrint('[ACTIVAR] Nombre: $nombreCompleto');
+    debugPrint('[ACTIVAR] Email derivado: $emailDerivado');
+
+    try {
+      // PASO 1: Crear usuario en auth.users via signUp
+      debugPrint('[ACTIVAR] PASO 1: Llamando supabase.auth.signUp()...');
+      final authResponse = await supabase.auth.signUp(
+        email: emailDerivado,
+        password: password,
+        data: {
+          'nombre_completo': nombreCompleto,
+          'celular': celular,
+        },
+      );
+
+      if (authResponse.user == null) {
+        debugPrint('[ACTIVAR] ERROR: authResponse.user es NULL');
+        throw ServerException(
+          message: 'Error al crear usuario en autenticacion',
+          code: 'AUTH_SIGNUP_FAILED',
+          hint: 'signup_failed',
+        );
+      }
+
+      authUserId = authResponse.user!.id;
+      debugPrint('[ACTIVAR] Usuario auth creado con ID: $authUserId');
+
+      // PASO 2: Vincular y activar cuenta en tabla usuarios via RPC
+      debugPrint('[ACTIVAR] PASO 2: Llamando RPC activar_cuenta_jugador()...');
+      final response = await supabase.rpc(
+        'activar_cuenta_jugador',
+        params: {
+          'p_auth_user_id': authUserId,
+          'p_celular': celular,
+          'p_nombre_completo': nombreCompleto,
+        },
+      );
+
+      debugPrint('[ACTIVAR] RPC activar_cuenta_jugador response: $response');
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        debugPrint('[ACTIVAR] EXITO: Cuenta activada');
+        // CA-006: Cerrar sesion post-activacion (jugador debe hacer login normal)
+        await supabase.auth.signOut();
+        debugPrint('[ACTIVAR] Sesion cerrada post-activacion');
+        debugPrint('========== ACTIVAR CUENTA - FIN (EXITO) ==========');
+        return ActivacionCuentaResponseModel.fromJson(responseMap);
+      } else {
+        debugPrint('[ACTIVAR] ERROR: activar_cuenta_jugador fallo');
+        // Rollback: eliminar usuario de auth si falla
+        await _rollbackAuthUser(authUserId);
+
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al activar cuenta',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on supabase_lib.AuthException catch (e) {
+      debugPrint('[ACTIVAR] AuthException: ${e.message}');
+      debugPrint('========== ACTIVAR CUENTA - FIN (AUTH ERROR) ==========');
+
+      String hint = 'auth_error';
+      String message = e.message;
+
+      // Email derivado ya existe = celular ya tiene cuenta activa
+      if (e.message.contains('already registered') ||
+          e.message.contains('already exists')) {
+        hint = 'cuenta_ya_activa';
+        message = 'Este numero de celular ya tiene una cuenta activa. Intenta iniciar sesion.';
+      } else if (e.message.contains('Password')) {
+        hint = 'password_invalido';
+        message = 'La contrasena no cumple los requisitos de seguridad';
+      }
+
+      throw ServerException(
+        message: message,
+        code: 'AUTH_ERROR',
+        hint: hint,
+      );
+    } on ServerException {
+      debugPrint('========== ACTIVAR CUENTA - FIN (SERVER ERROR) ==========');
+      rethrow;
+    } catch (e) {
+      debugPrint('[ACTIVAR] Exception generica: ${e.runtimeType}: $e');
+      debugPrint('========== ACTIVAR CUENTA - FIN (EXCEPTION) ==========');
+      if (authUserId != null) {
+        await _rollbackAuthUser(authUserId);
+      }
+      throw ServerException(
+        message: 'Error de conexion al activar cuenta: ${e.toString()}',
       );
     }
   }
