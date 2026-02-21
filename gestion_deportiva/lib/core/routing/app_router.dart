@@ -49,6 +49,24 @@ import '../../features/settings/presentation/pages/settings_page.dart';
 // E000-HU-003: Pantalla de Upgrade
 import '../../features/upgrade/presentation/models/upgrade_reason.dart';
 import '../../features/upgrade/presentation/pages/upgrade_page.dart';
+// E002-HU-001: Crear Grupo Deportivo
+import '../../features/grupos/presentation/bloc/crear_grupo/crear_grupo_bloc.dart';
+import '../../features/grupos/presentation/pages/crear_grupo_page.dart';
+// E002-HU-002: Ver Mis Grupos
+import '../../features/grupos/presentation/bloc/mis_grupos/mis_grupos_bloc.dart';
+import '../../features/grupos/presentation/bloc/mis_grupos/mis_grupos_event.dart';
+import '../../features/grupos/presentation/pages/mis_grupos_page.dart';
+// E001-HU-003: Seleccion de Grupo Post-Login
+import '../../features/grupos/presentation/cubit/grupo_actual_cubit.dart';
+import '../../features/grupos/presentation/bloc/seleccion_grupo/seleccion_grupo_bloc.dart';
+import '../../features/grupos/presentation/bloc/seleccion_grupo/seleccion_grupo_event.dart';
+import '../../features/grupos/presentation/pages/seleccion_grupo_page.dart';
+// E001-HU-004: Invitar Jugador al Grupo
+import '../../features/grupos/presentation/bloc/invitar_jugador/invitar_jugador_bloc.dart';
+import '../../features/grupos/presentation/bloc/miembros_grupo/miembros_grupo_bloc.dart';
+import '../../features/grupos/presentation/bloc/miembros_grupo/miembros_grupo_event.dart';
+import '../../features/grupos/presentation/pages/invitar_jugador_page.dart';
+import '../../features/grupos/presentation/pages/miembros_grupo_page.dart';
 
 /// Notificador que escucha cambios en el SessionBloc y notifica al GoRouter
 /// Esto resuelve la race condition entre login exitoso y la redireccion
@@ -128,6 +146,15 @@ class AppRouter {
   static const String rankingGoleadores = '/ranking-goleadores';
   // E000-HU-001: Sistema de Temas - Configuracion
   static const String configuracion = '/configuracion';
+  // E002-HU-001: Crear Grupo Deportivo
+  static const String crearGrupo = '/grupos/crear';
+  // E002-HU-002: Ver Mis Grupos
+  static const String misGrupos = '/mis-grupos';
+  // E001-HU-003: Seleccion de Grupo Post-Login
+  static const String seleccionarGrupo = '/seleccionar-grupo';
+  // E001-HU-004: Invitar Jugador al Grupo
+  static const String miembrosGrupo = '/grupos/:id/miembros';
+  static const String invitarJugador = '/grupos/:id/invitar';
   // E000-HU-003: Pantalla de Upgrade
   static const String upgrade = '/upgrade';
 
@@ -151,6 +178,22 @@ class AppRouter {
     });
   }
 
+  /// E001-HU-003: Rutas que no requieren tener un grupo seleccionado
+  /// Estas rutas son accesibles sin grupo activo
+  static const List<String> _grupoFreeRoutes = [
+    seleccionarGrupo,
+    crearGrupo,
+    misGrupos,
+    configuracion,
+    upgrade,
+    perfil,
+  ];
+
+  /// Verifica si una ruta no requiere grupo seleccionado
+  static bool _isGrupoFreeRoute(String path) {
+    return _grupoFreeRoutes.any((route) => path == route);
+  }
+
   /// Instancia privada del refresh notifier para evitar recreacion
   static GoRouterRefreshStream? _refreshNotifier;
 
@@ -171,10 +214,12 @@ class AppRouter {
 
     /// HU-004: CA-003 - Acceso denegado post-logout
     /// RN-005: Proteccion de recursos post-cierre
+    /// E001-HU-003: Seleccion de grupo post-login
     /// Guard de autenticacion global
     redirect: (context, state) {
       final sessionBloc = sl<SessionBloc>();
       final sessionState = sessionBloc.state;
+      final grupoActualCubit = sl<GrupoActualCubit>();
       final currentPath = state.uri.path;
 
       // Verificar si es ruta publica
@@ -188,14 +233,28 @@ class AppRouter {
       // Verificar si el usuario esta autenticado
       final isAuthenticated = sessionState is SessionAuthenticated;
 
+      // E001-HU-003: Limpiar grupo al cerrar sesion
+      if (!isAuthenticated) {
+        grupoActualCubit.limpiarGrupo();
+      }
+
       // CA-003, RN-005: Si NO esta autenticado y trata de acceder a ruta protegida
       if (!isAuthenticated && !isPublicRoute) {
         return login;
       }
 
-      // Si esta autenticado y trata de acceder a login/registro, ir a home
+      // E001-HU-003: Si esta autenticado y trata de acceder a login/registro,
+      // ir a seleccion de grupo (en vez de home directo)
       if (isAuthenticated && (currentPath == login || currentPath == registro)) {
-        return home;
+        return seleccionarGrupo;
+      }
+
+      // E001-HU-003: Si esta autenticado, no tiene grupo seleccionado,
+      // y no esta en una ruta que no requiere grupo, redirigir a seleccion
+      if (isAuthenticated &&
+          !grupoActualCubit.tieneGrupoSeleccionado &&
+          !_isGrupoFreeRoute(currentPath)) {
+        return seleccionarGrupo;
       }
 
       // Permitir navegacion normal
@@ -439,6 +498,90 @@ class AppRouter {
             child: const SettingsPage(),
           ),
         ),
+      ),
+
+      // E001-HU-003: Seleccion de Grupo Post-Login
+      // CA-001 a CA-005: Seleccionar grupo, auto-skip, cambiar grupo
+      GoRoute(
+        path: '/seleccionar-grupo',
+        name: 'seleccionarGrupo',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: BlocProvider(
+            create: (context) => sl<SeleccionGrupoBloc>()
+              ..add(const CargarGruposParaSeleccionEvent()),
+            child: const SeleccionGrupoPage(),
+          ),
+        ),
+      ),
+
+      // E002-HU-002: Ver Mis Grupos
+      // CA-001 a CA-005: Lista de grupos del usuario con rol y miembros
+      GoRoute(
+        path: '/mis-grupos',
+        name: 'misGrupos',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: BlocProvider(
+            create: (context) => sl<MisGruposBloc>()
+              ..add(const CargarMisGruposEvent()),
+            child: const MisGruposPage(),
+          ),
+        ),
+      ),
+
+      // E002-HU-001: Crear Grupo Deportivo
+      // CA-001 a CA-007: Formulario para crear grupo con nombre, logo, lema, reglas
+      GoRoute(
+        path: '/grupos/crear',
+        name: 'crearGrupo',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: BlocProvider(
+            create: (context) => sl<CrearGrupoBloc>(),
+            child: const CrearGrupoPage(),
+          ),
+        ),
+      ),
+
+      // E001-HU-004: Ver Miembros del Grupo
+      // CA-005: Lista de miembros con estado
+      GoRoute(
+        path: '/grupos/:id/miembros',
+        name: 'miembrosGrupo',
+        pageBuilder: (context, state) {
+          final grupoId = state.pathParameters['id'] ?? '';
+          final grupoActual = sl<GrupoActualCubit>().grupoActual;
+          final esAdminOCoadmin = grupoActual?.esAdminOCoadmin ?? false;
+          return _buildPageWithFadeTransition(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (context) => sl<MiembrosGrupoBloc>()
+                ..add(CargarMiembrosGrupoEvent(grupoId: grupoId)),
+              child: MiembrosGrupoPage(
+                grupoId: grupoId,
+                esAdminOCoadmin: esAdminOCoadmin,
+              ),
+            ),
+          );
+        },
+      ),
+
+      // E001-HU-004: Invitar Jugador al Grupo
+      // CA-001, CA-006, CA-007: Formulario de invitacion
+      GoRoute(
+        path: '/grupos/:id/invitar',
+        name: 'invitarJugador',
+        pageBuilder: (context, state) {
+          final grupoId = state.pathParameters['id'] ?? '';
+          return _buildPageWithFadeTransition(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (context) => sl<InvitarJugadorBloc>(),
+              child: InvitarJugadorPage(grupoId: grupoId),
+            ),
+          );
+        },
       ),
 
       // E000-HU-003: Pantalla de Upgrade

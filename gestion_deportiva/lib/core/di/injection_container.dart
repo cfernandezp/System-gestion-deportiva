@@ -97,6 +97,17 @@ import '../../features/planes/data/repositories/planes_repository_impl.dart';
 import '../../features/planes/domain/repositories/planes_repository.dart';
 import '../../features/planes/domain/services/plan_service.dart';
 
+// Grupos Feature (E002-HU-001: Crear Grupo, E002-HU-002: Ver Mis Grupos, E001-HU-003: Seleccion Grupo, E001-HU-004: Invitar Jugador)
+import '../../features/grupos/data/datasources/grupos_remote_datasource.dart';
+import '../../features/grupos/data/repositories/grupos_repository_impl.dart';
+import '../../features/grupos/domain/repositories/grupos_repository.dart';
+import '../../features/grupos/presentation/bloc/crear_grupo/crear_grupo_bloc.dart';
+import '../../features/grupos/presentation/bloc/invitar_jugador/invitar_jugador_bloc.dart';
+import '../../features/grupos/presentation/bloc/miembros_grupo/miembros_grupo_bloc.dart';
+import '../../features/grupos/presentation/bloc/mis_grupos/mis_grupos_bloc.dart';
+import '../../features/grupos/presentation/bloc/seleccion_grupo/seleccion_grupo_bloc.dart';
+import '../../features/grupos/presentation/cubit/grupo_actual_cubit.dart';
+
 /// Service Locator global
 final sl = GetIt.instance;
 
@@ -312,6 +323,35 @@ Future<void> initializeDependencies() async {
   // DataSource
   sl.registerLazySingleton<ThemeLocalDataSource>(
     () => ThemeLocalDataSourceImpl(prefs: sl()),
+  );
+
+  // -------------------- Grupos (E002-HU-001, E002-HU-002, E001-HU-003, E001-HU-004) --------------------
+
+  // E001-HU-003: Estado global del grupo seleccionado (Singleton)
+  sl.registerLazySingleton(() => GrupoActualCubit());
+
+  // Blocs
+  sl.registerFactory(() => CrearGrupoBloc(repository: sl(), planService: sl()));
+  // E002-HU-002: Ver Mis Grupos
+  sl.registerFactory(() => MisGruposBloc(repository: sl()));
+  // E001-HU-003: Seleccion de Grupo Post-Login
+  sl.registerFactory(() => SeleccionGrupoBloc(
+        repository: sl(),
+        grupoActualCubit: sl(),
+      ));
+  // E001-HU-004: Invitar Jugador al Grupo
+  sl.registerFactory(() => InvitarJugadorBloc(repository: sl()));
+  // E001-HU-004: Ver Miembros del Grupo
+  sl.registerFactory(() => MiembrosGrupoBloc(repository: sl()));
+
+  // Repository
+  sl.registerLazySingleton<GruposRepository>(
+    () => GruposRepositoryImpl(remoteDataSource: sl()),
+  );
+
+  // DataSource
+  sl.registerLazySingleton<GruposRemoteDataSource>(
+    () => GruposRemoteDataSourceImpl(supabase: sl()),
   );
 
   // -------------------- Planes (E000-HU-002: Infraestructura de Planes y Limites) --------------------
