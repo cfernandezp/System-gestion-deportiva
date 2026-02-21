@@ -79,6 +79,15 @@ class MiembroGrupoModel extends Equatable {
     return 'Activo';
   }
 
+  /// E002-HU-005 RN-002: Celular enmascarado para jugadores
+  /// Formato: ***-***-789 (ultimos 3 digitos visibles)
+  String get celularEnmascarado {
+    if (celular.length >= 3) {
+      return '***-***-${celular.substring(celular.length - 3)}';
+    }
+    return '***-***-***';
+  }
+
   @override
   List<Object?> get props => [
         miembroId,
