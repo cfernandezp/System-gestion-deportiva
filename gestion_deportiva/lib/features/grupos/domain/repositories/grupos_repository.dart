@@ -4,6 +4,8 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../core/errors/failures.dart';
 import '../../data/models/crear_grupo_response_model.dart';
+import '../../data/models/editar_grupo_response_model.dart';
+import '../../data/models/grupo_model.dart';
 import '../../data/models/invitar_jugador_response_model.dart';
 import '../../data/models/miembro_grupo_model.dart';
 import '../../data/models/mi_grupo_model.dart';
@@ -46,4 +48,17 @@ abstract class GruposRepository {
   /// E001-HU-004: Obtiene miembros del grupo
   /// CA-005: Lista con estado
   Future<Either<Failure, List<MiembroGrupoModel>>> obtenerMiembrosGrupo(String grupoId);
+
+  /// E002-HU-003: Obtiene detalle completo del grupo
+  Future<Either<Failure, GrupoModel>> obtenerDetalleGrupo(String grupoId);
+
+  /// E002-HU-003: Edita nombre, logo, lema y reglas del grupo
+  /// CA-001 a CA-005, RN-001 a RN-004
+  Future<Either<Failure, EditarGrupoResponseModel>> editarGrupo({
+    required String grupoId,
+    required String nombre,
+    String? lema,
+    String? reglas,
+    String? logoUrl,
+  });
 }

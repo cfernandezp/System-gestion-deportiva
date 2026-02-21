@@ -7,6 +7,8 @@ import '../../../../core/errors/failures.dart';
 import '../../domain/repositories/grupos_repository.dart';
 import '../datasources/grupos_remote_datasource.dart';
 import '../models/crear_grupo_response_model.dart';
+import '../models/editar_grupo_response_model.dart';
+import '../models/grupo_model.dart';
 import '../models/invitar_jugador_response_model.dart';
 import '../models/miembro_grupo_model.dart';
 import '../models/mi_grupo_model.dart';
@@ -147,6 +149,54 @@ class GruposRepositoryImpl implements GruposRepository {
   Future<Either<Failure, List<MiembroGrupoModel>>> obtenerMiembrosGrupo(String grupoId) async {
     try {
       final result = await remoteDataSource.obtenerMiembrosGrupo(grupoId);
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado: ${e.toString()}',
+      ));
+    }
+  }
+
+  @override
+  Future<Either<Failure, GrupoModel>> obtenerDetalleGrupo(String grupoId) async {
+    try {
+      final result = await remoteDataSource.obtenerDetalleGrupo(grupoId);
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado: ${e.toString()}',
+      ));
+    }
+  }
+
+  @override
+  Future<Either<Failure, EditarGrupoResponseModel>> editarGrupo({
+    required String grupoId,
+    required String nombre,
+    String? lema,
+    String? reglas,
+    String? logoUrl,
+  }) async {
+    try {
+      final result = await remoteDataSource.editarGrupo(
+        grupoId: grupoId,
+        nombre: nombre,
+        lema: lema,
+        reglas: reglas,
+        logoUrl: logoUrl,
+      );
       return Right(result);
     } on ServerException catch (e) {
       return Left(ServerFailure(

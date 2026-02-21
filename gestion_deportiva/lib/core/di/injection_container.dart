@@ -104,6 +104,7 @@ import '../../features/grupos/data/datasources/grupos_remote_datasource.dart';
 import '../../features/grupos/data/repositories/grupos_repository_impl.dart';
 import '../../features/grupos/domain/repositories/grupos_repository.dart';
 import '../../features/grupos/presentation/bloc/crear_grupo/crear_grupo_bloc.dart';
+import '../../features/grupos/presentation/bloc/editar_grupo/editar_grupo_bloc.dart';
 import '../../features/grupos/presentation/bloc/invitar_jugador/invitar_jugador_bloc.dart';
 import '../../features/grupos/presentation/bloc/miembros_grupo/miembros_grupo_bloc.dart';
 import '../../features/grupos/presentation/bloc/mis_grupos/mis_grupos_bloc.dart';
@@ -349,6 +350,8 @@ Future<void> initializeDependencies() async {
   sl.registerFactory(() => InvitarJugadorBloc(repository: sl()));
   // E001-HU-004: Ver Miembros del Grupo
   sl.registerFactory(() => MiembrosGrupoBloc(repository: sl()));
+  // E002-HU-003: Editar Grupo
+  sl.registerFactory(() => EditarGrupoBloc(repository: sl()));
 
   // Repository
   sl.registerLazySingleton<GruposRepository>(

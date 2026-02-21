@@ -54,6 +54,10 @@ import '../../features/upgrade/presentation/pages/upgrade_page.dart';
 // E002-HU-001: Crear Grupo Deportivo
 import '../../features/grupos/presentation/bloc/crear_grupo/crear_grupo_bloc.dart';
 import '../../features/grupos/presentation/pages/crear_grupo_page.dart';
+// E002-HU-003: Editar Grupo Deportivo
+import '../../features/grupos/presentation/bloc/editar_grupo/editar_grupo_bloc.dart';
+import '../../features/grupos/presentation/bloc/editar_grupo/editar_grupo_event.dart';
+import '../../features/grupos/presentation/pages/editar_grupo_page.dart';
 // E002-HU-002: Ver Mis Grupos
 import '../../features/grupos/presentation/bloc/mis_grupos/mis_grupos_bloc.dart';
 import '../../features/grupos/presentation/bloc/mis_grupos/mis_grupos_event.dart';
@@ -163,6 +167,8 @@ class AppRouter {
   // E001-HU-004: Invitar Jugador al Grupo
   static const String miembrosGrupo = '/grupos/:id/miembros';
   static const String invitarJugador = '/grupos/:id/invitar';
+  // E002-HU-003: Editar Grupo Deportivo
+  static const String editarGrupo = '/grupos/:id/editar';
   // E001-HU-005: Activacion de Cuenta de Jugador Invitado
   static const String activarCuenta = '/activar-cuenta';
   // E000-HU-003: Pantalla de Upgrade
@@ -612,6 +618,24 @@ class AppRouter {
             child: BlocProvider(
               create: (context) => sl<InvitarJugadorBloc>(),
               child: InvitarJugadorPage(grupoId: grupoId),
+            ),
+          );
+        },
+      ),
+
+      // E002-HU-003: Editar Grupo Deportivo
+      // CA-001 a CA-005: Formulario de edicion con detalle precargado
+      GoRoute(
+        path: '/grupos/:id/editar',
+        name: 'editarGrupo',
+        pageBuilder: (context, state) {
+          final grupoId = state.pathParameters['id'] ?? '';
+          return _buildPageWithFadeTransition(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (context) => sl<EditarGrupoBloc>()
+                ..add(CargarDetalleGrupoEvent(grupoId: grupoId)),
+              child: EditarGrupoPage(grupoId: grupoId),
             ),
           );
         },

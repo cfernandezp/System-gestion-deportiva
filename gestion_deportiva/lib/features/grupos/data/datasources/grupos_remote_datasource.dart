@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart' as supabase_lib;
 
 import '../../../../core/errors/exceptions.dart';
 import '../models/crear_grupo_response_model.dart';
+import '../models/editar_grupo_response_model.dart';
+import '../models/grupo_model.dart';
 import '../models/invitar_jugador_response_model.dart';
 import '../models/miembro_grupo_model.dart';
 import '../models/mi_grupo_model.dart';
@@ -47,6 +49,20 @@ abstract class GruposRemoteDataSource {
   /// E001-HU-004: RPC obtener_miembros_grupo
   /// CA-005: Lista de miembros del grupo con estado
   Future<List<MiembroGrupoModel>> obtenerMiembrosGrupo(String grupoId);
+
+  /// E002-HU-003: Obtiene detalle completo del grupo
+  /// Query directa a tabla grupos (RLS permite)
+  Future<GrupoModel> obtenerDetalleGrupo(String grupoId);
+
+  /// E002-HU-003: RPC editar_grupo
+  /// CA-001 a CA-005, RN-001 a RN-004: Edita nombre, logo, lema y reglas
+  Future<EditarGrupoResponseModel> editarGrupo({
+    required String grupoId,
+    required String nombre,
+    String? lema,
+    String? reglas,
+    String? logoUrl,
+  });
 }
 
 /// Implementacion con Supabase
@@ -282,6 +298,71 @@ class GruposRemoteDataSourceImpl implements GruposRemoteDataSource {
       rethrow;
     } catch (e) {
       debugPrint('[GruposDS] Error obtenerMiembros: $e');
+      throw ServerException(message: 'Error de conexion: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<GrupoModel> obtenerDetalleGrupo(String grupoId) async {
+    try {
+      debugPrint('[GruposDS] Obteniendo detalle del grupo: $grupoId');
+
+      final result = await supabase
+          .from('grupos')
+          .select()
+          .eq('id', grupoId)
+          .single();
+
+      final grupo = GrupoModel.fromJson(result);
+      debugPrint('[GruposDS] Detalle grupo obtenido: ${grupo.nombre}');
+      return grupo;
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      debugPrint('[GruposDS] Error obtenerDetalleGrupo: $e');
+      throw ServerException(message: 'Error al obtener detalle del grupo: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<EditarGrupoResponseModel> editarGrupo({
+    required String grupoId,
+    required String nombre,
+    String? lema,
+    String? reglas,
+    String? logoUrl,
+  }) async {
+    try {
+      debugPrint('[GruposDS] Editando grupo: $grupoId');
+
+      final response = await supabase.rpc(
+        'editar_grupo',
+        params: {
+          'p_grupo_id': grupoId,
+          'p_nombre': nombre,
+          'p_lema': lema,
+          'p_reglas': reglas,
+          'p_logo_url': logoUrl,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        final result = EditarGrupoResponseModel.fromJson(responseMap);
+        debugPrint('[GruposDS] Grupo editado: ${result.nombre}');
+        return result;
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al editar grupo',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      debugPrint('[GruposDS] Error editarGrupo: $e');
       throw ServerException(message: 'Error de conexion: ${e.toString()}');
     }
   }
