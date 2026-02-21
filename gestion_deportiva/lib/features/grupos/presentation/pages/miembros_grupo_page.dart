@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/widgets/app_bottom_nav_bar.dart';
 import '../../data/models/miembro_grupo_model.dart';
 import '../bloc/miembros_grupo/miembros_grupo_bloc.dart';
 import '../bloc/miembros_grupo/miembros_grupo_event.dart';
@@ -222,6 +223,7 @@ class _MiembrosGrupoPageState extends State<MiembrosGrupoPage> {
               label: const Text('Invitar'),
             )
           : null,
+      bottomNavigationBar: const AppBottomNavBar(currentIndex: 2),
     );
   }
 
@@ -454,6 +456,7 @@ class _MiembrosGrupoPageState extends State<MiembrosGrupoPage> {
           mostrarCelularCompleto: _mostrarCelularCompleto(miembro),
           esAdminOCoadmin: widget.esAdminOCoadmin,
           puedeEliminar: _puedeEliminar(miembro),
+          esSiMismo: _esMiembro(miembro),
           onEliminar: _puedeEliminar(miembro)
               ? () => _mostrarDialogoEliminar(miembro)
               : null,
@@ -472,6 +475,7 @@ class _MiembroCard extends StatelessWidget {
   final bool mostrarCelularCompleto;
   final bool esAdminOCoadmin;
   final bool puedeEliminar;
+  final bool esSiMismo;
   final VoidCallback? onEliminar;
 
   const _MiembroCard({
@@ -479,6 +483,7 @@ class _MiembroCard extends StatelessWidget {
     required this.mostrarCelularCompleto,
     required this.esAdminOCoadmin,
     this.puedeEliminar = false,
+    this.esSiMismo = false,
     this.onEliminar,
   });
 
@@ -561,14 +566,8 @@ class _MiembroCard extends StatelessWidget {
           ],
         ),
         isThreeLine: true,
-        trailing: puedeEliminar
-            ? IconButton(
-                icon: const Icon(Icons.delete_outline),
-                color: DesignTokens.errorColor,
-                iconSize: DesignTokens.iconSizeM,
-                tooltip: 'Eliminar del grupo',
-                onPressed: onEliminar,
-              )
+        trailing: esAdminOCoadmin
+            ? _buildPopupMenu(context)
             : miembro.estaPendiente
                 ? const Icon(
                     Icons.schedule,
@@ -581,6 +580,73 @@ class _MiembroCard extends StatelessWidget {
                     color: DesignTokens.successColor,
                   ),
       ),
+    );
+  }
+
+  /// PopupMenuButton con acciones de admin/coadmin sobre el miembro
+  Widget _buildPopupMenu(BuildContext context) {
+    // Determinar si hay items visibles para el menu
+    final mostrarGenerarCodigo = miembro.rol != 'admin' && !esSiMismo;
+    final mostrarEliminar = puedeEliminar;
+
+    // Si no hay acciones disponibles, mostrar icono de estado
+    if (!mostrarGenerarCodigo && !mostrarEliminar) {
+      return miembro.estaPendiente
+          ? const Icon(
+              Icons.schedule,
+              size: DesignTokens.iconSizeS,
+              color: DesignTokens.accentColor,
+            )
+          : const Icon(
+              Icons.check_circle,
+              size: DesignTokens.iconSizeS,
+              color: DesignTokens.successColor,
+            );
+    }
+
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert),
+      onSelected: (value) {
+        switch (value) {
+          case 'generar_codigo':
+            context.push(
+              '/admin/generar-codigo-recuperacion',
+              extra: miembro.celular,
+            );
+            break;
+          case 'eliminar':
+            onEliminar?.call();
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        if (mostrarGenerarCodigo)
+          const PopupMenuItem<String>(
+            value: 'generar_codigo',
+            child: ListTile(
+              leading: Icon(Icons.vpn_key_outlined),
+              title: Text('Generar codigo de recuperacion'),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        if (mostrarEliminar)
+          PopupMenuItem<String>(
+            value: 'eliminar',
+            child: ListTile(
+              leading: Icon(
+                Icons.delete_outline,
+                color: DesignTokens.errorColor,
+              ),
+              title: Text(
+                'Eliminar del grupo',
+                style: TextStyle(color: DesignTokens.errorColor),
+              ),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+      ],
     );
   }
 

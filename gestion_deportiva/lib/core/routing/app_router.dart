@@ -17,9 +17,7 @@ import '../../features/home/presentation/pages/home_page.dart';
 // E002-HU-001: Ver Perfil Propio
 import '../../features/profile/presentation/bloc/perfil/perfil.dart';
 import '../../features/profile/presentation/pages/perfil_page.dart';
-// E002-HU-003: Lista de Jugadores
-import '../../features/jugadores/presentation/bloc/jugadores/jugadores.dart';
-import '../../features/jugadores/presentation/pages/jugadores_page.dart';
+// E002-HU-003: Lista de Jugadores (redirect a miembros del grupo activo)
 // E002-HU-004: Ver Perfil de Otro Jugador
 import '../../features/jugadores/presentation/bloc/perfil_jugador/perfil_jugador.dart';
 import '../../features/jugadores/presentation/pages/jugador_perfil_page.dart';
@@ -128,8 +126,8 @@ class AppRouter {
     );
   }
   /// Rutas de la aplicacion
-  static const String splash = '/';
-  static const String home = '/home';
+  static const String splash = '/splash';
+  static const String home = '/';
   static const String login = '/login';
   static const String registro = '/registro';
   static const String adminUsuarios = '/admin/usuarios';
@@ -221,7 +219,7 @@ class AppRouter {
   }
 
   static final GoRouter router = GoRouter(
-    initialLocation: '/',
+    initialLocation: '/splash',
     debugLogDiagnostics: true,
 
     /// refreshListenable: Escucha cambios en SessionBloc y re-evalua redirecciones
@@ -260,7 +258,7 @@ class AppRouter {
         return login;
       }
 
-      // No redirigir desde la splash (deja que navegue sola a /home)
+      // No redirigir desde la splash (deja que navegue sola a /)
       if (currentPath == splash) {
         return null;
       }
@@ -284,24 +282,25 @@ class AppRouter {
     },
 
     routes: [
-      // Splash Screen: muestra logo ChocoApp al abrir la app
-      GoRoute(
-        path: '/',
-        name: 'splash',
-        pageBuilder: (context, state) => _buildPageWithFadeTransition(
-          key: state.pageKey,
-          child: const SplashPage(),
-        ),
-      ),
-
       // Ruta home (protegida) - HU-004
       // CA-001: LogoutButton visible en AppBar
       GoRoute(
-        path: '/home',
+        path: '/',
         name: 'home',
         pageBuilder: (context, state) => _buildPageWithFadeTransition(
           key: state.pageKey,
           child: const HomePage(),
+        ),
+      ),
+
+      // Splash Screen: muestra logo ChocoApp solo al abrir la app
+      // initialLocation apunta aqui, luego navega a / (home)
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: const SplashPage(),
         ),
       ),
 
@@ -358,13 +357,17 @@ class AppRouter {
       ),
 
       // E001-HU-007: Generar codigo de recuperacion (admin-side, ruta protegida)
+      // Acepta extra: String? (celular precargado desde miembros del grupo)
       GoRoute(
         path: '/admin/generar-codigo-recuperacion',
         name: 'generarCodigoRecuperacion',
-        pageBuilder: (context, state) => _buildPageWithFadeTransition(
-          key: state.pageKey,
-          child: const GenerarCodigoPage(),
-        ),
+        pageBuilder: (context, state) {
+          final celular = state.extra as String?;
+          return _buildPageWithFadeTransition(
+            key: state.pageKey,
+            child: GenerarCodigoPage(celularPrecargado: celular),
+          );
+        },
       ),
 
       // E002-HU-001: Ver Perfil Propio
@@ -381,18 +384,18 @@ class AppRouter {
         ),
       ),
 
-      // E002-HU-003: Lista de Jugadores
-      // CA-001: Acceso a lista desde "Jugadores" o "Miembros"
+      // E002-HU-003 / E002-HU-005: Jugadores -> redirect a miembros del grupo activo
+      // Bottom nav y accesos rapidos usan /jugadores, se redirige dinamicamente
       GoRoute(
         path: '/jugadores',
         name: 'jugadores',
-        pageBuilder: (context, state) => _buildPageWithFadeTransition(
-          key: state.pageKey,
-          child: BlocProvider(
-            create: (context) => sl<JugadoresBloc>()..add(const CargarJugadoresEvent()),
-            child: const JugadoresPage(),
-          ),
-        ),
+        redirect: (context, state) {
+          final grupoActual = sl<GrupoActualCubit>().grupoActual;
+          if (grupoActual != null) {
+            return '/grupos/${grupoActual.grupoId}/miembros';
+          }
+          return '/seleccionar-grupo';
+        },
       ),
 
       // E002-HU-004: Ver Perfil de Otro Jugador
@@ -540,18 +543,23 @@ class AppRouter {
       ),
 
       // E001-HU-003: Seleccion de Grupo Post-Login
+      // E002-HU-007: Cambiar de Grupo Activo (forzarSeleccion via extra)
       // CA-001 a CA-005: Seleccionar grupo, auto-skip, cambiar grupo
       GoRoute(
         path: '/seleccionar-grupo',
         name: 'seleccionarGrupo',
-        pageBuilder: (context, state) => _buildPageWithFadeTransition(
-          key: state.pageKey,
-          child: BlocProvider(
-            create: (context) => sl<SeleccionGrupoBloc>()
-              ..add(const CargarGruposParaSeleccionEvent()),
-            child: const SeleccionGrupoPage(),
-          ),
-        ),
+        pageBuilder: (context, state) {
+          // E002-HU-007: extra=true indica "cambiar grupo" (no auto-skip)
+          final forzar = state.extra as bool? ?? false;
+          return _buildPageWithFadeTransition(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (context) => sl<SeleccionGrupoBloc>()
+                ..add(CargarGruposParaSeleccionEvent(forzarSeleccion: forzar)),
+              child: SeleccionGrupoPage(forzarSeleccion: forzar),
+            ),
+          );
+        },
       ),
 
       // E002-HU-002: Ver Mis Grupos
@@ -676,7 +684,7 @@ class AppRouter {
             Text('Ruta: \${state.uri.path}'),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () => context.go('/home'),
+              onPressed: () => context.go('/'),
               child: const Text('Ir al inicio'),
             ),
           ],

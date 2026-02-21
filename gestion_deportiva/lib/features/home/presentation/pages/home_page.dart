@@ -7,15 +7,20 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/widgets/app_bottom_nav_bar.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/dashboard_shell.dart';
+import '../../../../core/widgets/logout_button.dart';
 import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../auth/presentation/bloc/session/session.dart';
+import '../../../settings/presentation/bloc/theme/theme.dart';
+// E001-HU-003: Contexto del grupo actual
+import '../../../grupos/presentation/cubit/grupo_actual_cubit.dart';
 // E004-HU-008: Mi Actividad en Vivo
 import '../../../mi_actividad/data/models/mi_equipo_actividad_model.dart';
 import '../../../mi_actividad/presentation/bloc/mi_actividad/mi_actividad_bloc.dart';
 import '../../../mi_actividad/presentation/bloc/mi_actividad/mi_actividad_event.dart';
 import '../../../mi_actividad/presentation/bloc/mi_actividad/mi_actividad_state.dart';
 import '../../../mi_actividad/presentation/widgets/mi_actividad_vivo_widget.dart';
+import '../../../upgrade/presentation/models/upgrade_reason.dart';
 
 /// Pagina principal post-login - Dashboard CRM Moderno
 /// Implementa HU-004: Cierre de Sesion
@@ -48,10 +53,39 @@ class _MobileHomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final grupoActualCubit = sl<GrupoActualCubit>();
+    final grupoActual = grupoActualCubit.grupoActual;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestion Deportiva'),
+        // E001-HU-003 / E002-HU-007 CA-004: Mostrar nombre del grupo actual en AppBar
+        title: Column(
+          children: [
+            const Text('Gestion Deportiva'),
+            if (grupoActual != null)
+              Text(
+                grupoActual.nombre,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+          ],
+        ),
         centerTitle: true,
+        actions: [
+          // Toggle de tema: cicla system -> light -> dark -> system
+          _ThemeToggleButton(),
+          // E002-HU-007 CA-001/RN-005: Cambiar grupo solo si tiene multiples
+          if (grupoActualCubit.tieneMultiplesGrupos)
+            IconButton(
+              icon: const Icon(Icons.swap_horiz),
+              tooltip: 'Cambiar grupo',
+              // E002-HU-007: extra=true para forzar seleccion (no auto-skip)
+              onPressed: () => context.go('/seleccionar-grupo', extra: true),
+            ),
+          // E001-HU-006: Boton de cerrar sesion con confirmacion
+          const LogoutButton(variant: LogoutButtonVariant.iconOnly),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -1135,6 +1169,7 @@ class _NewsItem extends StatelessWidget {
 Widget _buildWelcomeCard(BuildContext context) {
   final theme = Theme.of(context);
   final colorScheme = theme.colorScheme;
+  final grupoActual = sl<GrupoActualCubit>().grupoActual;
 
   return BlocBuilder<SessionBloc, SessionState>(
     builder: (context, state) {
@@ -1149,6 +1184,13 @@ Widget _buildWelcomeCard(BuildContext context) {
         email = state.email;
         rol = state.rol;
       }
+
+      // Plan del grupo activo
+      final planDisplay = grupoActual?.planDisplay ?? 'Plan Gratis';
+      final esPlanGratis = grupoActual?.esPlanGratis ?? true;
+      final planColor = esPlanGratis
+          ? colorScheme.onSurfaceVariant
+          : DesignTokens.accentColor;
 
       return AppCard(
         variant: AppCardVariant.elevated,
@@ -1198,7 +1240,9 @@ Widget _buildWelcomeCard(BuildContext context) {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: DesignTokens.spacingXs),
-                  Row(
+                  Wrap(
+                    spacing: DesignTokens.spacingS,
+                    runSpacing: DesignTokens.spacingXxs,
                     children: [
                       // Badge de rol
                       Container(
@@ -1231,6 +1275,47 @@ Widget _buildWelcomeCard(BuildContext context) {
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                      // Badge de plan - tap navega a upgrade
+                      GestureDetector(
+                        onTap: () => context.push(
+                          '/upgrade',
+                          extra: const UpgradeReason.explorar(),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: DesignTokens.spacingS,
+                            vertical: DesignTokens.spacingXxs,
+                          ),
+                          decoration: BoxDecoration(
+                            color: planColor.withValues(alpha: 0.1),
+                            borderRadius:
+                                BorderRadius.circular(DesignTokens.radiusFull),
+                            border: Border.all(
+                              color: planColor.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                esPlanGratis
+                                    ? Icons.star_border
+                                    : Icons.star,
+                                size: DesignTokens.iconSizeS,
+                                color: planColor,
+                              ),
+                              const SizedBox(width: DesignTokens.spacingXxs),
+                              Text(
+                                planDisplay,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: planColor,
+                                  fontWeight: DesignTokens.fontWeightSemiBold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -1351,20 +1436,21 @@ List<_QuickAccessItem> _getAccesosPorRol(String rol, {bool tieneEquipo = false})
           enabled: true,
         ),
         _QuickAccessItem(
-          title: 'Usuarios',
-          description: 'Gestionar usuarios y roles del sistema',
+          title: 'Jugadores',
+          description: 'Ver miembros del grupo',
           icon: Icons.people_outline,
           color: DesignTokens.secondaryColor,
-          route: '/admin/usuarios',
+          route: '/jugadores',
           enabled: true,
         ),
+        // E002-HU-002: Ver Mis Grupos
         _QuickAccessItem(
-          title: 'Equipos',
-          description: 'Administrar equipos registrados',
+          title: 'Mis Grupos',
+          description: 'Ver y acceder a mis grupos',
           icon: Icons.groups_outlined,
           color: DesignTokens.accentColor,
-          route: '/equipos',
-          enabled: false,
+          route: '/mis-grupos',
+          enabled: true,
         ),
         _QuickAccessItem(
           title: 'Torneos',
@@ -1590,4 +1676,61 @@ class _QuickAccessItem {
   final Color color;
   final String route;
   final bool enabled;
+}
+
+// ============================================
+// TOGGLE DE TEMA
+// ============================================
+
+/// Toggle de tema discreto para el AppBar
+/// Cicla entre: system -> light -> dark -> system
+class _ThemeToggleButton extends StatelessWidget {
+  const _ThemeToggleButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final themeMode = context.watch<ThemeBloc>().state.themeMode;
+
+    return IconButton(
+      icon: Icon(_themeIcon(themeMode)),
+      tooltip: _themeTooltip(themeMode),
+      onPressed: () {
+        final nextMode = _nextThemeMode(themeMode);
+        context.read<ThemeBloc>().add(ChangeThemeEvent(nextMode));
+      },
+    );
+  }
+
+  IconData _themeIcon(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.system:
+        return Icons.brightness_auto;
+      case ThemeMode.light:
+        return Icons.light_mode;
+      case ThemeMode.dark:
+        return Icons.dark_mode;
+    }
+  }
+
+  String _themeTooltip(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.system:
+        return 'Tema: Sistema';
+      case ThemeMode.light:
+        return 'Tema: Claro';
+      case ThemeMode.dark:
+        return 'Tema: Oscuro';
+    }
+  }
+
+  ThemeMode _nextThemeMode(ThemeMode current) {
+    switch (current) {
+      case ThemeMode.system:
+        return ThemeMode.light;
+      case ThemeMode.light:
+        return ThemeMode.dark;
+      case ThemeMode.dark:
+        return ThemeMode.system;
+    }
+  }
 }
