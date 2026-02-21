@@ -56,3 +56,35 @@ class EliminarJugadorEvent extends MiembrosGrupoEvent {
   @override
   List<Object?> get props => [grupoId, miembroId, nombreJugador];
 }
+
+/// E002-HU-004 CA-001: Promover jugador a co-admin
+class PromoverACoadminEvent extends MiembrosGrupoEvent {
+  final String grupoId;
+  final String miembroId;
+  final String nombreJugador;
+
+  const PromoverACoadminEvent({
+    required this.grupoId,
+    required this.miembroId,
+    required this.nombreJugador,
+  });
+
+  @override
+  List<Object?> get props => [grupoId, miembroId, nombreJugador];
+}
+
+/// E002-HU-004 CA-002: Degradar co-admin a jugador
+class DegradarCoadminEvent extends MiembrosGrupoEvent {
+  final String grupoId;
+  final String miembroId;
+  final String nombreJugador;
+
+  const DegradarCoadminEvent({
+    required this.grupoId,
+    required this.miembroId,
+    required this.nombreJugador,
+  });
+
+  @override
+  List<Object?> get props => [grupoId, miembroId, nombreJugador];
+}

@@ -70,6 +70,20 @@ abstract class GruposRemoteDataSource {
     required String grupoId,
     required String miembroId,
   });
+
+  /// E002-HU-004: RPC promover_a_coadmin
+  /// CA-001, RN-001 a RN-003: Promueve un jugador a co-admin
+  Future<Map<String, dynamic>> promoverACoadmin({
+    required String grupoId,
+    required String miembroId,
+  });
+
+  /// E002-HU-004: RPC degradar_coadmin
+  /// CA-002, RN-001, RN-005: Degrada un co-admin a jugador
+  Future<Map<String, dynamic>> degradarCoadmin({
+    required String grupoId,
+    required String miembroId,
+  });
 }
 
 /// Implementacion con Supabase
@@ -407,6 +421,82 @@ class GruposRemoteDataSourceImpl implements GruposRemoteDataSource {
       rethrow;
     } catch (e) {
       debugPrint('[GruposDS] Error eliminarJugador: $e');
+      throw ServerException(message: 'Error de conexion: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> promoverACoadmin({
+    required String grupoId,
+    required String miembroId,
+  }) async {
+    try {
+      debugPrint('[GruposDS] Promoviendo miembro $miembroId a coadmin en grupo $grupoId');
+
+      final response = await supabase.rpc(
+        'promover_a_coadmin',
+        params: {
+          'p_grupo_id': grupoId,
+          'p_miembro_id': miembroId,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        final data = responseMap['data'] as Map<String, dynamic>? ?? {};
+        debugPrint('[GruposDS] Miembro promovido a coadmin exitosamente');
+        return data;
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al promover a co-admin',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      debugPrint('[GruposDS] Error promoverACoadmin: $e');
+      throw ServerException(message: 'Error de conexion: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> degradarCoadmin({
+    required String grupoId,
+    required String miembroId,
+  }) async {
+    try {
+      debugPrint('[GruposDS] Degradando coadmin $miembroId a jugador en grupo $grupoId');
+
+      final response = await supabase.rpc(
+        'degradar_coadmin',
+        params: {
+          'p_grupo_id': grupoId,
+          'p_miembro_id': miembroId,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        final data = responseMap['data'] as Map<String, dynamic>? ?? {};
+        debugPrint('[GruposDS] Coadmin degradado a jugador exitosamente');
+        return data;
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al degradar co-admin',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      debugPrint('[GruposDS] Error degradarCoadmin: $e');
       throw ServerException(message: 'Error de conexion: ${e.toString()}');
     }
   }

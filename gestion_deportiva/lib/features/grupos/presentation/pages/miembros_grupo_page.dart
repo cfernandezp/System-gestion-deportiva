@@ -13,6 +13,7 @@ import '../bloc/miembros_grupo/miembros_grupo_state.dart';
 /// E002-HU-005: Ver Miembros del Grupo
 /// CA-001 a CA-005, RN-001 a RN-005
 /// E002-HU-006: Eliminar Jugador del Grupo
+/// E002-HU-004: Nombrar y Quitar Co-Administradores
 /// Patron mobile: ListView con Cards, busqueda, filtros por rol, privacidad celular
 class MiembrosGrupoPage extends StatefulWidget {
   final String grupoId;
@@ -79,6 +80,120 @@ class _MiembrosGrupoPageState extends State<MiembrosGrupoPage> {
     return true;
   }
 
+  /// E002-HU-004 CA-001/RN-003: Determina si se puede promover un miembro a co-admin
+  /// Solo el admin creador puede, solo jugadores activos
+  bool _puedePromover(MiembroGrupoModel miembro) {
+    // RN-001: Solo admin creador puede gestionar co-admins
+    if (widget.miRol != 'admin') return false;
+    // No promover a ti mismo
+    if (_esMiembro(miembro)) return false;
+    // RN-003: Solo jugadores activos
+    if (miembro.rol != 'jugador') return false;
+    // No promover pendientes
+    if (miembro.estaPendiente) return false;
+    if (!miembro.activo) return false;
+    return true;
+  }
+
+  /// E002-HU-004 CA-002: Determina si se puede degradar un co-admin
+  /// Solo el admin creador puede
+  bool _puedeDegrada(MiembroGrupoModel miembro) {
+    // RN-001: Solo admin creador puede gestionar co-admins
+    if (widget.miRol != 'admin') return false;
+    // No degradar a ti mismo
+    if (_esMiembro(miembro)) return false;
+    // Solo degradar co-admins
+    if (miembro.rol != 'coadmin') return false;
+    return true;
+  }
+
+  /// E002-HU-004 CA-001/RN-006: Dialogo de confirmacion para promover a co-admin
+  Future<void> _mostrarDialogoPromover(MiembroGrupoModel miembro) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Promover a Co-Admin'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Promover a "${miembro.displayName}" como co-administrador?'),
+            const SizedBox(height: DesignTokens.spacingM),
+            Text(
+              'Un co-administrador puede editar el grupo, gestionar miembros y crear fechas, pero NO puede eliminar el grupo ni gestionar otros co-admins.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Promover'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true && mounted) {
+      context.read<MiembrosGrupoBloc>().add(PromoverACoadminEvent(
+        grupoId: widget.grupoId,
+        miembroId: miembro.miembroId,
+        nombreJugador: miembro.displayName,
+      ));
+    }
+  }
+
+  /// E002-HU-004 CA-002/RN-006: Dialogo de confirmacion para degradar co-admin
+  Future<void> _mostrarDialogoDegrada(MiembroGrupoModel miembro) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Quitar Co-Admin'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Quitar el rol de co-administrador a "${miembro.displayName}"?'),
+            const SizedBox(height: DesignTokens.spacingM),
+            Text(
+              'El miembro conservara su membresia en el grupo y pasara a ser jugador regular.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: DesignTokens.accentColor,
+            ),
+            child: const Text('Quitar Co-Admin'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true && mounted) {
+      context.read<MiembrosGrupoBloc>().add(DegradarCoadminEvent(
+        grupoId: widget.grupoId,
+        miembroId: miembro.miembroId,
+        nombreJugador: miembro.displayName,
+      ));
+    }
+  }
+
   /// E002-HU-006 CA-005/RN-006: Dialogo de confirmacion antes de eliminar
   Future<void> _mostrarDialogoEliminar(MiembroGrupoModel miembro) async {
     final confirmar = await showDialog<bool>(
@@ -142,6 +257,38 @@ class _MiembrosGrupoPageState extends State<MiembrosGrupoPage> {
               SnackBar(
                 content: Text(
                   '"${state.nombreJugador}" fue eliminado del grupo',
+                ),
+                backgroundColor: DesignTokens.successColor,
+              ),
+            );
+            // Recargar lista de miembros
+            context
+                .read<MiembrosGrupoBloc>()
+                .add(CargarMiembrosGrupoEvent(grupoId: widget.grupoId));
+          }
+
+          // E002-HU-004 CA-001: Promover a co-admin exitoso
+          if (state is PromoverCoadminSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  '"${state.nombreJugador}" fue promovido a co-administrador',
+                ),
+                backgroundColor: DesignTokens.successColor,
+              ),
+            );
+            // Recargar lista de miembros
+            context
+                .read<MiembrosGrupoBloc>()
+                .add(CargarMiembrosGrupoEvent(grupoId: widget.grupoId));
+          }
+
+          // E002-HU-004 CA-002: Degradar co-admin exitoso
+          if (state is DegradarCoadminSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  '"${state.nombreJugador}" fue degradado a jugador',
                 ),
                 backgroundColor: DesignTokens.successColor,
               ),
@@ -456,9 +603,17 @@ class _MiembrosGrupoPageState extends State<MiembrosGrupoPage> {
           mostrarCelularCompleto: _mostrarCelularCompleto(miembro),
           esAdminOCoadmin: widget.esAdminOCoadmin,
           puedeEliminar: _puedeEliminar(miembro),
+          puedePromover: _puedePromover(miembro),
+          puedeDegrada: _puedeDegrada(miembro),
           esSiMismo: _esMiembro(miembro),
           onEliminar: _puedeEliminar(miembro)
               ? () => _mostrarDialogoEliminar(miembro)
+              : null,
+          onPromover: _puedePromover(miembro)
+              ? () => _mostrarDialogoPromover(miembro)
+              : null,
+          onDegrada: _puedeDegrada(miembro)
+              ? () => _mostrarDialogoDegrada(miembro)
               : null,
         );
       },
@@ -470,21 +625,30 @@ class _MiembrosGrupoPageState extends State<MiembrosGrupoPage> {
 /// CA-001: Nombre, celular (con privacidad), rol, estado
 /// CA-002: Admin/coadmin ven celular completo y estado detallado
 /// E002-HU-006: Boton eliminar si tiene permisos
+/// E002-HU-004: Opciones promover/degradar co-admin
 class _MiembroCard extends StatelessWidget {
   final MiembroGrupoModel miembro;
   final bool mostrarCelularCompleto;
   final bool esAdminOCoadmin;
   final bool puedeEliminar;
+  final bool puedePromover;
+  final bool puedeDegrada;
   final bool esSiMismo;
   final VoidCallback? onEliminar;
+  final VoidCallback? onPromover;
+  final VoidCallback? onDegrada;
 
   const _MiembroCard({
     required this.miembro,
     required this.mostrarCelularCompleto,
     required this.esAdminOCoadmin,
     this.puedeEliminar = false,
+    this.puedePromover = false,
+    this.puedeDegrada = false,
     this.esSiMismo = false,
     this.onEliminar,
+    this.onPromover,
+    this.onDegrada,
   });
 
   @override
@@ -584,13 +748,16 @@ class _MiembroCard extends StatelessWidget {
   }
 
   /// PopupMenuButton con acciones de admin/coadmin sobre el miembro
+  /// E002-HU-004: Incluye promover/degradar co-admin (solo para admin creador)
   Widget _buildPopupMenu(BuildContext context) {
     // Determinar si hay items visibles para el menu
     final mostrarGenerarCodigo = miembro.rol != 'admin' && !esSiMismo;
     final mostrarEliminar = puedeEliminar;
+    final mostrarPromover = puedePromover;
+    final mostrarDegrada = puedeDegrada;
 
     // Si no hay acciones disponibles, mostrar icono de estado
-    if (!mostrarGenerarCodigo && !mostrarEliminar) {
+    if (!mostrarGenerarCodigo && !mostrarEliminar && !mostrarPromover && !mostrarDegrada) {
       return miembro.estaPendiente
           ? const Icon(
               Icons.schedule,
@@ -614,12 +781,52 @@ class _MiembroCard extends StatelessWidget {
               extra: miembro.celular,
             );
             break;
+          case 'promover':
+            onPromover?.call();
+            break;
+          case 'degradar':
+            onDegrada?.call();
+            break;
           case 'eliminar':
             onEliminar?.call();
             break;
         }
       },
       itemBuilder: (context) => [
+        // E002-HU-004 CA-001: Promover jugador a co-admin
+        if (mostrarPromover)
+          PopupMenuItem<String>(
+            value: 'promover',
+            child: ListTile(
+              leading: Icon(
+                Icons.admin_panel_settings_outlined,
+                color: DesignTokens.secondaryColor,
+              ),
+              title: Text(
+                'Promover a Co-Admin',
+                style: TextStyle(color: DesignTokens.secondaryColor),
+              ),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        // E002-HU-004 CA-002: Degradar co-admin a jugador
+        if (mostrarDegrada)
+          PopupMenuItem<String>(
+            value: 'degradar',
+            child: ListTile(
+              leading: Icon(
+                Icons.person_remove_outlined,
+                color: DesignTokens.accentColor,
+              ),
+              title: Text(
+                'Quitar Co-Admin',
+                style: TextStyle(color: DesignTokens.accentColor),
+              ),
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
         if (mostrarGenerarCodigo)
           const PopupMenuItem<String>(
             value: 'generar_codigo',

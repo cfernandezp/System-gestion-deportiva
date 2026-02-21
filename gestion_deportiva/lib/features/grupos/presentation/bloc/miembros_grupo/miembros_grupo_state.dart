@@ -107,3 +107,23 @@ class EliminarJugadorSuccess extends MiembrosGrupoState {
   @override
   List<Object?> get props => [nombreJugador];
 }
+
+/// E002-HU-004 CA-001: Jugador promovido a co-admin exitosamente
+class PromoverCoadminSuccess extends MiembrosGrupoState {
+  final String nombreJugador;
+
+  const PromoverCoadminSuccess(this.nombreJugador);
+
+  @override
+  List<Object?> get props => [nombreJugador];
+}
+
+/// E002-HU-004 CA-002: Co-admin degradado a jugador exitosamente
+class DegradarCoadminSuccess extends MiembrosGrupoState {
+  final String nombreJugador;
+
+  const DegradarCoadminSuccess(this.nombreJugador);
+
+  @override
+  List<Object?> get props => [nombreJugador];
+}

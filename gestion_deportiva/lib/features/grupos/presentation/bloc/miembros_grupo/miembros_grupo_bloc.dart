@@ -15,6 +15,8 @@ class MiembrosGrupoBloc extends Bloc<MiembrosGrupoEvent, MiembrosGrupoState> {
     on<FiltrarPorRolEvent>(_onFiltrarPorRol);
     on<BuscarMiembroEvent>(_onBuscarMiembro);
     on<EliminarJugadorEvent>(_onEliminarJugador);
+    on<PromoverACoadminEvent>(_onPromoverACoadmin);
+    on<DegradarCoadminEvent>(_onDegradarCoadmin);
   }
 
   Future<void> _onCargarMiembros(
@@ -72,6 +74,44 @@ class MiembrosGrupoBloc extends Bloc<MiembrosGrupoEvent, MiembrosGrupoState> {
     result.fold(
       (failure) => emit(MiembrosGrupoError(failure.message)),
       (_) => emit(EliminarJugadorSuccess(event.nombreJugador)),
+    );
+  }
+
+  /// E002-HU-004 CA-001: Promover jugador a co-admin
+  /// RN-001: Solo admin creador, RN-002: Limite plan, RN-003: Solo jugadores activos
+  Future<void> _onPromoverACoadmin(
+    PromoverACoadminEvent event,
+    Emitter<MiembrosGrupoState> emit,
+  ) async {
+    emit(MiembrosGrupoLoading());
+
+    final result = await repository.promoverACoadmin(
+      grupoId: event.grupoId,
+      miembroId: event.miembroId,
+    );
+
+    result.fold(
+      (failure) => emit(MiembrosGrupoError(failure.message)),
+      (_) => emit(PromoverCoadminSuccess(event.nombreJugador)),
+    );
+  }
+
+  /// E002-HU-004 CA-002: Degradar co-admin a jugador
+  /// RN-001: Solo admin creador, RN-005: Conserva membresia
+  Future<void> _onDegradarCoadmin(
+    DegradarCoadminEvent event,
+    Emitter<MiembrosGrupoState> emit,
+  ) async {
+    emit(MiembrosGrupoLoading());
+
+    final result = await repository.degradarCoadmin(
+      grupoId: event.grupoId,
+      miembroId: event.miembroId,
+    );
+
+    result.fold(
+      (failure) => emit(MiembrosGrupoError(failure.message)),
+      (_) => emit(DegradarCoadminSuccess(event.nombreJugador)),
     );
   }
 }

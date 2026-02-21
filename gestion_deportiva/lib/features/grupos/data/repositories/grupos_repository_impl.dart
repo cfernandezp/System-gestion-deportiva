@@ -234,4 +234,52 @@ class GruposRepositoryImpl implements GruposRepository {
       ));
     }
   }
+
+  @override
+  Future<Either<Failure, Map<String, dynamic>>> promoverACoadmin({
+    required String grupoId,
+    required String miembroId,
+  }) async {
+    try {
+      final result = await remoteDataSource.promoverACoadmin(
+        grupoId: grupoId,
+        miembroId: miembroId,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado: ${e.toString()}',
+      ));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Map<String, dynamic>>> degradarCoadmin({
+    required String grupoId,
+    required String miembroId,
+  }) async {
+    try {
+      final result = await remoteDataSource.degradarCoadmin(
+        grupoId: grupoId,
+        miembroId: miembroId,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado: ${e.toString()}',
+      ));
+    }
+  }
 }

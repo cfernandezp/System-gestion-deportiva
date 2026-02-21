@@ -67,4 +67,18 @@ abstract class GruposRepository {
     required String grupoId,
     required String miembroId,
   });
+
+  /// E002-HU-004: Promueve jugador a co-admin
+  /// CA-001, RN-001 a RN-003
+  Future<Either<Failure, Map<String, dynamic>>> promoverACoadmin({
+    required String grupoId,
+    required String miembroId,
+  });
+
+  /// E002-HU-004: Degrada co-admin a jugador
+  /// CA-002, RN-001, RN-005
+  Future<Either<Failure, Map<String, dynamic>>> degradarCoadmin({
+    required String grupoId,
+    required String miembroId,
+  });
 }
