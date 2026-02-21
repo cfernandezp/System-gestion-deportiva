@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/widgets/responsive_layout.dart';
 import '../../../fechas/data/models/color_equipo.dart';
 import '../../data/models/score_partido_model.dart';
 import '../../data/models/estado_partido.dart';
@@ -371,15 +372,20 @@ class _TiempoDisplay extends StatelessWidget {
               color: tiempoColor.withValues(alpha: 0.3),
             ),
           ),
-          child: Text(
-            tiempo,
-            style: TextStyle(
-              fontSize: compacto ? 20 : 28,
-              fontWeight: DesignTokens.fontWeightBold,
-              color: tiempoColor,
-              fontFamily: 'monospace',
-              letterSpacing: 2,
-            ),
+          child: Builder(
+            builder: (context) {
+              final isTablet = context.isTablet;
+              return Text(
+                tiempo,
+                style: TextStyle(
+                  fontSize: compacto ? 20 : (isTablet ? 40 : 28),
+                  fontWeight: DesignTokens.fontWeightBold,
+                  color: tiempoColor,
+                  fontFamily: 'monospace',
+                  letterSpacing: isTablet ? 4 : 2,
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -436,14 +442,14 @@ class _MarcadorDisplay extends StatelessWidget {
         Padding(
           padding: EdgeInsets.symmetric(
             horizontal:
-                compacto ? DesignTokens.spacingS : DesignTokens.spacingM,
+                compacto ? DesignTokens.spacingS : (context.isTablet ? DesignTokens.spacingXl : DesignTokens.spacingM),
           ),
           child: Column(
             children: [
               Text(
                 '-',
                 style: TextStyle(
-                  fontSize: compacto ? 32 : 48,
+                  fontSize: compacto ? 32 : (context.isTablet ? 72 : 48),
                   fontWeight: DesignTokens.fontWeightBold,
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -510,9 +516,10 @@ class _EquipoScoreDisplay extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
 
-    // Tamanos segun modo compacto
-    final circleSize = compacto ? 40.0 : 56.0;
-    final scoreFontSize = compacto ? 36.0 : 48.0;
+    // CA-007: Tamanos segun modo compacto y tipo de dispositivo
+    final isTablet = context.isTablet;
+    final circleSize = compacto ? 40.0 : (isTablet ? 80.0 : 56.0);
+    final scoreFontSize = compacto ? 36.0 : (isTablet ? 72.0 : 48.0);
 
     return Column(
       children: [

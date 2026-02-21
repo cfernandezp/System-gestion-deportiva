@@ -3,8 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../core/widgets/dashboard_shell.dart';
+import '../../../../core/widgets/responsive_layout.dart';
 import '../../data/models/models.dart';
 import '../bloc/mi_actividad/mi_actividad_bloc.dart';
 import '../bloc/mi_actividad/mi_actividad_event.dart';
@@ -26,9 +26,9 @@ class MiActividadPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<MiActividadBloc, MiActividadState>(
       builder: (context, state) {
+        // E000-HU-004 RN-006: Tablet usa fallback centrado
         return ResponsiveLayout(
-          mobileBody: _MobileView(state: state),
-          desktopBody: _DesktopView(state: state),
+          mobile: _MobileView(state: state),
         );
       },
     );

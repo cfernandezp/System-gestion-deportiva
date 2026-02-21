@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/widgets/responsive_layout.dart';
 import '../../../fechas/data/models/color_equipo.dart';
 import '../../data/models/jugador_partido_model.dart';
 import '../bloc/goles/goles.dart';
@@ -85,7 +86,8 @@ class _RegistrarGolDialogState extends State<RegistrarGolDialog> {
           ),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: 400,
+              // CA-008: Dialog mas amplio en tablet para nombres legibles
+              maxWidth: context.isTablet ? 560 : 400,
               maxHeight: MediaQuery.of(context).size.height * 0.8,
             ),
             child: Column(

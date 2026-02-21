@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/di/injection_container.dart';
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/responsive_layout.dart';
 import 'features/auth/presentation/bloc/session/session.dart';
 import 'features/settings/presentation/bloc/theme/theme.dart';
 
@@ -68,6 +69,14 @@ class App extends StatelessWidget {
 
             // Routing
             routerConfig: AppRouter.router,
+
+            // E000-HU-004 CA-011/RN-003: Configurar orientaciones
+            // segun tipo de dispositivo despues del primer build
+            builder: (context, child) {
+              // Configurar orientaciones: celular=portrait, tablet=portrait+landscape
+              ResponsiveLayout.configureOrientations(context);
+              return child ?? const SizedBox.shrink();
+            },
           );
         },
       ),

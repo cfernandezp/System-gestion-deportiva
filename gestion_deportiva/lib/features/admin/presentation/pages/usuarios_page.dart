@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/widgets/app_bottom_nav_bar.dart';
 import '../../../../core/widgets/app_card.dart';
-import '../../../../core/widgets/dashboard_shell.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
 import '../../../../core/widgets/loading_shimmer.dart';
+import '../../../../core/widgets/dashboard_shell.dart';
 import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../auth/presentation/bloc/session/session_bloc.dart';
@@ -103,8 +104,9 @@ class _UsuariosPageContentState extends State<_UsuariosPageContent> {
             ? <UsuarioAdminModel>[]
             : usuariosFiltrados.sublist(startIndex, endIndex);
 
+        // E000-HU-004 RN-006: Tablet usa fallback centrado
         return ResponsiveLayout(
-          mobileBody: _MobileUsuariosView(
+          mobile: _MobileUsuariosView(
             usuarios: usuariosFiltrados,
             total: total,
             busquedaActual: busquedaActual,
@@ -117,32 +119,6 @@ class _UsuariosPageContentState extends State<_UsuariosPageContent> {
             onClearSearch: _onClearSearch,
             onRefresh: _onRefresh,
             onCambiarRol: _showCambiarRolDialog,
-          ),
-          desktopBody: _DesktopUsuariosView(
-            usuarios: usuariosPaginados,
-            totalUsuarios: usuariosFiltrados.length,
-            busquedaActual: busquedaActual,
-            isLoading: isLoading,
-            hasError: hasError,
-            errorMessage: errorMessage,
-            usuarioIdCambiando: usuarioIdCambiando,
-            metricas: metricas,
-            filtroEstado: _filtroEstado,
-            searchController: _searchController,
-            onSearch: _onSearch,
-            onClearSearch: _onClearSearch,
-            onRefresh: _onRefresh,
-            onCambiarRol: _showCambiarRolDialog,
-            onCambiarFiltroEstado: _onCambiarFiltroEstado,
-            // Paginacion
-            currentPage: _currentPage,
-            totalPages: totalPages,
-            itemsPerPage: _itemsPerPage,
-            itemsPerPageOptions: _itemsPerPageOptions,
-            startIndex: startIndex,
-            endIndex: endIndex,
-            onPageChanged: _onPageChanged,
-            onItemsPerPageChanged: _onItemsPerPageChanged,
           ),
         );
       },
@@ -351,6 +327,10 @@ class _MobileUsuariosView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/'),
+        ),
         title: const Text('Gestion de Usuarios'),
         backgroundColor: colorScheme.surface,
         surfaceTintColor: Colors.transparent,

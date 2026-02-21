@@ -221,30 +221,7 @@ class _CrearFechaPageState extends State<CrearFechaPage> {
           final isLoading = state is CrearFechaLoading;
 
           return ResponsiveLayout(
-            mobileBody: _MobileView(
-              formKey: _formKey,
-              lugarController: _lugarController,
-              costoController: _costoController,
-              fechaFormateada: _fechaFormateada,
-              horaFormateada: _horaFormateada,
-              duracionHoras: _duracionHoras,
-              numEquipos: _numEquipos,
-              formatoInfo: _formatoInfo,
-              esFechaFutura: _esFechaFutura,
-              formularioValido: _formularioValido,
-              isLoading: isLoading,
-              onSeleccionarFecha: () => _seleccionarFecha(context),
-              onSeleccionarHora: () => _seleccionarHora(context),
-              onDuracionChanged: (value) {
-                if (value != null) setState(() => _duracionHoras = value);
-              },
-              onEquiposChanged: (value) {
-                if (value != null) setState(() => _numEquipos = value);
-              },
-              onCancelar: _cancelar,
-              onCrear: _crearFecha,
-            ),
-            desktopBody: _DesktopView(
+            mobile: _MobileView(
               formKey: _formKey,
               lugarController: _lugarController,
               costoController: _costoController,

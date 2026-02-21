@@ -155,25 +155,7 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
           }
         },
         child: ResponsiveLayout(
-          mobileBody: _MobileEditView(
-            formKey: _formKey,
-            nombreCompletoController: _nombreCompletoController,
-            apodoController: _apodoController,
-            telefonoController: _telefonoController,
-            fotoUrlController: _fotoUrlController,
-            posicionSeleccionada: _posicionSeleccionada,
-            perfilInicial: widget.perfilInicial,
-            hayCambios: _hayCambios,
-            onPosicionChanged: (value) {
-              setState(() {
-                _posicionSeleccionada = value;
-                _hayCambios = _verificarCambios();
-              });
-            },
-            onCancelar: _cancelar,
-            onGuardar: _guardar,
-          ),
-          desktopBody: _DesktopEditView(
+          mobile: _MobileEditView(
             formKey: _formKey,
             nombreCompletoController: _nombreCompletoController,
             apodoController: _apodoController,

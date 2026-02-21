@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/widgets/app_bottom_nav_bar.dart';
 import '../../../../core/widgets/dashboard_shell.dart';
 import '../../../../core/widgets/responsive_layout.dart';
+import '../../../settings/presentation/bloc/theme/theme.dart';
 import '../../data/models/perfil_model.dart';
 import '../bloc/perfil/perfil.dart';
 import '../widgets/widgets.dart';
@@ -13,7 +15,7 @@ import 'editar_perfil_page.dart';
 /// Pagina de perfil del usuario
 /// E002-HU-001: Ver Perfil Propio
 /// E002-HU-002: Editar Perfil Propio
-/// Usa ResponsiveLayout: Mobile App Style + Desktop Dashboard Style
+/// E000-HU-004 CA-014: Formularios con max-width centrado en tablet
 class PerfilPage extends StatelessWidget {
   const PerfilPage({super.key});
 
@@ -27,16 +29,9 @@ class PerfilPage extends StatelessWidget {
         final errorMessage = hasError ? state.message : null;
         final isRefreshing = state is PerfilRefreshing;
 
-        // Siempre mostrar el layout, el loading/error va dentro del contenido
+        // E000-HU-004 RN-006: Tablet usa mobile con max-width centrado (fallback)
         return ResponsiveLayout(
-          mobileBody: _MobilePerfilView(
-            perfil: perfil,
-            isLoading: isLoading,
-            isRefreshing: isRefreshing,
-            hasError: hasError,
-            errorMessage: errorMessage,
-          ),
-          desktopBody: _DesktopPerfilView(
+          mobile: _MobilePerfilView(
             perfil: perfil,
             isLoading: isLoading,
             isRefreshing: isRefreshing,
@@ -82,6 +77,10 @@ class _MobilePerfilView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/'),
+        ),
         title: const Text('Mi Perfil'),
         centerTitle: true,
         actions: perfil != null
@@ -153,6 +152,11 @@ class _MobilePerfilView extends StatelessWidget {
 
             // Informacion personal
             _buildInfoSection(context),
+
+            const SizedBox(height: DesignTokens.spacingM),
+
+            // Preferencias de tema
+            _buildPreferencesSection(context),
 
             const SizedBox(height: DesignTokens.spacingXl),
           ],
@@ -298,6 +302,100 @@ class _MobilePerfilView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildPreferencesSection(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final themeMode = context.watch<ThemeBloc>().state.themeMode;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: DesignTokens.spacingM),
+      padding: const EdgeInsets.all(DesignTokens.spacingM),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Preferencias',
+            style: textTheme.titleMedium?.copyWith(
+              fontWeight: DesignTokens.fontWeightSemiBold,
+            ),
+          ),
+          const SizedBox(height: DesignTokens.spacingM),
+          const Divider(),
+          const SizedBox(height: DesignTokens.spacingM),
+          Row(
+            children: [
+              Icon(
+                _themeIcon(themeMode),
+                size: DesignTokens.iconSizeS,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: DesignTokens.spacingS),
+              Text(
+                'Tema',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: DesignTokens.spacingS),
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<ThemeMode>(
+              segments: const [
+                ButtonSegment<ThemeMode>(
+                  value: ThemeMode.system,
+                  icon: Icon(Icons.brightness_auto, size: 18),
+                  label: Text('Sistema'),
+                ),
+                ButtonSegment<ThemeMode>(
+                  value: ThemeMode.light,
+                  icon: Icon(Icons.light_mode, size: 18),
+                  label: Text('Claro'),
+                ),
+                ButtonSegment<ThemeMode>(
+                  value: ThemeMode.dark,
+                  icon: Icon(Icons.dark_mode, size: 18),
+                  label: Text('Oscuro'),
+                ),
+              ],
+              selected: {themeMode},
+              onSelectionChanged: (selection) {
+                context
+                    .read<ThemeBloc>()
+                    .add(ChangeThemeEvent(selection.first));
+              },
+              style: ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                textStyle: WidgetStatePropertyAll(
+                  textTheme.labelMedium,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _themeIcon(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.system:
+        return Icons.brightness_auto;
+      case ThemeMode.light:
+        return Icons.light_mode;
+      case ThemeMode.dark:
+        return Icons.dark_mode;
+    }
   }
 
   void _navegarAEdicion(BuildContext context, PerfilModel perfil) {
@@ -648,6 +746,11 @@ class _DesktopPerfilView extends StatelessWidget {
             ),
           ],
         ),
+
+        const SizedBox(height: DesignTokens.spacingL),
+
+        // Card de preferencias de tema
+        _buildPreferencesCard(context),
       ],
     );
   }
@@ -757,6 +860,140 @@ class _DesktopPerfilView extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  /// Card de preferencias con selector de tema
+  Widget _buildPreferencesCard(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final themeMode = context.watch<ThemeBloc>().state.themeMode;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(DesignTokens.spacingL),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.settings_outlined,
+                size: DesignTokens.iconSizeM,
+                color: colorScheme.primary,
+              ),
+              const SizedBox(width: DesignTokens.spacingS),
+              Text(
+                'Preferencias',
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: DesignTokens.fontWeightSemiBold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: DesignTokens.spacingM),
+          const Divider(),
+          const SizedBox(height: DesignTokens.spacingM),
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+                ),
+                child: Icon(
+                  _themeIcon(themeMode),
+                  size: DesignTokens.iconSizeS,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spacingM),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tema de la aplicacion',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: DesignTokens.spacingXxs),
+                    Text(
+                      _themeLabel(themeMode),
+                      style: textTheme.bodyLarge?.copyWith(
+                        fontWeight: DesignTokens.fontWeightMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SegmentedButton<ThemeMode>(
+                segments: const [
+                  ButtonSegment<ThemeMode>(
+                    value: ThemeMode.system,
+                    icon: Icon(Icons.brightness_auto, size: 18),
+                    label: Text('Sistema'),
+                  ),
+                  ButtonSegment<ThemeMode>(
+                    value: ThemeMode.light,
+                    icon: Icon(Icons.light_mode, size: 18),
+                    label: Text('Claro'),
+                  ),
+                  ButtonSegment<ThemeMode>(
+                    value: ThemeMode.dark,
+                    icon: Icon(Icons.dark_mode, size: 18),
+                    label: Text('Oscuro'),
+                  ),
+                ],
+                selected: {themeMode},
+                onSelectionChanged: (selection) {
+                  context
+                      .read<ThemeBloc>()
+                      .add(ChangeThemeEvent(selection.first));
+                },
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  textStyle: WidgetStatePropertyAll(
+                    textTheme.labelMedium,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _themeIcon(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.system:
+        return Icons.brightness_auto;
+      case ThemeMode.light:
+        return Icons.light_mode;
+      case ThemeMode.dark:
+        return Icons.dark_mode;
+    }
+  }
+
+  String _themeLabel(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.system:
+        return 'Automatico (sistema)';
+      case ThemeMode.light:
+        return 'Modo claro';
+      case ThemeMode.dark:
+        return 'Modo oscuro';
+    }
   }
 
   void _navegarAEdicion(BuildContext context, PerfilModel perfil) {

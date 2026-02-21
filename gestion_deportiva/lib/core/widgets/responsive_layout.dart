@@ -1,48 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/design_tokens.dart';
 
 /// Tipos de dispositivo basados en breakpoints
-enum DeviceType { mobile, tablet, desktop }
+/// RN-001: Solo celular y tablet, no desktop
+enum DeviceType { mobile, tablet }
 
 /// Widget que determina el layout segun el tamano de pantalla
-/// Usa la estrategia: Mobile App Style vs Desktop Dashboard Style
+/// E000-HU-004: Soporte Responsive Tablet
 ///
-/// Breakpoints:
-/// - Mobile: < 600px
-/// - Tablet: 600px - 1024px
-/// - Desktop: > 1024px
+/// Breakpoints (RN-001):
+/// - Mobile: < 600dp (celular)
+/// - Tablet: >= 600dp (tablet)
+///
+/// RN-002: Mobile es la experiencia principal. Tablet es mejora adicional.
+/// RN-006: Fallback seguro - pantallas sin layout tablet se muestran
+///          con max-width 600px centrado.
 class ResponsiveLayout extends StatelessWidget {
-  /// Vista para dispositivos moviles (< 600px)
+  /// Vista para dispositivos moviles (< 600dp)
   /// Estilo: App nativa con BottomNavigationBar
-  final Widget mobileBody;
+  final Widget mobile;
 
-  /// Vista para tablets (600px - 1024px)
-  /// Si es null, usa desktopBody
-  /// Estilo: Dashboard compacto con sidebar colapsable
-  final Widget? tabletBody;
-
-  /// Vista para desktop (> 1024px)
-  /// Estilo: Dashboard completo con sidebar fijo
-  final Widget desktopBody;
+  /// Vista para tablets (>= 600dp)
+  /// Si es null, usa mobile con max-width centrado (RN-006)
+  final Widget? tablet;
 
   const ResponsiveLayout({
     super.key,
-    required this.mobileBody,
-    this.tabletBody,
-    required this.desktopBody,
+    required this.mobile,
+    this.tablet,
   });
 
   /// Obtiene el tipo de dispositivo basado en el ancho de pantalla
+  /// RN-001: Breakpoint unico a 600dp
   static DeviceType getDeviceType(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     if (width < DesignTokens.breakpointMobile) {
       return DeviceType.mobile;
-    } else if (width < 1024) {
-      return DeviceType.tablet;
-    } else {
-      return DeviceType.desktop;
     }
+    return DeviceType.tablet;
   }
 
   /// Verifica si es mobile
@@ -55,15 +52,21 @@ class ResponsiveLayout extends StatelessWidget {
     return getDeviceType(context) == DeviceType.tablet;
   }
 
-  /// Verifica si es desktop
-  static bool isDesktop(BuildContext context) {
-    return getDeviceType(context) == DeviceType.desktop;
-  }
-
-  /// Verifica si es tablet o desktop (usa dashboard layout)
-  static bool isTabletOrDesktop(BuildContext context) {
-    final type = getDeviceType(context);
-    return type == DeviceType.tablet || type == DeviceType.desktop;
+  /// RN-003: Configura orientaciones segun tipo de dispositivo
+  /// Celular = portrait forzado. Tablet = portrait + landscape.
+  static void configureOrientations(BuildContext context) {
+    if (isMobile(context)) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+    } else {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
   }
 
   @override
@@ -72,18 +75,26 @@ class ResponsiveLayout extends StatelessWidget {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
 
-        // Mobile: < 600px
+        // Mobile: < 600dp
         if (width < DesignTokens.breakpointMobile) {
-          return mobileBody;
+          return mobile;
         }
 
-        // Tablet: 600px - 1024px
-        if (width < 1024) {
-          return tabletBody ?? desktopBody;
+        // Tablet: >= 600dp
+        // RN-006: Si no hay layout tablet, usar mobile con max-width centrado
+        if (tablet != null) {
+          return tablet!;
         }
 
-        // Desktop: > 1024px
-        return desktopBody;
+        // RN-006: Fallback seguro - mobile centrado con max-width
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: DesignTokens.breakpointMobile,
+            ),
+            child: mobile,
+          ),
+        );
       },
     );
   }
@@ -99,10 +110,31 @@ extension ResponsiveContext on BuildContext {
 
   /// Verifica si es tablet
   bool get isTablet => ResponsiveLayout.isTablet(this);
+}
 
-  /// Verifica si es desktop
-  bool get isDesktop => ResponsiveLayout.isDesktop(this);
+/// Wrapper que aplica max-width centrado automaticamente en tablet
+/// Util para pantallas que no necesitan layout tablet especifico (RN-006)
+class TabletSafeWrapper extends StatelessWidget {
+  final Widget child;
+  final double maxWidth;
 
-  /// Verifica si debe usar layout de dashboard (tablet o desktop)
-  bool get usesDashboardLayout => ResponsiveLayout.isTabletOrDesktop(this);
+  const TabletSafeWrapper({
+    super.key,
+    required this.child,
+    this.maxWidth = DesignTokens.breakpointMobile,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (context.isMobile) {
+      return child;
+    }
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: child,
+      ),
+    );
+  }
 }

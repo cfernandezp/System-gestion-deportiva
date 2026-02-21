@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/widgets/responsive_layout.dart';
 import '../../../fechas/data/models/color_equipo.dart';
 import '../../data/models/estado_partido.dart';
 import '../../data/models/jugador_partido_model.dart';
@@ -166,18 +167,25 @@ class _BotonGol extends StatelessWidget {
               : null,
           borderRadius: BorderRadius.circular(DesignTokens.radiusM),
           splashColor: Colors.white.withValues(alpha: 0.3),
-          child: Container(
+          child: Builder(
+            builder: (context) {
+            final isTablet = context.isTablet;
+            return Container(
+            // CA-008: Minimo 64dp alto en tablet
+            constraints: isTablet && !compacto
+                ? const BoxConstraints(minHeight: 64)
+                : null,
             padding: EdgeInsets.symmetric(
-              horizontal: compacto ? DesignTokens.spacingM : DesignTokens.spacingL,
-              vertical: compacto ? DesignTokens.spacingS : DesignTokens.spacingM,
+              horizontal: compacto ? DesignTokens.spacingM : (isTablet ? DesignTokens.spacingXl : DesignTokens.spacingL),
+              vertical: compacto ? DesignTokens.spacingS : (isTablet ? DesignTokens.spacingL : DesignTokens.spacingM),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (isProcesando)
                   SizedBox(
-                    width: compacto ? 16 : 20,
-                    height: compacto ? 16 : 20,
+                    width: compacto ? 16 : (isTablet ? 28 : 20),
+                    height: compacto ? 16 : (isTablet ? 28 : 20),
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       color: equipo.textColor.withValues(alpha: 0.7),
@@ -189,7 +197,7 @@ class _BotonGol extends StatelessWidget {
                     color: habilitado
                         ? equipo.textColor
                         : equipo.textColor.withValues(alpha: 0.5),
-                    size: compacto ? 20 : 24,
+                    size: compacto ? 20 : (isTablet ? 32 : 24),
                   ),
                 SizedBox(width: compacto ? DesignTokens.spacingXs : DesignTokens.spacingS),
                 Flexible(
@@ -199,7 +207,7 @@ class _BotonGol extends StatelessWidget {
                     children: [
                       Text(
                         '+GOL',
-                        style: (compacto ? textTheme.labelMedium : textTheme.titleSmall)
+                        style: (compacto ? textTheme.labelMedium : (isTablet ? textTheme.titleMedium : textTheme.titleSmall))
                             ?.copyWith(
                           color: habilitado
                               ? equipo.textColor
@@ -209,7 +217,7 @@ class _BotonGol extends StatelessWidget {
                       ),
                       Text(
                         equipo.displayName.toUpperCase(),
-                        style: textTheme.labelSmall?.copyWith(
+                        style: (isTablet ? textTheme.labelMedium : textTheme.labelSmall)?.copyWith(
                           color: habilitado
                               ? equipo.textColor.withValues(alpha: 0.8)
                               : equipo.textColor.withValues(alpha: 0.4),
@@ -222,6 +230,8 @@ class _BotonGol extends StatelessWidget {
                 ),
               ],
             ),
+            );
+            },
           ),
         ),
       ),
@@ -325,6 +335,7 @@ class _BotonGolGrande extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
+    final isTablet = context.isTablet;
     return Material(
       color: habilitado
           ? equipo.color
@@ -338,18 +349,20 @@ class _BotonGolGrande extends StatelessWidget {
         borderRadius: BorderRadius.circular(DesignTokens.radiusL),
         splashColor: Colors.white.withValues(alpha: 0.3),
         child: Container(
-          width: 120,
-          padding: const EdgeInsets.symmetric(
-            horizontal: DesignTokens.spacingL,
-            vertical: DesignTokens.spacingM,
+          width: isTablet ? 180 : 120,
+          // CA-008: Minimo 64dp alto en tablet
+          constraints: isTablet ? const BoxConstraints(minHeight: 80) : null,
+          padding: EdgeInsets.symmetric(
+            horizontal: isTablet ? DesignTokens.spacingXl : DesignTokens.spacingL,
+            vertical: isTablet ? DesignTokens.spacingL : DesignTokens.spacingM,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (isProcesando)
                 SizedBox(
-                  width: 32,
-                  height: 32,
+                  width: isTablet ? 40 : 32,
+                  height: isTablet ? 40 : 32,
                   child: CircularProgressIndicator(
                     strokeWidth: 3,
                     color: equipo.textColor.withValues(alpha: 0.7),
@@ -361,12 +374,12 @@ class _BotonGolGrande extends StatelessWidget {
                   color: habilitado
                       ? equipo.textColor
                       : equipo.textColor.withValues(alpha: 0.5),
-                  size: 32,
+                  size: isTablet ? 48 : 32,
                 ),
               const SizedBox(height: DesignTokens.spacingS),
               Text(
                 '+GOL',
-                style: textTheme.titleMedium?.copyWith(
+                style: (isTablet ? textTheme.headlineSmall : textTheme.titleMedium)?.copyWith(
                   color: habilitado
                       ? equipo.textColor
                       : equipo.textColor.withValues(alpha: 0.5),
@@ -375,7 +388,7 @@ class _BotonGolGrande extends StatelessWidget {
               ),
               Text(
                 equipo.displayName.toUpperCase(),
-                style: textTheme.labelMedium?.copyWith(
+                style: (isTablet ? textTheme.titleSmall : textTheme.labelMedium)?.copyWith(
                   color: habilitado
                       ? equipo.textColor.withValues(alpha: 0.8)
                       : equipo.textColor.withValues(alpha: 0.4),

@@ -107,15 +107,7 @@ class FechaDetallePage extends StatelessWidget {
 
         // Siempre mostrar el layout, el loading/error va dentro del contenido
         return ResponsiveLayout(
-          mobileBody: _MobileDetalleView(
-            fechaId: fechaId,
-            fechaDetalle: fechaDetalle,
-            isLoading: isLoading,
-            isProcesando: isProcesando,
-            hasError: hasError,
-            errorMessage: errorMessage,
-          ),
-          desktopBody: _DesktopDetalleView(
+          mobile: _MobileDetalleView(
             fechaId: fechaId,
             fechaDetalle: fechaDetalle,
             isLoading: isLoading,

@@ -67,14 +67,7 @@ class AsignarEquiposPage extends StatelessWidget {
 
         // Siempre mostrar el layout
         return ResponsiveLayout(
-          mobileBody: _MobileAsignarView(
-            fechaId: fechaId,
-            data: data,
-            isLoading: isLoading,
-            hasError: hasError,
-            errorMessage: errorMessage,
-          ),
-          desktopBody: _DesktopAsignarView(
+          mobile: _MobileAsignarView(
             fechaId: fechaId,
             data: data,
             isLoading: isLoading,

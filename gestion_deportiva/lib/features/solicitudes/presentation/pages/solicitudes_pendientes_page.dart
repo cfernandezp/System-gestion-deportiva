@@ -3,8 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/widgets/app_card.dart';
-import '../../../../core/widgets/dashboard_shell.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
+import '../../../../core/widgets/dashboard_shell.dart';
 import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../data/models/solicitud_pendiente_model.dart';
@@ -52,23 +52,13 @@ class SolicitudesPendientesPage extends StatelessWidget {
         final metricas = _calcularMetricas(solicitudes);
 
         return ResponsiveLayout(
-          mobileBody: _MobileView(
+          mobile: _MobileView(
             solicitudes: solicitudes,
             total: total,
             isLoading: isLoading,
             hasError: hasError,
             errorMessage: errorMessage,
             procesandoId: procesandoId,
-            onRefresh: () => _onRefresh(context),
-          ),
-          desktopBody: _DesktopView(
-            solicitudes: solicitudes,
-            total: total,
-            isLoading: isLoading,
-            hasError: hasError,
-            errorMessage: errorMessage,
-            procesandoId: procesandoId,
-            metricas: metricas,
             onRefresh: () => _onRefresh(context),
           ),
         );

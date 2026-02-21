@@ -75,7 +75,7 @@ class _JugadoresPageState extends State<JugadoresPage> {
 
         // Siempre mostrar el layout, el loading/error va dentro del contenido
         return ResponsiveLayout(
-          mobileBody: _MobileJugadoresView(
+          mobile: _MobileJugadoresView(
             jugadores: jugadoresFiltrados,
             filtros: filtros,
             isLoading: isLoading,
@@ -86,31 +86,6 @@ class _JugadoresPageState extends State<JugadoresPage> {
             onSearch: _onSearch,
             onClearSearch: _onClearSearch,
             onRefresh: _onRefresh,
-          ),
-          desktopBody: _DesktopJugadoresView(
-            jugadores: jugadoresPaginados,
-            totalJugadores: jugadoresFiltrados.length,
-            filtros: filtros,
-            isLoading: isLoading,
-            isEmpty: isEmpty && jugadoresFiltrados.isEmpty,
-            hasError: hasError,
-            errorMessage: errorMessage,
-            metricas: metricas,
-            filtroPosicion: _filtroPosicion,
-            searchController: _searchController,
-            onSearch: _onSearch,
-            onClearSearch: _onClearSearch,
-            onRefresh: _onRefresh,
-            onCambiarFiltroPosicion: _onCambiarFiltroPosicion,
-            // Paginacion
-            currentPage: _currentPage,
-            totalPages: totalPages,
-            itemsPerPage: _itemsPerPage,
-            itemsPerPageOptions: _itemsPerPageOptions,
-            startIndex: startIndex,
-            endIndex: endIndex,
-            onPageChanged: _onPageChanged,
-            onItemsPerPageChanged: _onItemsPerPageChanged,
           ),
         );
       },

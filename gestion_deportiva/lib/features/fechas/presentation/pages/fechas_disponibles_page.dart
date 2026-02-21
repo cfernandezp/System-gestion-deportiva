@@ -7,8 +7,8 @@ import '../../../../core/di/injection_container.dart'; // Para CrearFechaBloc en
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/widgets/app_bottom_nav_bar.dart';
 import '../../../../core/widgets/app_card.dart';
-import '../../../../core/widgets/dashboard_shell.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
+import '../../../../core/widgets/dashboard_shell.dart';
 import '../../../../core/widgets/responsive_layout.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../data/models/fecha_model.dart';
@@ -44,9 +44,9 @@ class FechasDisponiblesPage extends StatelessWidget {
         final esAdmin = _esAdminDesdeEstado(state);
 
         // Siempre mostrar el layout, el loading/error va dentro del contenido
+        // E000-HU-004 RN-006: Tablet usa fallback centrado
         return ResponsiveLayout(
-          mobileBody: _MobileFechasView(esAdmin: esAdmin),
-          desktopBody: _DesktopFechasView(esAdmin: esAdmin),
+          mobile: _MobileFechasView(esAdmin: esAdmin),
         );
       },
     );

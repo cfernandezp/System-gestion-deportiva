@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/services/alarm_service.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/widgets/responsive_layout.dart';
 import '../../../fechas/data/models/color_equipo.dart';
 import '../../data/models/partido_model.dart';
 
@@ -527,7 +528,7 @@ class _TemporizadorFullscreenState extends State<TemporizadorFullscreen>
           colorTiempo: colorTiempo,
           tiempoTerminado: tiempoTerminado,
           estaPausado: estaPausado,
-          fontSize: 120,
+          fontSize: context.isTablet ? 220 : 120, // CA-012: 200px+ en tablet
         ),
 
         const SizedBox(height: DesignTokens.spacingM),
@@ -597,7 +598,7 @@ class _TemporizadorFullscreenState extends State<TemporizadorFullscreen>
                   colorTiempo: colorTiempo,
                   tiempoTerminado: tiempoTerminado,
                   estaPausado: estaPausado,
-                  fontSize: 140, // Mas grande en landscape
+                  fontSize: context.isTablet ? 240 : 140, // CA-012: landscape tablet 240px
                 ),
 
                 const SizedBox(height: DesignTokens.spacingS),

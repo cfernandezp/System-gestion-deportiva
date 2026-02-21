@@ -43,20 +43,7 @@ class RankingGoleadoresPage extends StatelessWidget {
         final totalJugadores = _obtenerTotalJugadores(state);
 
         return ResponsiveLayout(
-          mobileBody: _MobileRankingView(
-            ranking: ranking,
-            top3: top3,
-            restoRanking: restoRanking,
-            periodo: periodo,
-            isLoading: isLoading,
-            isEmpty: isEmpty,
-            hasError: hasError,
-            errorMessage: errorMessage,
-            mensajeVacio: mensajeVacio,
-            tienePodioCompleto: tienePodioCompleto,
-            totalJugadores: totalJugadores,
-          ),
-          desktopBody: _DesktopRankingView(
+          mobile: _MobileRankingView(
             ranking: ranking,
             top3: top3,
             restoRanking: restoRanking,
@@ -362,7 +349,7 @@ class _MobileRankingView extends StatelessWidget {
 }
 
 // ============================================
-// VISTA DESKTOP - Dashboard CRM Style
+// VISTA DESKTOP - Dashboard CRM Style (LEGACY - not used on tablet)
 // ============================================
 
 class _DesktopRankingView extends StatelessWidget {

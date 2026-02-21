@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/services/alarm_service.dart';
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/widgets/responsive_layout.dart';
 
 /// Widget de temporizador con cuenta regresiva
 /// E004-HU-002: Temporizador con Alarma
@@ -246,6 +247,19 @@ class _TemporizadorWidgetState extends State<TemporizadorWidget>
     return DesignTokens.successColor;
   }
 
+  /// CA-006: Escala fontSize para tablet (160px+ vs celular default)
+  double _resolveTabletFontSize(BuildContext context) {
+    if (context.isTablet && widget.fontSize == 56) {
+      // Default celular 56 -> tablet 160 (CA-006)
+      return 160;
+    }
+    if (context.isTablet && widget.fontSize < 100) {
+      // Otros tamanos pequenos se escalan x2.5
+      return widget.fontSize * 2.5;
+    }
+    return widget.fontSize;
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorTiempo = _obtenerColorTiempo();
@@ -265,13 +279,14 @@ class _TemporizadorWidgetState extends State<TemporizadorWidget>
     String tiempoFormateado,
     bool tiempoTerminado,
   ) {
+    final fontSize = _resolveTabletFontSize(context);
     return AnimatedBuilder(
       animation: _blinkAnimation,
       builder: (context, child) {
         return Text(
           tiempoFormateado,
           style: TextStyle(
-            fontSize: widget.fontSize,
+            fontSize: fontSize,
             fontWeight: DesignTokens.fontWeightBold,
             color: colorTiempo.withValues(
               alpha: tiempoTerminado && !widget.pausado
@@ -293,6 +308,8 @@ class _TemporizadorWidgetState extends State<TemporizadorWidget>
     bool tiempoTerminado,
   ) {
     final textTheme = Theme.of(context).textTheme;
+    final fontSize = _resolveTabletFontSize(context);
+    final isTablet = context.isTablet;
 
     return AnimatedBuilder(
       animation: _blinkAnimation,
@@ -303,16 +320,16 @@ class _TemporizadorWidgetState extends State<TemporizadorWidget>
 
         return AnimatedContainer(
           duration: const Duration(milliseconds: 300),
-          padding: const EdgeInsets.symmetric(
-            horizontal: DesignTokens.spacingXl,
-            vertical: DesignTokens.spacingM,
+          padding: EdgeInsets.symmetric(
+            horizontal: isTablet ? DesignTokens.spacingXl * 2 : DesignTokens.spacingXl,
+            vertical: isTablet ? DesignTokens.spacingL : DesignTokens.spacingM,
           ),
           decoration: BoxDecoration(
             color: colorTiempo.withValues(alpha: 0.1 * opacidad),
             borderRadius: BorderRadius.circular(DesignTokens.radiusL),
             border: Border.all(
               color: colorTiempo.withValues(alpha: 0.3 * opacidad),
-              width: 2,
+              width: isTablet ? 3 : 2,
             ),
           ),
           child: Column(
@@ -321,23 +338,23 @@ class _TemporizadorWidgetState extends State<TemporizadorWidget>
               // Etiqueta de estado
               Text(
                 _obtenerEtiqueta(),
-                style: textTheme.labelSmall?.copyWith(
+                style: (isTablet ? textTheme.titleSmall : textTheme.labelSmall)?.copyWith(
                   color: colorTiempo.withValues(alpha: opacidad),
                   fontWeight: DesignTokens.fontWeightMedium,
                   letterSpacing: 1.5,
                 ),
               ),
-              const SizedBox(height: DesignTokens.spacingXs),
+              SizedBox(height: isTablet ? DesignTokens.spacingM : DesignTokens.spacingXs),
 
-              // Tiempo grande
+              // Tiempo grande - CA-006: 160px+ en tablet
               Text(
                 tiempoFormateado,
                 style: TextStyle(
-                  fontSize: widget.fontSize,
+                  fontSize: fontSize,
                   fontWeight: DesignTokens.fontWeightBold,
                   color: colorTiempo.withValues(alpha: opacidad),
                   fontFamily: 'monospace',
-                  letterSpacing: 4,
+                  letterSpacing: isTablet ? 8 : 4,
                 ),
               ),
             ],

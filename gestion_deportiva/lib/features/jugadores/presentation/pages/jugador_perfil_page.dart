@@ -37,14 +37,7 @@ class JugadorPerfilPage extends StatelessWidget {
 
         // SIEMPRE mostrar el layout, loading/error va dentro del contenido
         return ResponsiveLayout(
-          mobileBody: _MobilePerfilView(
-            jugadorId: jugadorId,
-            perfil: perfil,
-            isLoading: isLoading,
-            hasError: hasError,
-            errorMessage: errorMessage,
-          ),
-          desktopBody: _DesktopPerfilView(
+          mobile: _MobilePerfilView(
             jugadorId: jugadorId,
             perfil: perfil,
             isLoading: isLoading,
