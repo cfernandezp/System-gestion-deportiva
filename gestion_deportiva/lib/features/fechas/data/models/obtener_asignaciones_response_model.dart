@@ -70,6 +70,9 @@ class ObtenerAsignacionesDataModel extends Equatable {
   /// CA-001: Resumen de equipos con jugadores asignados
   final List<EquipoResumenModel> equipos;
 
+  /// Lista de jugadores marcados como ausentes
+  final List<JugadorAusenteModel> ausentes;
+
   /// RN-005: Resumen de progreso de asignacion
   final AsignacionesResumenModel resumen;
 
@@ -78,6 +81,7 @@ class ObtenerAsignacionesDataModel extends Equatable {
     required this.coloresDisponibles,
     required this.jugadores,
     required this.equipos,
+    this.ausentes = const [],
     required this.resumen,
   });
 
@@ -102,12 +106,19 @@ class ObtenerAsignacionesDataModel extends Equatable {
         .map((e) => EquipoResumenModel.fromJson(e as Map<String, dynamic>))
         .toList();
 
+    // Parsear ausentes
+    final ausentesList = json['ausentes'] as List<dynamic>? ?? [];
+    final ausentes = ausentesList
+        .map((a) => JugadorAusenteModel.fromJson(a as Map<String, dynamic>))
+        .toList();
+
     return ObtenerAsignacionesDataModel(
       fecha: FechaAsignacionInfoModel.fromJson(
           json['fecha'] as Map<String, dynamic>? ?? {}),
       coloresDisponibles: colores,
       jugadores: jugadores,
       equipos: equipos,
+      ausentes: ausentes,
       resumen: AsignacionesResumenModel.fromJson(
           json['resumen'] as Map<String, dynamic>? ?? {}),
     );
@@ -129,6 +140,7 @@ class ObtenerAsignacionesDataModel extends Equatable {
         coloresDisponibles,
         jugadores,
         equipos,
+        ausentes,
         resumen,
       ];
 }

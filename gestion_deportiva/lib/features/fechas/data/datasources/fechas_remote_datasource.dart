@@ -23,6 +23,8 @@ import '../models/listar_fechas_por_rol_response_model.dart';
 import '../models/finalizar_fecha_response_model.dart';
 import '../models/inscribir_jugador_admin_response_model.dart';
 import '../models/iniciar_fecha_response_model.dart';
+import '../models/marcar_ausente_response_model.dart';
+import '../models/registrar_invitado_inscribir_response_model.dart';
 
 /// Interface del DataSource remoto de fechas
 /// E003-HU-001: Crear Fecha
@@ -110,13 +112,15 @@ abstract class FechasRemoteDataSource {
   // ==================== E003-HU-008: Editar Fecha ====================
 
   /// Edita una fecha de pichanga existente
-  /// RPC: editar_fecha(p_fecha_id, p_fecha_hora_inicio, p_duracion_horas, p_lugar)
+  /// RPC: editar_fecha(p_fecha_id, p_fecha_hora_inicio, p_duracion_horas, p_lugar, p_num_equipos, p_costo_por_jugador)
   /// CA-001 a CA-008, RN-001 a RN-008
   Future<EditarFechaRpcResponseModel> editarFecha({
     required String fechaId,
     required DateTime fechaHoraInicio,
-    required int duracionHoras,
+    required double duracionHoras,
     required String lugar,
+    required int numEquipos,
+    required double costoPorJugador,
   });
 
   // ==================== E003-HU-005: Asignar Equipos ====================
@@ -207,6 +211,25 @@ abstract class FechasRemoteDataSource {
   /// RPC: iniciar_fecha(p_fecha_id)
   /// CA-001 a CA-007, RN-001 a RN-007
   Future<IniciarFechaResponseModel> iniciarFecha(String fechaId);
+
+  // ==================== Gestion Flexible en_juego ====================
+
+  /// Marca un jugador inscrito como ausente durante estado en_juego
+  /// RPC: marcar_ausente(p_fecha_id, p_inscripcion_id)
+  /// Elimina asignacion de equipo y cambia estado inscripcion a 'ausente'
+  Future<MarcarAusenteResponseModel> marcarAusente({
+    required String fechaId,
+    required String inscripcionId,
+  });
+
+  /// Registra un invitado en el grupo y lo inscribe a la fecha en un solo paso
+  /// RPC: registrar_invitado_y_inscribir(p_grupo_id, p_fecha_id, p_nombre)
+  /// Soporta inscripcion tardia durante en_juego
+  Future<RegistrarInvitadoInscribirResponseModel> registrarInvitadoYInscribir({
+    required String grupoId,
+    required String fechaId,
+    required String nombre,
+  });
 }
 
 /// Implementacion del DataSource remoto de fechas
@@ -583,11 +606,13 @@ class FechasRemoteDataSourceImpl implements FechasRemoteDataSource {
   Future<EditarFechaRpcResponseModel> editarFecha({
     required String fechaId,
     required DateTime fechaHoraInicio,
-    required int duracionHoras,
+    required double duracionHoras,
     required String lugar,
+    required int numEquipos,
+    required double costoPorJugador,
   }) async {
     try {
-      // RPC: editar_fecha(p_fecha_id, p_fecha_hora_inicio, p_duracion_horas, p_lugar)
+      // RPC: editar_fecha(p_fecha_id, p_fecha_hora_inicio, p_duracion_horas, p_lugar, p_num_equipos, p_costo_por_jugador)
       // CA-001 a CA-008, RN-001 a RN-008
       final response = await supabase.rpc(
         'editar_fecha',
@@ -596,6 +621,8 @@ class FechasRemoteDataSourceImpl implements FechasRemoteDataSource {
           'p_fecha_hora_inicio': fechaHoraInicio.toUtc().toIso8601String(),
           'p_duracion_horas': duracionHoras,
           'p_lugar': lugar,
+          'p_num_equipos': numEquipos,
+          'p_costo_por_jugador': costoPorJugador,
         },
       );
 
@@ -1028,6 +1055,84 @@ class FechasRemoteDataSourceImpl implements FechasRemoteDataSource {
     } catch (e) {
       throw ServerException(
         message: 'Error de conexion al iniciar pichanga: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== Gestion Flexible en_juego ====================
+
+  @override
+  Future<MarcarAusenteResponseModel> marcarAusente({
+    required String fechaId,
+    required String inscripcionId,
+  }) async {
+    try {
+      // RPC: marcar_ausente(p_fecha_id, p_inscripcion_id)
+      final response = await supabase.rpc(
+        'marcar_ausente',
+        params: {
+          'p_fecha_id': fechaId,
+          'p_inscripcion_id': inscripcionId,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return MarcarAusenteResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al marcar ausente',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message: 'Error de conexion al marcar ausente: ${e.toString()}',
+      );
+    }
+  }
+
+  @override
+  Future<RegistrarInvitadoInscribirResponseModel>
+      registrarInvitadoYInscribir({
+    required String grupoId,
+    required String fechaId,
+    required String nombre,
+  }) async {
+    try {
+      // RPC: registrar_invitado_y_inscribir(p_grupo_id, p_fecha_id, p_nombre)
+      final response = await supabase.rpc(
+        'registrar_invitado_y_inscribir',
+        params: {
+          'p_grupo_id': grupoId,
+          'p_fecha_id': fechaId,
+          'p_nombre': nombre,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        return RegistrarInvitadoInscribirResponseModel.fromJson(responseMap);
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al registrar invitado',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      throw ServerException(
+        message:
+            'Error de conexion al registrar invitado: ${e.toString()}',
       );
     }
   }

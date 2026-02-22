@@ -14,7 +14,9 @@ import 'color_equipo.dart';
 ///   "apodo": "string|null",
 ///   "foto_url": "string|null",
 ///   "equipo": "naranja|verde|azul|null",
-///   "asignado": true|false
+///   "asignado": true|false,
+///   "inscripcion_id": "uuid",
+///   "inscripcion_tardia": false
 /// }
 class JugadorAsignacionModel extends Equatable {
   /// ID del usuario inscrito
@@ -35,6 +37,12 @@ class JugadorAsignacionModel extends Equatable {
   /// Indica si el jugador ya tiene equipo asignado
   final bool asignado;
 
+  /// ID de la inscripcion (para marcar ausente)
+  final String? inscripcionId;
+
+  /// Indica si fue inscripcion tardia (durante en_juego)
+  final bool inscripcionTardia;
+
   const JugadorAsignacionModel({
     required this.usuarioId,
     required this.nombreCompleto,
@@ -42,6 +50,8 @@ class JugadorAsignacionModel extends Equatable {
     this.fotoUrl,
     this.equipo,
     required this.asignado,
+    this.inscripcionId,
+    this.inscripcionTardia = false,
   });
 
   /// Crea instancia desde JSON del backend
@@ -54,6 +64,8 @@ class JugadorAsignacionModel extends Equatable {
       fotoUrl: json['foto_url'],
       equipo: ColorEquipo.fromString(json['equipo']),
       asignado: json['asignado'] ?? false,
+      inscripcionId: json['inscripcion_id'],
+      inscripcionTardia: json['inscripcion_tardia'] ?? false,
     );
   }
 
@@ -66,6 +78,8 @@ class JugadorAsignacionModel extends Equatable {
       'foto_url': fotoUrl,
       'equipo': equipo?.toBackend(),
       'asignado': asignado,
+      'inscripcion_id': inscripcionId,
+      'inscripcion_tardia': inscripcionTardia,
     };
   }
 
@@ -87,6 +101,8 @@ class JugadorAsignacionModel extends Equatable {
       fotoUrl: fotoUrl,
       equipo: nuevoEquipo,
       asignado: nuevoEquipo != null,
+      inscripcionId: inscripcionId,
+      inscripcionTardia: inscripcionTardia,
     );
   }
 
@@ -98,5 +114,48 @@ class JugadorAsignacionModel extends Equatable {
         fotoUrl,
         equipo,
         asignado,
+        inscripcionId,
+        inscripcionTardia,
       ];
+}
+
+/// Modelo de un jugador ausente
+/// JSON esperado del RPC obtener_asignaciones (seccion ausentes):
+/// {
+///   "usuario_id": "uuid",
+///   "nombre_completo": "string",
+///   "apodo": "string|null",
+///   "inscripcion_id": "uuid"
+/// }
+class JugadorAusenteModel extends Equatable {
+  final String usuarioId;
+  final String nombreCompleto;
+  final String? apodo;
+  final String inscripcionId;
+
+  const JugadorAusenteModel({
+    required this.usuarioId,
+    required this.nombreCompleto,
+    this.apodo,
+    required this.inscripcionId,
+  });
+
+  factory JugadorAusenteModel.fromJson(Map<String, dynamic> json) {
+    return JugadorAusenteModel(
+      usuarioId: json['usuario_id'] ?? '',
+      nombreCompleto: json['nombre_completo'] ?? '',
+      apodo: json['apodo'],
+      inscripcionId: json['inscripcion_id'] ?? '',
+    );
+  }
+
+  String get displayName {
+    if (apodo != null && apodo!.isNotEmpty) {
+      return apodo!;
+    }
+    return nombreCompleto;
+  }
+
+  @override
+  List<Object?> get props => [usuarioId, nombreCompleto, apodo, inscripcionId];
 }

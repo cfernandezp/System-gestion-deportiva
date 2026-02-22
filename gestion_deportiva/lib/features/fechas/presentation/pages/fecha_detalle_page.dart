@@ -106,8 +106,10 @@ class FechaDetallePage extends StatelessWidget {
         final errorMessage = hasError ? state.message : null;
 
         // Siempre mostrar el layout, el loading/error va dentro del contenido
-        return ResponsiveLayout(
-          mobile: _MobileDetalleView(
+        // En tablet: usar max-width 800px para aprovechar mejor el espacio
+        return TabletSafeWrapper(
+          maxWidth: 800,
+          child: _MobileDetalleView(
             fechaId: fechaId,
             fechaDetalle: fechaDetalle,
             isLoading: isLoading,
@@ -193,6 +195,9 @@ class _MobileDetalleView extends StatefulWidget {
 }
 
 class _MobileDetalleViewState extends State<_MobileDetalleView> {
+  /// Estado de la card de info: expandida o colapsada
+  bool _infoExpandida = true;
+
   /// BLoC de partido - se crea una sola vez y se reutiliza
   PartidoBloc? _partidoBloc;
 
@@ -308,9 +313,51 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
         ],
       ),
       body: _buildContent(context),
+      // FAB: Agregar jugador tardio durante en_juego (admin/co-admin)
+      floatingActionButton: fechaDetalle != null &&
+              fechaDetalle!.fecha.estado == EstadoFecha.enJuego
+          ? _buildAgregarJugadorFAB(context)
+          : null,
       bottomNavigationBar: fechaDetalle != null
           ? _buildBottomBar(context)
           : null,
+    );
+  }
+
+  /// FAB para agregar jugador tardio durante en_juego
+  Widget _buildAgregarJugadorFAB(BuildContext context) {
+    return BlocBuilder<SessionBloc, SessionState>(
+      builder: (context, sessionState) {
+        if (sessionState is! SessionAuthenticated) {
+          return const SizedBox.shrink();
+        }
+
+        final rol = sessionState.rol.toLowerCase();
+        final isAdminOCoadmin = rol == 'admin' ||
+            rol == 'administrador' ||
+            rol == 'co-admin' ||
+            rol == 'coadmin';
+
+        if (!isAdminOCoadmin) {
+          return const SizedBox.shrink();
+        }
+
+        return FloatingActionButton.extended(
+          onPressed: () {
+            AgregarJugadorEnJuegoBottomSheet.show(
+              context,
+              fechaId: fechaId,
+              onSuccess: () {
+                _refrescarTodo(context);
+              },
+            );
+          },
+          icon: const Icon(Icons.person_add),
+          label: const Text('Agregar'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        );
+      },
     );
   }
 
@@ -333,8 +380,8 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
 
         final estado = fechaDetalle!.fecha.estado;
 
-        // Solo mostrar si estado = 'cerrada'
-        if (estado != EstadoFecha.cerrada) {
+        // Mostrar si estado = 'cerrada' o 'en_juego'
+        if (estado != EstadoFecha.cerrada && estado != EstadoFecha.enJuego) {
           return const SizedBox.shrink();
         }
 
@@ -635,48 +682,113 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
       return const Center(child: Text('No se encontro la fecha'));
     }
 
-    // Contenido con datos
+    // Contenido con datos: Card colapsable arriba + lista/partidos expandida abajo
+    return Column(
+      children: [
+        // Card de informacion principal (colapsable, NO scrollea)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            DesignTokens.spacingM,
+            DesignTokens.spacingM,
+            DesignTokens.spacingM,
+            0,
+          ),
+          child: _buildInfoCard(context),
+        ),
+
+        const SizedBox(height: DesignTokens.spacingM),
+
+        // Contenido principal que ocupa TODO el espacio restante con scroll propio
+        Expanded(
+          child: _buildMainContent(context),
+        ),
+      ],
+    );
+  }
+
+  /// Construye el contenido principal con scroll independiente
+  /// Muestra inscritos (si abierta) o partidos (si en_juego/finalizada)
+  Widget _buildMainContent(BuildContext context) {
+    final estado = fechaDetalle!.fecha.estado;
+
+    // Estado abierta: mostrar lista de inscritos
+    if (estado == EstadoFecha.abierta) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: DesignTokens.spacingM,
+        ),
+        child: InscritosListWidget(
+          fechaId: fechaId,
+          habilitarRealtime: true,
+          capacidadMaxima: fechaDetalle!.capacidadMaxima > 0
+              ? fechaDetalle!.capacidadMaxima
+              : null,
+          fechaAbierta: fechaDetalle!.inscripcionesAbiertas,
+          useExpanded: true,
+        ),
+      );
+    }
+
+    // Estado en_juego o finalizada: mostrar partidos con scroll
+    if (estado == EstadoFecha.enJuego || estado == EstadoFecha.finalizada) {
+      return RefreshIndicator(
+        onRefresh: () async {
+          _refrescarTodo(context);
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(
+            horizontal: DesignTokens.spacingM,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildPartidoSection(context),
+              const SizedBox(height: DesignTokens.spacingL),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Estado cerrada u otro: mostrar mensaje informativo con pull-to-refresh
     return RefreshIndicator(
       onRefresh: () async {
         _refrescarTodo(context);
       },
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(DesignTokens.spacingM),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Card de informacion principal
-            _buildInfoCard(context),
-
-            const SizedBox(height: DesignTokens.spacingM),
-
-            // E003-HU-003: Lista de inscritos con realtime
-            // CA-001 a CA-006: Widget dedicado con BLoC propio
-            // E003-HU-011: Boton agregar jugador (admin, fecha abierta)
-            // Solo mostrar lista de inscritos cuando inscripciones abiertas
-            // Cuando hay equipos (cerrada/en_juego/finalizada), los equipos ya muestran los jugadores
-            if (fechaDetalle!.fecha.estado == EstadoFecha.abierta)
-              InscritosListWidget(
-                fechaId: fechaId,
-                habilitarRealtime: true,
-                capacidadMaxima: fechaDetalle!.capacidadMaxima > 0
-                    ? fechaDetalle!.capacidadMaxima
-                    : null,
-                fechaAbierta: fechaDetalle!.inscripcionesAbiertas,
-              ),
-
-            if (fechaDetalle!.fecha.estado == EstadoFecha.abierta)
-              const SizedBox(height: DesignTokens.spacingM),
-
-            // E004-HU-001: Lista de partidos en area principal
-            // Solo mostrar si estado = en_juego o finalizada
-            if (fechaDetalle!.fecha.estado == EstadoFecha.enJuego ||
-                fechaDetalle!.fecha.estado == EstadoFecha.finalizada)
-              _buildPartidoSection(context),
-
-            const SizedBox(height: DesignTokens.spacingL),
-          ],
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(
+          horizontal: DesignTokens.spacingM,
         ),
+        children: [
+          const SizedBox(height: DesignTokens.spacingL),
+          Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.lock_outlined,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                ),
+                const SizedBox(height: DesignTokens.spacingM),
+                Text(
+                  'Inscripciones cerradas',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: DesignTokens.spacingS),
+                Text(
+                  'Los equipos se estan armando',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -686,99 +798,156 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
     final textTheme = Theme.of(context).textTheme;
     final fecha = fechaDetalle!.fecha;
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-        side: BorderSide(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+    return GestureDetector(
+      onTap: () => setState(() => _infoExpandida = !_infoExpandida),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+          side: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(DesignTokens.spacingM),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Fecha y hora
-            Row(
+        child: AnimatedCrossFade(
+          duration: const Duration(milliseconds: 250),
+          crossFadeState: _infoExpandida
+              ? CrossFadeState.showFirst
+              : CrossFadeState.showSecond,
+          firstChild: // Estado expandido: info completa
+              Padding(
+            padding: const EdgeInsets.all(DesignTokens.spacingM),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(DesignTokens.spacingM),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-                  ),
+                // Fecha y hora
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(DesignTokens.spacingM),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primaryContainer
+                            .withValues(alpha: 0.3),
+                        borderRadius:
+                            BorderRadius.circular(DesignTokens.radiusM),
+                      ),
+                      child: Icon(
+                        Icons.calendar_month,
+                        color: colorScheme.primary,
+                        size: DesignTokens.iconSizeL,
+                      ),
+                    ),
+                    const SizedBox(width: DesignTokens.spacingM),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${fecha.fechaFormato} - ${fecha.horaFormato.isNotEmpty ? fecha.horaFormato : "Por definir"}',
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: DesignTokens.fontWeightBold,
+                            ),
+                          ),
+                          Text(
+                            '${fecha.duracionDisplay} de juego',
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _buildEstadoBadge(context),
+                  ],
+                ),
+
+                const Divider(height: DesignTokens.spacingL * 2),
+
+                // Lugar
+                _buildInfoRow(
+                  context,
+                  icon: Icons.location_on,
+                  label: 'Lugar',
+                  value: fecha.lugar,
+                ),
+
+                const SizedBox(height: DesignTokens.spacingM),
+
+                // Formato
+                _buildInfoRow(
+                  context,
+                  icon: Icons.groups,
+                  label: 'Formato',
+                  value: fecha.formatoJuego,
+                ),
+
+                const SizedBox(height: DesignTokens.spacingM),
+
+                // Costo - CA-001: Mostrar costo a pagar
+                _buildInfoRow(
+                  context,
+                  icon: Icons.attach_money,
+                  label: 'Debes pagar',
+                  value: fecha.costoFormato,
+                  destacado: true,
+                ),
+
+                const SizedBox(height: DesignTokens.spacingM),
+
+                // Organizador
+                _buildInfoRow(
+                  context,
+                  icon: Icons.person,
+                  label: 'Organizado por',
+                  value: fecha.createdByNombre,
+                ),
+
+                // Indicador visual para colapsar
+                const SizedBox(height: DesignTokens.spacingS),
+                Center(
                   child: Icon(
-                    Icons.calendar_month,
-                    color: colorScheme.primary,
-                    size: DesignTokens.iconSizeL,
+                    Icons.expand_less,
+                    size: 20,
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                   ),
                 ),
-                const SizedBox(width: DesignTokens.spacingM),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${fecha.fechaFormato} - ${fecha.horaFormato.isNotEmpty ? fecha.horaFormato : "Por definir"}',
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: DesignTokens.fontWeightBold,
-                        ),
-                      ),
-                      Text(
-                        '${fecha.duracionHoras} hora${fecha.duracionHoras != 1 ? 's' : ''} de juego',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                _buildEstadoBadge(context),
               ],
             ),
-
-            const Divider(height: DesignTokens.spacingL * 2),
-
-            // Lugar
-            _buildInfoRow(
-              context,
-              icon: Icons.location_on,
-              label: 'Lugar',
-              value: fecha.lugar,
+          ),
+          secondChild: // Estado colapsado: resumen compacto en una linea
+              Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: DesignTokens.spacingM,
+              vertical: DesignTokens.spacingS,
             ),
-
-            const SizedBox(height: DesignTokens.spacingM),
-
-            // Formato
-            _buildInfoRow(
-              context,
-              icon: Icons.groups,
-              label: 'Formato',
-              value: fecha.formatoJuego,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.calendar_month,
+                  color: colorScheme.primary,
+                  size: DesignTokens.iconSizeM,
+                ),
+                const SizedBox(width: DesignTokens.spacingS),
+                Expanded(
+                  child: Text(
+                    '${fecha.fechaFormato} ${fecha.horaFormato}  |  ${fecha.lugar}  |  ${fecha.costoFormato}',
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: DesignTokens.fontWeightMedium,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: DesignTokens.spacingS),
+                _buildEstadoBadge(context),
+                const SizedBox(width: DesignTokens.spacingXs),
+                Icon(
+                  Icons.expand_more,
+                  size: 20,
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                ),
+              ],
             ),
-
-            const SizedBox(height: DesignTokens.spacingM),
-
-            // Costo - CA-001: Mostrar costo a pagar
-            _buildInfoRow(
-              context,
-              icon: Icons.attach_money,
-              label: 'Debes pagar',
-              value: fecha.costoFormato,
-              destacado: true,
-            ),
-
-            const SizedBox(height: DesignTokens.spacingM),
-
-            // Organizador
-            _buildInfoRow(
-              context,
-              icon: Icons.person,
-              label: 'Organizado por',
-              value: fecha.createdByNombre,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -1778,7 +1947,7 @@ class _DesktopDetalleViewState extends State<_DesktopDetalleView> {
               context,
               icon: Icons.timer,
               label: 'Duracion',
-              value: '${fecha.duracionHoras} hora${fecha.duracionHoras != 1 ? 's' : ''}',
+              value: fecha.duracionDisplay,
             ),
             const SizedBox(height: DesignTokens.spacingS),
 
@@ -2106,15 +2275,17 @@ class _DesktopDetalleViewState extends State<_DesktopDetalleView> {
           );
         }
 
-        // E003-HU-005: Asignar Equipos (solo si estado = 'cerrada')
-        if (estado == EstadoFecha.cerrada) {
+        // E003-HU-005: Asignar Equipos (si estado = 'cerrada' o 'en_juego')
+        if (estado == EstadoFecha.cerrada || estado == EstadoFecha.enJuego) {
           actionButtons.add(
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: () => _abrirAsignarEquiposDialog(context),
                 icon: const Icon(Icons.groups),
-                label: const Text('Asignar Equipos'),
+                label: Text(estado == EstadoFecha.enJuego
+                    ? 'Gestionar Equipos'
+                    : 'Asignar Equipos'),
               ),
             ),
           );

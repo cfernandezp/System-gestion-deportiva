@@ -80,6 +80,68 @@ class ConfirmarEquiposEvent extends AsignacionesEvent {
   List<Object?> get props => [fechaId];
 }
 
+/// Evento para marcar un jugador como ausente durante en_juego
+/// Llama a RPC marcar_ausente y refresca asignaciones
+class MarcarAusenteEvent extends AsignacionesEvent {
+  /// ID de la fecha
+  final String fechaId;
+
+  /// ID de la inscripcion a marcar como ausente
+  final String inscripcionId;
+
+  /// Nombre del jugador (para feedback visual)
+  final String jugadorNombre;
+
+  const MarcarAusenteEvent({
+    required this.fechaId,
+    required this.inscripcionId,
+    required this.jugadorNombre,
+  });
+
+  @override
+  List<Object?> get props => [fechaId, inscripcionId, jugadorNombre];
+}
+
+/// Evento para inscribir un jugador tardio durante en_juego
+/// Usa inscribir_jugador_admin con flag tardia y refresca asignaciones
+class InscribirJugadorTardioEvent extends AsignacionesEvent {
+  /// ID de la fecha
+  final String fechaId;
+
+  /// ID del jugador a inscribir
+  final String jugadorId;
+
+  const InscribirJugadorTardioEvent({
+    required this.fechaId,
+    required this.jugadorId,
+  });
+
+  @override
+  List<Object?> get props => [fechaId, jugadorId];
+}
+
+/// Evento para registrar invitado rapido y inscribirlo a la fecha
+/// Usa RPC registrar_invitado_y_inscribir y refresca asignaciones
+class RegistrarInvitadoRapidoEvent extends AsignacionesEvent {
+  /// ID del grupo
+  final String grupoId;
+
+  /// ID de la fecha
+  final String fechaId;
+
+  /// Nombre del invitado
+  final String nombre;
+
+  const RegistrarInvitadoRapidoEvent({
+    required this.grupoId,
+    required this.fechaId,
+    required this.nombre,
+  });
+
+  @override
+  List<Object?> get props => [grupoId, fechaId, nombre];
+}
+
 /// Evento para reiniciar el estado del bloc
 class ResetAsignacionesEvent extends AsignacionesEvent {
   const ResetAsignacionesEvent();

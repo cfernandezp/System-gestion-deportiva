@@ -37,6 +37,9 @@ class AsignacionesBloc extends Bloc<AsignacionesEvent, AsignacionesState> {
     on<AsignarEquipoEvent>(_onAsignarEquipo);
     on<DesasignarEquipoEvent>(_onDesasignarEquipo);
     on<ConfirmarEquiposEvent>(_onConfirmarEquipos);
+    on<MarcarAusenteEvent>(_onMarcarAusente);
+    on<InscribirJugadorTardioEvent>(_onInscribirJugadorTardio);
+    on<RegistrarInvitadoRapidoEvent>(_onRegistrarInvitadoRapido);
     on<ResetAsignacionesEvent>(_onReset);
   }
 
@@ -305,6 +308,184 @@ class AsignacionesBloc extends Bloc<AsignacionesEvent, AsignacionesState> {
         }
       },
     );
+  }
+
+  /// Marcar jugador como ausente durante en_juego
+  Future<void> _onMarcarAusente(
+    MarcarAusenteEvent event,
+    Emitter<AsignacionesState> emit,
+  ) async {
+    final currentData = _getCurrentData();
+    if (currentData == null) {
+      emit(const AsignacionesError(message: 'Estado invalido para marcar ausente'));
+      return;
+    }
+
+    emit(MarcandoAusente(data: currentData, inscripcionId: event.inscripcionId));
+
+    final result = await repository.marcarAusente(
+      fechaId: event.fechaId,
+      inscripcionId: event.inscripcionId,
+    );
+
+    if (result.isLeft()) {
+      final failure = result.fold((l) => l, (r) => null)!;
+      final serverFailure = failure is ServerFailure ? failure : null;
+      emit(MarcarAusenteError(
+        data: currentData,
+        message: failure.message,
+        hint: serverFailure?.hint,
+      ));
+      return;
+    }
+
+    final response = result.fold((l) => null, (r) => r)!;
+    if (!response.success) {
+      emit(MarcarAusenteError(
+        data: currentData,
+        message: 'Error al marcar ausente',
+      ));
+      return;
+    }
+
+    // Recargar asignaciones
+    final reloadResult = await repository.obtenerAsignaciones(event.fechaId);
+    final reloadData = reloadResult.fold(
+      (l) => currentData,
+      (r) => r.success && r.data != null ? r.data! : currentData,
+    );
+
+    emit(AusenteMarcado(
+      data: reloadData,
+      jugadorNombre: event.jugadorNombre,
+      message: response.message,
+    ));
+  }
+
+  /// Inscribir jugador tardio durante en_juego
+  Future<void> _onInscribirJugadorTardio(
+    InscribirJugadorTardioEvent event,
+    Emitter<AsignacionesState> emit,
+  ) async {
+    final currentData = _getCurrentData();
+    if (currentData == null) {
+      emit(const AsignacionesError(message: 'Estado invalido para inscribir'));
+      return;
+    }
+
+    emit(InscribiendoTardio(data: currentData));
+
+    final result = await repository.inscribirJugadorAdmin(
+      fechaId: event.fechaId,
+      jugadorId: event.jugadorId,
+    );
+
+    if (result.isLeft()) {
+      final failure = result.fold((l) => l, (r) => null)!;
+      final serverFailure = failure is ServerFailure ? failure : null;
+      emit(InscribirTardioError(
+        data: currentData,
+        message: failure.message,
+        hint: serverFailure?.hint,
+      ));
+      return;
+    }
+
+    final response = result.fold((l) => null, (r) => r)!;
+    if (!response.success) {
+      emit(InscribirTardioError(
+        data: currentData,
+        message: 'Error al inscribir jugador',
+      ));
+      return;
+    }
+
+    // Recargar asignaciones
+    final reloadResult = await repository.obtenerAsignaciones(event.fechaId);
+    final reloadData = reloadResult.fold(
+      (l) => currentData,
+      (r) => r.success && r.data != null ? r.data! : currentData,
+    );
+
+    emit(JugadorTardioInscrito(
+      data: reloadData,
+      jugadorNombre: response.data?.jugadorNombre ?? '',
+      message: response.message,
+    ));
+  }
+
+  /// Registrar invitado rapido y inscribirlo
+  Future<void> _onRegistrarInvitadoRapido(
+    RegistrarInvitadoRapidoEvent event,
+    Emitter<AsignacionesState> emit,
+  ) async {
+    final currentData = _getCurrentData();
+    if (currentData == null) {
+      emit(const AsignacionesError(message: 'Estado invalido para registrar invitado'));
+      return;
+    }
+
+    emit(InscribiendoTardio(data: currentData));
+
+    final result = await repository.registrarInvitadoYInscribir(
+      grupoId: event.grupoId,
+      fechaId: event.fechaId,
+      nombre: event.nombre,
+    );
+
+    if (result.isLeft()) {
+      final failure = result.fold((l) => l, (r) => null)!;
+      final serverFailure = failure is ServerFailure ? failure : null;
+      emit(InscribirTardioError(
+        data: currentData,
+        message: failure.message,
+        hint: serverFailure?.hint,
+      ));
+      return;
+    }
+
+    final response = result.fold((l) => null, (r) => r)!;
+    if (!response.success) {
+      emit(InscribirTardioError(
+        data: currentData,
+        message: 'Error al registrar invitado',
+      ));
+      return;
+    }
+
+    // Recargar asignaciones
+    final reloadResult = await repository.obtenerAsignaciones(event.fechaId);
+    final reloadData = reloadResult.fold(
+      (l) => currentData,
+      (r) => r.success && r.data != null ? r.data! : currentData,
+    );
+
+    emit(JugadorTardioInscrito(
+      data: reloadData,
+      jugadorNombre: response.data?.nombre ?? event.nombre,
+      message: response.message,
+    ));
+  }
+
+  /// Obtiene los datos actuales del estado, independientemente del tipo de estado
+  ObtenerAsignacionesDataModel? _getCurrentData() {
+    final s = state;
+    if (s is AsignacionesLoaded) return s.data;
+    if (s is AsignandoEquipo) return s.data;
+    if (s is EquipoAsignado) return s.data;
+    if (s is AsignarEquipoError) return s.data;
+    if (s is DesasignandoEquipo) return s.data;
+    if (s is EquipoDesasignado) return s.data;
+    if (s is DesasignarEquipoError) return s.data;
+    if (s is ConfirmandoEquipos) return s.data;
+    if (s is ConfirmarEquiposError) return s.data;
+    if (s is MarcandoAusente) return s.data;
+    if (s is AusenteMarcado) return s.data;
+    if (s is MarcarAusenteError) return s.data;
+    if (s is InscribiendoTardio) return s.data;
+    if (s is JugadorTardioInscrito) return s.data;
+    if (s is InscribirTardioError) return s.data;
+    return null;
   }
 
   /// Reiniciar estado del bloc

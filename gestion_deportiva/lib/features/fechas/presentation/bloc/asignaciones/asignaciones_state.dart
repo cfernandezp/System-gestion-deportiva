@@ -304,3 +304,93 @@ class ConfirmarEquiposError extends AsignacionesState {
   @override
   List<Object?> get props => [data, message, hint];
 }
+
+// ==================== Gestion Flexible en_juego ====================
+
+/// Estado de carga al marcar ausente
+class MarcandoAusente extends AsignacionesState {
+  final ObtenerAsignacionesDataModel data;
+  final String inscripcionId;
+
+  const MarcandoAusente({
+    required this.data,
+    required this.inscripcionId,
+  });
+
+  @override
+  List<Object?> get props => [data, inscripcionId];
+}
+
+/// Estado de exito al marcar ausente
+class AusenteMarcado extends AsignacionesState {
+  final ObtenerAsignacionesDataModel data;
+  final String jugadorNombre;
+  final String message;
+
+  const AusenteMarcado({
+    required this.data,
+    required this.jugadorNombre,
+    required this.message,
+  });
+
+  @override
+  List<Object?> get props => [data, jugadorNombre, message];
+}
+
+/// Estado de error al marcar ausente
+class MarcarAusenteError extends AsignacionesState {
+  final ObtenerAsignacionesDataModel data;
+  final String message;
+  final String? hint;
+
+  const MarcarAusenteError({
+    required this.data,
+    required this.message,
+    this.hint,
+  });
+
+  @override
+  List<Object?> get props => [data, message, hint];
+}
+
+/// Estado de carga al inscribir jugador tardio o registrar invitado
+class InscribiendoTardio extends AsignacionesState {
+  final ObtenerAsignacionesDataModel data;
+
+  const InscribiendoTardio({required this.data});
+
+  @override
+  List<Object?> get props => [data];
+}
+
+/// Estado de exito al inscribir jugador tardio o registrar invitado
+class JugadorTardioInscrito extends AsignacionesState {
+  final ObtenerAsignacionesDataModel data;
+  final String jugadorNombre;
+  final String message;
+
+  const JugadorTardioInscrito({
+    required this.data,
+    required this.jugadorNombre,
+    required this.message,
+  });
+
+  @override
+  List<Object?> get props => [data, jugadorNombre, message];
+}
+
+/// Estado de error al inscribir jugador tardio
+class InscribirTardioError extends AsignacionesState {
+  final ObtenerAsignacionesDataModel data;
+  final String message;
+  final String? hint;
+
+  const InscribirTardioError({
+    required this.data,
+    required this.message,
+    this.hint,
+  });
+
+  @override
+  List<Object?> get props => [data, message, hint];
+}

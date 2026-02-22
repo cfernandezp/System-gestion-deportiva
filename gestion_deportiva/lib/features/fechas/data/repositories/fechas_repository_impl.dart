@@ -25,6 +25,8 @@ import '../models/listar_fechas_por_rol_response_model.dart';
 import '../models/finalizar_fecha_response_model.dart';
 import '../models/inscribir_jugador_admin_response_model.dart';
 import '../models/iniciar_fecha_response_model.dart';
+import '../models/marcar_ausente_response_model.dart';
+import '../models/registrar_invitado_inscribir_response_model.dart';
 
 /// Implementacion del repositorio de fechas
 /// E003-HU-001: Crear Fecha
@@ -274,8 +276,10 @@ class FechasRepositoryImpl implements FechasRepository {
   Future<Either<Failure, EditarFechaRpcResponseModel>> editarFecha({
     required String fechaId,
     required DateTime fechaHoraInicio,
-    required int duracionHoras,
+    required double duracionHoras,
     required String lugar,
+    required int numEquipos,
+    required double costoPorJugador,
   }) async {
     try {
       final result = await remoteDataSource.editarFecha(
@@ -283,6 +287,8 @@ class FechasRepositoryImpl implements FechasRepository {
         fechaHoraInicio: fechaHoraInicio,
         duracionHoras: duracionHoras,
         lugar: lugar,
+        numEquipos: numEquipos,
+        costoPorJugador: costoPorJugador,
       );
       return Right(result);
     } on ServerException catch (e) {
@@ -553,6 +559,59 @@ class FechasRepositoryImpl implements FechasRepository {
     } catch (e) {
       return Left(ServerFailure(
         message: 'Error inesperado al iniciar pichanga: ${e.toString()}',
+      ));
+    }
+  }
+
+  // ==================== Gestion Flexible en_juego ====================
+
+  @override
+  Future<Either<Failure, MarcarAusenteResponseModel>> marcarAusente({
+    required String fechaId,
+    required String inscripcionId,
+  }) async {
+    try {
+      final result = await remoteDataSource.marcarAusente(
+        fechaId: fechaId,
+        inscripcionId: inscripcionId,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado al marcar ausente: ${e.toString()}',
+      ));
+    }
+  }
+
+  @override
+  Future<Either<Failure, RegistrarInvitadoInscribirResponseModel>>
+      registrarInvitadoYInscribir({
+    required String grupoId,
+    required String fechaId,
+    required String nombre,
+  }) async {
+    try {
+      final result = await remoteDataSource.registrarInvitadoYInscribir(
+        grupoId: grupoId,
+        fechaId: fechaId,
+        nombre: nombre,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado al registrar invitado: ${e.toString()}',
       ));
     }
   }

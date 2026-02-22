@@ -28,3 +28,6 @@ export 'agregar_jugador_admin_dialog.dart';
 
 // E003-HU-012: Iniciar Fecha
 export 'iniciar_fecha_dialog.dart';
+
+// Gestion flexible en_juego: agregar jugador tardio
+export 'agregar_jugador_en_juego_bottom_sheet.dart';

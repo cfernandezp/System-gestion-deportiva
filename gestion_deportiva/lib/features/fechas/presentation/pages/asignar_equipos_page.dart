@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/widgets/dashboard_shell.dart';
 import '../../../../core/widgets/responsive_layout.dart';
+import '../../../auth/presentation/bloc/session/session.dart';
 import '../../data/models/color_equipo.dart';
 import '../../data/models/jugador_asignacion_model.dart';
 import '../../data/models/obtener_asignaciones_response_model.dart';
@@ -40,7 +42,11 @@ class AsignarEquiposPage extends StatelessWidget {
         if (state is EquiposConfirmados) {
           _mostrarSnackBarExito(context, state.message);
           // Navegar de vuelta al detalle
-          context.pop();
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          } else {
+            context.go('/fechas');
+          }
         }
 
         // Error al asignar
@@ -57,6 +63,26 @@ class AsignarEquiposPage extends StatelessWidget {
         if (state is ConfirmarEquiposError) {
           _mostrarSnackBarError(context, state.message);
         }
+
+        // Ausente marcado exitosamente
+        if (state is AusenteMarcado) {
+          _mostrarSnackBarExito(context, state.message);
+        }
+
+        // Error al marcar ausente
+        if (state is MarcarAusenteError) {
+          _mostrarSnackBarError(context, state.message);
+        }
+
+        // Jugador tardio inscrito exitosamente
+        if (state is JugadorTardioInscrito) {
+          _mostrarSnackBarExito(context, state.message);
+        }
+
+        // Error al inscribir tardio
+        if (state is InscribirTardioError) {
+          _mostrarSnackBarError(context, state.message);
+        }
       },
       builder: (context, state) {
         // Obtener datos del estado
@@ -66,8 +92,10 @@ class AsignarEquiposPage extends StatelessWidget {
         final errorMessage = hasError ? state.message : null;
 
         // Siempre mostrar el layout
-        return ResponsiveLayout(
-          mobile: _MobileAsignarView(
+        // En tablet: max-width 800px para aprovechar espacio
+        return TabletSafeWrapper(
+          maxWidth: 800,
+          child: _MobileAsignarView(
             fechaId: fechaId,
             data: data,
             isLoading: isLoading,
@@ -89,6 +117,12 @@ class AsignarEquiposPage extends StatelessWidget {
     if (state is DesasignarEquipoError) return state.data;
     if (state is ConfirmandoEquipos) return state.data;
     if (state is ConfirmarEquiposError) return state.data;
+    if (state is MarcandoAusente) return state.data;
+    if (state is AusenteMarcado) return state.data;
+    if (state is MarcarAusenteError) return state.data;
+    if (state is InscribiendoTardio) return state.data;
+    if (state is JugadorTardioInscrito) return state.data;
+    if (state is InscribirTardioError) return state.data;
     return null;
   }
 
@@ -131,10 +165,10 @@ class AsignarEquiposPage extends StatelessWidget {
 }
 
 // ============================================
-// VISTA MOBILE - App Style
+// VISTA MOBILE - App Style (Refactorizada para cancha)
 // ============================================
 
-class _MobileAsignarView extends StatelessWidget {
+class _MobileAsignarView extends StatefulWidget {
   final String fechaId;
   final ObtenerAsignacionesDataModel? data;
   final bool isLoading;
@@ -150,6 +184,14 @@ class _MobileAsignarView extends StatelessWidget {
   });
 
   @override
+  State<_MobileAsignarView> createState() => _MobileAsignarViewState();
+}
+
+class _MobileAsignarViewState extends State<_MobileAsignarView> {
+  /// Equipo seleccionado en modo rapido (null = OFF / modo normal)
+  ColorEquipo? _equipoRapido;
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -157,16 +199,26 @@ class _MobileAsignarView extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Asignar Equipos'),
         centerTitle: true,
+        // Fix #1: Boton atras robusto
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go('/fechas');
+            }
+          },
         ),
         actions: [
+          // Boton agregar jugador tardio (solo en_juego, admin/co-admin)
+          if (widget.data?.fecha.estado == 'en_juego')
+            _buildAgregarJugadorButton(context),
           // Boton refrescar
           IconButton(
             onPressed: () {
               context.read<AsignacionesBloc>().add(
-                    CargarAsignacionesEvent(fechaId: fechaId),
+                    CargarAsignacionesEvent(fechaId: widget.fechaId),
                   );
             },
             icon: const Icon(Icons.refresh),
@@ -174,173 +226,272 @@ class _MobileAsignarView extends StatelessWidget {
           ),
         ],
       ),
-      body: _buildContent(context),
-      bottomNavigationBar: data != null
+      body: _buildBody(context),
+      // Fix #7: Bottom bar siempre visible fuera del scroll
+      bottomNavigationBar: widget.data != null
           ? _buildBottomBar(context, colorScheme)
           : null,
     );
   }
 
-  Widget _buildContent(BuildContext context) {
+  /// Boton para agregar jugador tardio (solo admin/co-admin durante en_juego)
+  Widget _buildAgregarJugadorButton(BuildContext context) {
+    return BlocBuilder<SessionBloc, SessionState>(
+      builder: (context, sessionState) {
+        if (sessionState is! SessionAuthenticated) {
+          return const SizedBox.shrink();
+        }
+
+        final rol = sessionState.rol.toLowerCase();
+        final isAdminOCoadmin = rol == 'admin' ||
+            rol == 'administrador' ||
+            rol == 'co-admin' ||
+            rol == 'coadmin';
+
+        if (!isAdminOCoadmin) {
+          return const SizedBox.shrink();
+        }
+
+        return IconButton(
+          onPressed: () {
+            AgregarJugadorEnJuegoBottomSheet.show(
+              context,
+              fechaId: widget.fechaId,
+              onSuccess: () {
+                // Recargar asignaciones
+                context.read<AsignacionesBloc>().add(
+                      CargarAsignacionesEvent(fechaId: widget.fechaId),
+                    );
+              },
+            );
+          },
+          icon: Icon(
+            Icons.person_add,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          tooltip: 'Agregar jugador',
+        );
+      },
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
     // Estado de carga
-    if (isLoading && data == null) {
+    if (widget.isLoading && widget.data == null) {
       return const Center(child: CircularProgressIndicator());
     }
 
     // Estado de error
-    if (hasError && data == null) {
+    if (widget.hasError && widget.data == null) {
       return _buildErrorContent(context);
     }
 
     // Sin datos
-    if (data == null) {
+    if (widget.data == null) {
       return const Center(child: Text('No se encontraron datos'));
     }
 
-    // Contenido con datos
-    return RefreshIndicator(
-      onRefresh: () async {
-        context.read<AsignacionesBloc>().add(
-              CargarAsignacionesEvent(fechaId: fechaId),
-            );
-      },
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(DesignTokens.spacingM),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header con progreso
-            _buildProgresoHeader(context),
+    final data = widget.data!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
-            const SizedBox(height: DesignTokens.spacingM),
+    // Layout principal: Column con header sticky + scroll + bottom bar
+    return Column(
+      children: [
+        // Fix #3: Header sticky con progreso (NO scrolleable)
+        _buildStickyProgressHeader(context, data, colorScheme, textTheme),
 
-            // CA-006: Advertencia de desbalance
-            if (_hayDesbalance()) _buildDesbalanceWarning(context),
+        // Fix #6: Modo rapido bar (NO scrolleable)
+        _buildModoRapidoBar(context, data, colorScheme, textTheme),
 
-            const SizedBox(height: DesignTokens.spacingM),
+        // Contenido scrolleable con secciones colapsables
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              context.read<AsignacionesBloc>().add(
+                    CargarAsignacionesEvent(fechaId: widget.fechaId),
+                  );
+            },
+            child: ListView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spacingM,
+                vertical: DesignTokens.spacingS,
+              ),
+              children: [
+                // Fix #5: Sin asignar ARRIBA
+                _buildSeccionSinAsignar(
+                    context, data, colorScheme, textTheme),
 
-            // CA-001: Jugadores sin asignar
-            if (data!.jugadoresSinAsignar.isNotEmpty) ...[
-              _buildSeccionTitle(context, 'Sin asignar', Icons.person_outline),
-              const SizedBox(height: DesignTokens.spacingS),
-              ...data!.jugadoresSinAsignar.map(
-                (jugador) => Padding(
-                  padding: const EdgeInsets.only(bottom: DesignTokens.spacingS),
-                  child: JugadorAsignacionTile(
-                    jugador: jugador,
-                    coloresDisponibles: data!.coloresDisponibles,
-                    onAsignar: (equipo) => _asignarEquipo(context, jugador, equipo),
-                    isMobile: true,
-                  ),
+                const SizedBox(height: DesignTokens.spacingM),
+
+                // Fix #4 & #5: Equipos ABAJO, colapsables
+                ...data.coloresDisponibles.map((color) {
+                  final jugadoresEquipo = data.jugadoresDelEquipo(color);
+                  return Padding(
+                    padding: const EdgeInsets.only(
+                        bottom: DesignTokens.spacingM),
+                    child: EquipoContainerWidget(
+                      equipo: color,
+                      jugadores: jugadoresEquipo,
+                      onJugadorRemover: (jugador) =>
+                          _removerDeEquipo(context, jugador),
+                      isMobile: true,
+                      collapsible: true,
+                      initiallyExpanded: true,
+                    ),
+                  );
+                }),
+
+                // Seccion Ausentes (colapsable, al final)
+                if (data.ausentes.isNotEmpty)
+                  _buildSeccionAusentes(context, data, colorScheme, textTheme),
+
+                // Espacio inferior extra para que el scroll no tape contenido
+                const SizedBox(height: DesignTokens.spacingL),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Seccion colapsable de jugadores ausentes
+  Widget _buildSeccionAusentes(
+    BuildContext context,
+    ObtenerAsignacionesDataModel data,
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: DesignTokens.spacingM),
+      child: Card(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        child: ExpansionTile(
+          initiallyExpanded: false,
+          leading: Icon(
+            Icons.person_off,
+            color: colorScheme.error.withValues(alpha: 0.7),
+          ),
+          title: Text(
+            'Ausentes (${data.ausentes.length})',
+            style: textTheme.titleSmall?.copyWith(
+              color: colorScheme.error.withValues(alpha: 0.7),
+            ),
+          ),
+          children: data.ausentes.map((ausente) {
+            return ListTile(
+              dense: true,
+              leading: CircleAvatar(
+                radius: 16,
+                backgroundColor: colorScheme.error.withValues(alpha: 0.2),
+                child: Icon(
+                  Icons.person_off,
+                  size: 16,
+                  color: colorScheme.error.withValues(alpha: 0.7),
                 ),
               ),
-              const SizedBox(height: DesignTokens.spacingL),
-            ],
-
-            // CA-001: Equipos con jugadores
-            ...data!.coloresDisponibles.map((color) {
-              final jugadoresEquipo = data!.jugadoresDelEquipo(color);
-              return Padding(
-                padding: const EdgeInsets.only(bottom: DesignTokens.spacingM),
-                child: EquipoContainerWidget(
-                  equipo: color,
-                  jugadores: jugadoresEquipo,
-                  onJugadorRemover: (jugador) => _removerDeEquipo(context, jugador),
-                  isMobile: true,
+              title: Text(
+                ausente.displayName,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  decoration: TextDecoration.lineThrough,
                 ),
-              );
-            }),
-
-            const SizedBox(height: DesignTokens.spacingXl),
-          ],
+              ),
+            );
+          }).toList(),
         ),
       ),
     );
   }
 
-  Widget _buildProgresoHeader(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final resumen = data!.resumen;
+  // ============================================
+  // Fix #3: Header sticky con progreso siempre visible
+  // ============================================
+
+  Widget _buildStickyProgressHeader(
+    BuildContext context,
+    ObtenerAsignacionesDataModel data,
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+  ) {
+    final resumen = data.resumen;
+    final progreso = resumen.totalInscritos > 0
+        ? resumen.totalAsignados / resumen.totalInscritos
+        : 0.0;
+    final desbalance = _hayDesbalance();
+    final completo = resumen.asignacionCompleta;
+    final balanceado = !desbalance;
 
     return Container(
-      padding: const EdgeInsets.all(DesignTokens.spacingM),
+      padding: const EdgeInsets.fromLTRB(
+        DesignTokens.spacingM,
+        DesignTokens.spacingS,
+        DesignTokens.spacingM,
+        DesignTokens.spacingS,
+      ),
       decoration: BoxDecoration(
-        color: colorScheme.primaryContainer.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-        border: Border.all(
-          color: colorScheme.primary.withValues(alpha: 0.3),
+        color: colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
+          // Linea 1: X/Y asignados + barra de progreso
           Row(
             children: [
-              Icon(
-                Icons.groups,
-                color: colorScheme.primary,
-                size: DesignTokens.iconSizeL,
-              ),
-              const SizedBox(width: DesignTokens.spacingM),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${resumen.totalAsignados} de ${resumen.totalInscritos} asignados',
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: DesignTokens.fontWeightBold,
-                      ),
-                    ),
-                    Text(
-                      resumen.asignacionCompleta
-                          ? 'Todos los jugadores tienen equipo'
-                          : 'Faltan ${resumen.sinAsignar} por asignar',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+              Text(
+                '${resumen.totalAsignados}/${resumen.totalInscritos} asignados',
+                style: textTheme.titleSmall?.copyWith(
+                  fontWeight: DesignTokens.fontWeightBold,
                 ),
               ),
-              // Indicador circular
-              SizedBox(
-                width: 48,
-                height: 48,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      value: resumen.totalInscritos > 0
-                          ? resumen.totalAsignados / resumen.totalInscritos
-                          : 0,
-                      strokeWidth: 4,
-                      backgroundColor: colorScheme.surfaceContainerHighest,
-                      color: resumen.asignacionCompleta
-                          ? DesignTokens.successColor
-                          : colorScheme.primary,
-                    ),
-                    Text(
-                      '${((resumen.totalAsignados / (resumen.totalInscritos > 0 ? resumen.totalInscritos : 1)) * 100).round()}%',
-                      style: textTheme.labelSmall?.copyWith(
-                        fontWeight: DesignTokens.fontWeightBold,
-                      ),
-                    ),
-                  ],
+              const SizedBox(width: DesignTokens.spacingS),
+              // Check verde si 100% y balanceado
+              if (completo && balanceado)
+                Icon(
+                  Icons.check_circle,
+                  color: DesignTokens.successColor,
+                  size: DesignTokens.iconSizeM,
                 ),
-              ),
             ],
           ),
-          // Barra de equipos
-          const SizedBox(height: DesignTokens.spacingM),
+          const SizedBox(height: DesignTokens.spacingXs),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+            child: LinearProgressIndicator(
+              value: progreso,
+              minHeight: 6,
+              backgroundColor: colorScheme.surfaceContainerHighest,
+              color: completo
+                  ? DesignTokens.successColor
+                  : colorScheme.primary,
+            ),
+          ),
+
+          const SizedBox(height: DesignTokens.spacingS),
+
+          // Linea 2: Chips de equipo con conteo
           Row(
-            children: data!.coloresDisponibles.map((color) {
-              final cantidad = data!.jugadoresDelEquipo(color).length;
+            children: data.coloresDisponibles.map((color) {
+              final cantidad = data.jugadoresDelEquipo(color).length;
               return Expanded(
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 2),
                   padding: const EdgeInsets.symmetric(
                     vertical: DesignTokens.spacingXs,
+                    horizontal: DesignTokens.spacingXs,
                   ),
                   decoration: BoxDecoration(
                     color: color.color.withValues(alpha: 0.2),
@@ -349,94 +500,195 @@ class _MobileAsignarView extends StatelessWidget {
                       color: color.color.withValues(alpha: 0.5),
                     ),
                   ),
-                  child: Text(
-                    '$cantidad',
-                    textAlign: TextAlign.center,
-                    style: textTheme.labelLarge?.copyWith(
-                      color: color.textColor == Colors.white
-                          ? colorScheme.onSurface
-                          : color.textColor,
-                      fontWeight: DesignTokens.fontWeightBold,
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: color.color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: color.borderColor,
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: DesignTokens.spacingXs),
+                      Flexible(
+                        child: Text(
+                          '${color.shortLabel}: $cantidad',
+                          style: textTheme.labelSmall?.copyWith(
+                            fontWeight: DesignTokens.fontWeightBold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );
             }).toList(),
           ),
+
+          // Linea 3 (condicional): Warning desbalance o check completado
+          if (desbalance && data.resumen.totalAsignados > 0) ...[
+            const SizedBox(height: DesignTokens.spacingXs),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                vertical: DesignTokens.spacingXs,
+                horizontal: DesignTokens.spacingS,
+              ),
+              decoration: BoxDecoration(
+                color: DesignTokens.accentColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusS),
+                border: Border.all(
+                  color: DesignTokens.accentColor.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber,
+                    color: DesignTokens.accentColor,
+                    size: 16,
+                  ),
+                  const SizedBox(width: DesignTokens.spacingXs),
+                  Expanded(
+                    child: Text(
+                      'Equipos desbalanceados (diferencia > 1)',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: DesignTokens.accentColor,
+                        fontWeight: DesignTokens.fontWeightMedium,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildSeccionTitle(BuildContext context, String title, IconData icon) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+  // ============================================
+  // Fix #6: Modo rapido bar
+  // ============================================
 
-    return Row(
-      children: [
-        Icon(icon, size: DesignTokens.iconSizeM, color: colorScheme.primary),
-        const SizedBox(width: DesignTokens.spacingS),
-        Text(
-          title,
-          style: textTheme.titleSmall?.copyWith(
-            fontWeight: DesignTokens.fontWeightSemiBold,
-          ),
-        ),
-        const SizedBox(width: DesignTokens.spacingS),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: DesignTokens.spacingS,
-            vertical: DesignTokens.spacingXxs,
-          ),
-          decoration: BoxDecoration(
-            color: colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
-          ),
-          child: Text(
-            '${data!.jugadoresSinAsignar.length}',
-            style: textTheme.labelMedium?.copyWith(
-              color: colorScheme.onPrimaryContainer,
-              fontWeight: DesignTokens.fontWeightBold,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _buildModoRapidoBar(
+    BuildContext context,
+    ObtenerAsignacionesDataModel data,
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+  ) {
+    // Solo mostrar si hay jugadores sin asignar
+    if (data.jugadoresSinAsignar.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-  bool _hayDesbalance() {
-    if (data == null || data!.equipos.isEmpty) return false;
-    final cantidades = data!.equipos.map((e) => e.cantidad).toList();
-    if (cantidades.isEmpty) return false;
-    final max = cantidades.reduce((a, b) => a > b ? a : b);
-    final min = cantidades.reduce((a, b) => a < b ? a : b);
-    return (max - min) > 1;
-  }
-
-  Widget _buildDesbalanceWarning(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(DesignTokens.spacingM),
+      padding: const EdgeInsets.symmetric(
+        horizontal: DesignTokens.spacingM,
+        vertical: DesignTokens.spacingS,
+      ),
       decoration: BoxDecoration(
-        color: DesignTokens.accentColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-        border: Border.all(
-          color: DesignTokens.accentColor.withValues(alpha: 0.3),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        border: Border(
+          bottom: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
         ),
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.warning_amber,
-            color: DesignTokens.accentColor,
-            size: DesignTokens.iconSizeM,
+          Text(
+            'Rapido:',
+            style: textTheme.labelMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: DesignTokens.fontWeightMedium,
+            ),
           ),
           const SizedBox(width: DesignTokens.spacingS),
-          Expanded(
-            child: Text(
-              'Equipos desbalanceados. La diferencia entre equipos es mayor a 1 jugador.',
-              style: TextStyle(
-                color: DesignTokens.accentColor,
-                fontSize: DesignTokens.fontSizeS,
+          // Chips de equipos
+          ...data.coloresDisponibles.map((color) {
+            final isSelected = _equipoRapido == color;
+            return Padding(
+              padding: const EdgeInsets.only(right: DesignTokens.spacingXs),
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    _equipoRapido = isSelected ? null : color;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: DesignTokens.animFast,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: DesignTokens.spacingS,
+                    vertical: DesignTokens.spacingXs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? color.color
+                        : color.color.withValues(alpha: 0.2),
+                    borderRadius:
+                        BorderRadius.circular(DesignTokens.radiusFull),
+                    border: Border.all(
+                      color: color.borderColor,
+                      width: isSelected ? 2.5 : 1,
+                    ),
+                  ),
+                  child: Text(
+                    color.shortLabel,
+                    style: textTheme.labelSmall?.copyWith(
+                      color: isSelected
+                          ? color.textColor
+                          : colorScheme.onSurface,
+                      fontWeight: DesignTokens.fontWeightBold,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+          // Boton OFF
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              setState(() {
+                _equipoRapido = null;
+              });
+            },
+            child: AnimatedContainer(
+              duration: DesignTokens.animFast,
+              padding: const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spacingS,
+                vertical: DesignTokens.spacingXs,
+              ),
+              decoration: BoxDecoration(
+                color: _equipoRapido == null
+                    ? colorScheme.surfaceContainerHighest
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+                border: Border.all(
+                  color: _equipoRapido == null
+                      ? colorScheme.outline
+                      : colorScheme.outlineVariant,
+                  width: _equipoRapido == null ? 2 : 1,
+                ),
+              ),
+              child: Text(
+                'OFF',
+                style: textTheme.labelSmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: DesignTokens.fontWeightBold,
+                  fontSize: 11,
+                ),
               ),
             ),
           ),
@@ -445,10 +697,168 @@ class _MobileAsignarView extends StatelessWidget {
     );
   }
 
+  // ============================================
+  // Fix #4 & #5: Seccion sin asignar (ExpansionTile, arriba)
+  // ============================================
+
+  Widget _buildSeccionSinAsignar(
+    BuildContext context,
+    ObtenerAsignacionesDataModel data,
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+  ) {
+    final sinAsignar = data.jugadoresSinAsignar;
+
+    if (sinAsignar.isEmpty) {
+      // Todos asignados - mostrar feedback positivo compacto
+      return Container(
+        padding: const EdgeInsets.all(DesignTokens.spacingM),
+        decoration: BoxDecoration(
+          color: DesignTokens.successColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+          border: Border.all(
+            color: DesignTokens.successColor.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              color: DesignTokens.successColor,
+              size: DesignTokens.iconSizeM,
+            ),
+            const SizedBox(width: DesignTokens.spacingS),
+            Text(
+              'Todos los jugadores asignados',
+              style: textTheme.bodyMedium?.copyWith(
+                color: DesignTokens.successColor,
+                fontWeight: DesignTokens.fontWeightMedium,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // ExpansionTile para jugadores sin asignar
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: true,
+          tilePadding: const EdgeInsets.symmetric(
+            horizontal: DesignTokens.spacingM,
+          ),
+          childrenPadding: EdgeInsets.zero,
+          collapsedShape: const RoundedRectangleBorder(),
+          shape: const RoundedRectangleBorder(),
+          title: Row(
+            children: [
+              Icon(
+                Icons.person_outline,
+                size: DesignTokens.iconSizeM,
+                color: colorScheme.primary,
+              ),
+              const SizedBox(width: DesignTokens.spacingS),
+              Text(
+                'Sin asignar',
+                style: textTheme.titleSmall?.copyWith(
+                  fontWeight: DesignTokens.fontWeightSemiBold,
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spacingS),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spacingS,
+                  vertical: DesignTokens.spacingXxs,
+                ),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer,
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusFull),
+                ),
+                child: Text(
+                  '${sinAsignar.length}',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: colorScheme.onPrimaryContainer,
+                    fontWeight: DesignTokens.fontWeightBold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          children: [
+            const Divider(height: 1),
+            ...sinAsignar.map(
+              (jugador) => Padding(
+                padding: const EdgeInsets.only(
+                  left: DesignTokens.spacingS,
+                  right: DesignTokens.spacingS,
+                  top: DesignTokens.spacingXs,
+                  bottom: DesignTokens.spacingXs,
+                ),
+                child: JugadorAsignacionTile(
+                  jugador: jugador,
+                  coloresDisponibles: data.coloresDisponibles,
+                  onAsignar: (equipo) =>
+                      _asignarEquipo(context, jugador, equipo),
+                  isMobile: true,
+                  equipoRapido: _equipoRapido,
+                ),
+              ),
+            ),
+            const SizedBox(height: DesignTokens.spacingXs),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================
+  // Fix #7: Boton confirmar mejorado (bottom bar fijo)
+  // ============================================
+
   Widget _buildBottomBar(BuildContext context, ColorScheme colorScheme) {
     final state = context.watch<AsignacionesBloc>().state;
     final isConfirmando = state is ConfirmandoEquipos;
-    final asignacionCompleta = data?.resumen.asignacionCompleta ?? false;
+    final asignacionCompleta =
+        widget.data?.resumen.asignacionCompleta ?? false;
+    final sinAsignar = widget.data?.resumen.sinAsignar ?? 0;
+    final desbalance = _hayDesbalance();
+
+    // Determinar estado del boton
+    // Estado 1: Faltan por asignar (deshabilitado)
+    // Estado 2: Todos asignados y balanceados (verde)
+    // Estado 3: Todos asignados pero desbalanceados (naranja warning)
+    final bool habilitado = asignacionCompleta && !isConfirmando;
+    final Color? buttonColor;
+    final String buttonText;
+    final IconData buttonIcon;
+
+    if (!asignacionCompleta) {
+      // Estado 1: deshabilitado
+      buttonText = 'Faltan $sinAsignar por asignar';
+      buttonIcon = Icons.group_add;
+      buttonColor = null; // usa color por defecto deshabilitado
+    } else if (desbalance) {
+      // Estado 3: todos asignados pero desbalanceados
+      buttonText = 'Confirmar (desbalanceados)';
+      buttonIcon = Icons.warning_amber;
+      buttonColor = DesignTokens.accentColor;
+    } else {
+      // Estado 2: todos asignados y balanceados
+      buttonText = 'Confirmar Equipos';
+      buttonIcon = Icons.check;
+      buttonColor = DesignTokens.successColor;
+    }
 
     return Container(
       padding: const EdgeInsets.all(DesignTokens.spacingM),
@@ -469,7 +879,7 @@ class _MobileAsignarView extends StatelessWidget {
       ),
       child: SafeArea(
         child: FilledButton.icon(
-          onPressed: asignacionCompleta && !isConfirmando
+          onPressed: habilitado
               ? () => _mostrarDialogConfirmacion(context)
               : null,
           icon: isConfirmando
@@ -481,16 +891,66 @@ class _MobileAsignarView extends StatelessWidget {
                     color: Colors.white,
                   ),
                 )
-              : const Icon(Icons.check),
-          label: Text(
-            asignacionCompleta ? 'Confirmar Equipos' : 'Asigna todos los jugadores',
-          ),
+              : Icon(buttonIcon),
+          label: Text(buttonText),
           style: FilledButton.styleFrom(
             minimumSize: const Size(double.infinity, 48),
+            backgroundColor: habilitado ? buttonColor : null,
           ),
         ),
       ),
     );
+  }
+
+  // ============================================
+  // Acciones (reutilizan callbacks existentes)
+  // ============================================
+
+  /// Muestra confirmacion antes de marcar ausente
+  void _confirmarMarcarAusente(
+      BuildContext context, JugadorAsignacionModel jugador) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Marcar como ausente'),
+        content: Text(
+          'Se marcara a ${jugador.displayName} como ausente. '
+          'Se eliminara su asignacion de equipo y no podra participar en partidos.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              context.read<AsignacionesBloc>().add(
+                    MarcarAusenteEvent(
+                      fechaId: widget.fechaId,
+                      inscripcionId: jugador.inscripcionId!,
+                      jugadorNombre: jugador.displayName,
+                    ),
+                  );
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _hayDesbalance() {
+    final data = widget.data;
+    if (data == null || data.equipos.isEmpty) return false;
+    final cantidades = data.equipos.map((e) => e.cantidad).toList();
+    if (cantidades.isEmpty) return false;
+    final max = cantidades.reduce((a, b) => a > b ? a : b);
+    final min = cantidades.reduce((a, b) => a < b ? a : b);
+    return (max - min) > 1;
   }
 
   void _asignarEquipo(
@@ -500,23 +960,26 @@ class _MobileAsignarView extends StatelessWidget {
   ) {
     context.read<AsignacionesBloc>().add(
           AsignarEquipoEvent(
-            fechaId: fechaId,
+            fechaId: widget.fechaId,
             usuarioId: jugador.usuarioId,
             equipo: equipo.toBackend(),
           ),
         );
   }
 
-  void _removerDeEquipo(BuildContext context, JugadorAsignacionModel jugador) {
-    // En mobile, abrir bottom sheet para reasignar
+  // Fix #8: Reasignar jugador ya asignado via BottomSheet
+  void _removerDeEquipo(
+      BuildContext context, JugadorAsignacionModel jugador) {
+    final esEnJuego = widget.data?.fecha.estado == 'en_juego';
+
     SelectorEquipoBottomSheet.show(
       context,
       jugador: jugador,
-      coloresDisponibles: data!.coloresDisponibles,
+      coloresDisponibles: widget.data!.coloresDisponibles,
       onSeleccionar: (equipo) {
         context.read<AsignacionesBloc>().add(
               AsignarEquipoEvent(
-                fechaId: fechaId,
+                fechaId: widget.fechaId,
                 usuarioId: jugador.usuarioId,
                 equipo: equipo.toBackend(),
               ),
@@ -526,11 +989,14 @@ class _MobileAsignarView extends StatelessWidget {
           ? () {
               context.read<AsignacionesBloc>().add(
                     DesasignarEquipoEvent(
-                      fechaId: fechaId,
+                      fechaId: widget.fechaId,
                       usuarioId: jugador.usuarioId,
                     ),
                   );
             }
+          : null,
+      onMarcarAusente: esEnJuego && jugador.inscripcionId != null
+          ? () => _confirmarMarcarAusente(context, jugador)
           : null,
     );
   }
@@ -538,8 +1004,8 @@ class _MobileAsignarView extends StatelessWidget {
   void _mostrarDialogConfirmacion(BuildContext context) {
     ConfirmarEquiposDialog.show(
       context,
-      fechaId: fechaId,
-      data: data!,
+      fechaId: widget.fechaId,
+      data: widget.data!,
       hayDesbalance: _hayDesbalance(),
     );
   }
@@ -555,7 +1021,7 @@ class _MobileAsignarView extends StatelessWidget {
             Icon(Icons.error_outline, size: 64, color: colorScheme.error),
             const SizedBox(height: DesignTokens.spacingM),
             Text(
-              errorMessage ?? 'Error al cargar asignaciones',
+              widget.errorMessage ?? 'Error al cargar asignaciones',
               style: TextStyle(color: colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
@@ -563,7 +1029,7 @@ class _MobileAsignarView extends StatelessWidget {
             FilledButton.icon(
               onPressed: () {
                 context.read<AsignacionesBloc>().add(
-                      CargarAsignacionesEvent(fechaId: fechaId),
+                      CargarAsignacionesEvent(fechaId: widget.fechaId),
                     );
               },
               icon: const Icon(Icons.refresh),

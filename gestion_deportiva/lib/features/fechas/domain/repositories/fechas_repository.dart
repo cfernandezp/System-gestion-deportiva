@@ -22,6 +22,8 @@ import '../../data/models/listar_fechas_por_rol_response_model.dart';
 import '../../data/models/finalizar_fecha_response_model.dart';
 import '../../data/models/inscribir_jugador_admin_response_model.dart';
 import '../../data/models/iniciar_fecha_response_model.dart';
+import '../../data/models/marcar_ausente_response_model.dart';
+import '../../data/models/registrar_invitado_inscribir_response_model.dart';
 
 /// Interface del repositorio de fechas
 /// E003-HU-001: Crear Fecha
@@ -121,8 +123,10 @@ abstract class FechasRepository {
   Future<Either<Failure, EditarFechaRpcResponseModel>> editarFecha({
     required String fechaId,
     required DateTime fechaHoraInicio,
-    required int duracionHoras,
+    required double duracionHoras,
     required String lugar,
+    required int numEquipos,
+    required double costoPorJugador,
   });
 
   // ==================== E003-HU-005: Asignar Equipos ====================
@@ -219,4 +223,22 @@ abstract class FechasRepository {
   /// Returns: `Either<Failure, IniciarFechaResponseModel>`
   Future<Either<Failure, IniciarFechaResponseModel>> iniciarFecha(
       String fechaId);
+
+  // ==================== Gestion Flexible en_juego ====================
+
+  /// Marca un jugador como ausente durante pichanga en_juego
+  /// Returns: `Either<Failure, MarcarAusenteResponseModel>`
+  Future<Either<Failure, MarcarAusenteResponseModel>> marcarAusente({
+    required String fechaId,
+    required String inscripcionId,
+  });
+
+  /// Registra invitado y lo inscribe a la fecha en un solo paso
+  /// Returns: `Either<Failure, RegistrarInvitadoInscribirResponseModel>`
+  Future<Either<Failure, RegistrarInvitadoInscribirResponseModel>>
+      registrarInvitadoYInscribir({
+    required String grupoId,
+    required String fechaId,
+    required String nombre,
+  });
 }

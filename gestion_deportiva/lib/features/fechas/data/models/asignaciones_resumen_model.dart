@@ -9,6 +9,7 @@ import 'package:equatable/equatable.dart';
 ///   "total_inscritos": 10,
 ///   "total_asignados": 5,
 ///   "sin_asignar": 5,
+///   "total_ausentes": 2,
 ///   "asignacion_completa": false
 /// }
 class AsignacionesResumenModel extends Equatable {
@@ -21,6 +22,9 @@ class AsignacionesResumenModel extends Equatable {
   /// Cantidad de jugadores sin equipo
   final int sinAsignar;
 
+  /// Total de jugadores marcados como ausentes
+  final int totalAusentes;
+
   /// RN-005: Indica si todos tienen equipo asignado
   final bool asignacionCompleta;
 
@@ -28,6 +32,7 @@ class AsignacionesResumenModel extends Equatable {
     required this.totalInscritos,
     required this.totalAsignados,
     required this.sinAsignar,
+    this.totalAusentes = 0,
     required this.asignacionCompleta,
   });
 
@@ -37,6 +42,7 @@ class AsignacionesResumenModel extends Equatable {
       totalInscritos: json['total_inscritos'] ?? 0,
       totalAsignados: json['total_asignados'] ?? 0,
       sinAsignar: json['sin_asignar'] ?? 0,
+      totalAusentes: json['total_ausentes'] ?? 0,
       asignacionCompleta: json['asignacion_completa'] ?? false,
     );
   }
@@ -47,6 +53,7 @@ class AsignacionesResumenModel extends Equatable {
       'total_inscritos': totalInscritos,
       'total_asignados': totalAsignados,
       'sin_asignar': sinAsignar,
+      'total_ausentes': totalAusentes,
       'asignacion_completa': asignacionCompleta,
     };
   }
@@ -62,6 +69,7 @@ class AsignacionesResumenModel extends Equatable {
         totalInscritos,
         totalAsignados,
         sinAsignar,
+        totalAusentes,
         asignacionCompleta,
       ];
 }

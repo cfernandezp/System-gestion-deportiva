@@ -20,12 +20,16 @@ class SelectorEquipoBottomSheet extends StatelessWidget {
   /// Callback al desasignar (devolver a Sin Asignar)
   final void Function()? onDesasignar;
 
+  /// Callback al marcar como ausente (solo durante en_juego)
+  final void Function()? onMarcarAusente;
+
   const SelectorEquipoBottomSheet({
     super.key,
     required this.jugador,
     required this.coloresDisponibles,
     required this.onSeleccionar,
     this.onDesasignar,
+    this.onMarcarAusente,
   });
 
   /// Muestra el bottom sheet
@@ -35,6 +39,7 @@ class SelectorEquipoBottomSheet extends StatelessWidget {
     required List<ColorEquipo> coloresDisponibles,
     required void Function(ColorEquipo equipo) onSeleccionar,
     void Function()? onDesasignar,
+    void Function()? onMarcarAusente,
   }) async {
     await showModalBottomSheet(
       context: context,
@@ -51,6 +56,12 @@ class SelectorEquipoBottomSheet extends StatelessWidget {
             ? () {
                 Navigator.of(context).pop();
                 onDesasignar();
+              }
+            : null,
+        onMarcarAusente: onMarcarAusente != null
+            ? () {
+                Navigator.of(context).pop();
+                onMarcarAusente();
               }
             : null,
       ),
@@ -173,6 +184,27 @@ class SelectorEquipoBottomSheet extends StatelessWidget {
             ),
 
           if (jugador.equipo != null && onDesasignar != null)
+            const SizedBox(height: DesignTokens.spacingS),
+
+          // Boton "No se presento" (solo si onMarcarAusente disponible)
+          if (onMarcarAusente != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: DesignTokens.spacingM,
+              ),
+              child: OutlinedButton.icon(
+                onPressed: onMarcarAusente,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 48),
+                  foregroundColor: colorScheme.error,
+                  side: BorderSide(color: colorScheme.error.withValues(alpha: 0.5)),
+                ),
+                icon: const Icon(Icons.person_off),
+                label: const Text('No se presento'),
+              ),
+            ),
+
+          if (onMarcarAusente != null)
             const SizedBox(height: DesignTokens.spacingM),
 
           // Titulo
