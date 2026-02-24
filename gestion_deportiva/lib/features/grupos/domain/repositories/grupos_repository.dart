@@ -81,4 +81,23 @@ abstract class GruposRepository {
     required String grupoId,
     required String miembroId,
   });
+
+  /// E002-HU-008: Registra un invitado en el grupo
+  Future<Either<Failure, Map<String, dynamic>>> registrarInvitado({
+    required String grupoId,
+    required String nombre,
+  });
+
+  /// E002-HU-008: Elimina un invitado del grupo
+  Future<Either<Failure, void>> eliminarInvitado({
+    required String grupoId,
+    required String miembroId,
+  });
+
+  /// E002-HU-009: Promueve un invitado a jugador asignandole un celular
+  Future<Either<Failure, Map<String, dynamic>>> promoverInvitadoAJugador({
+    required String grupoId,
+    required String miembroId,
+    required String celular,
+  });
 }

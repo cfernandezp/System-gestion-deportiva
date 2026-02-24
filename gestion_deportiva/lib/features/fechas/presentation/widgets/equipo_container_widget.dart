@@ -9,6 +9,8 @@ import '../../data/models/jugador_asignacion_model.dart';
 /// CA-001: Equipos disponibles a la derecha (con colores)
 /// CA-003: Colores distintivos de equipos
 /// CA-004: DragTarget para recibir jugadores en desktop
+///
+/// Mejora UX cancha: soporte para ExpansionTile colapsable en mobile
 class EquipoContainerWidget extends StatelessWidget {
   /// Color del equipo
   final ColorEquipo equipo;
@@ -25,6 +27,12 @@ class EquipoContainerWidget extends StatelessWidget {
   /// Si es vista mobile o desktop
   final bool isMobile;
 
+  /// Si el contenedor usa ExpansionTile (mobile colapsable)
+  final bool collapsible;
+
+  /// Si el ExpansionTile inicia expandido
+  final bool initiallyExpanded;
+
   const EquipoContainerWidget({
     super.key,
     required this.equipo,
@@ -32,15 +40,126 @@ class EquipoContainerWidget extends StatelessWidget {
     this.onJugadorRemover,
     this.onJugadorDrop,
     this.isMobile = true,
+    this.collapsible = false,
+    this.initiallyExpanded = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (isMobile && collapsible) {
+      return _buildCollapsibleMobileContainer(context);
+    }
     if (isMobile) {
       return _buildMobileContainer(context);
-    } else {
-      return _buildDesktopContainer(context);
     }
+    return _buildDesktopContainer(context);
+  }
+
+  /// Mobile colapsable: usa ExpansionTile para comprimir/expandir
+  Widget _buildCollapsibleMobileContainer(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: equipo.color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+        border: Border.all(
+          color: equipo.color.withValues(alpha: 0.5),
+          width: 2,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        // Eliminar dividers del ExpansionTile
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: initiallyExpanded,
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: EdgeInsets.zero,
+          collapsedShape: const RoundedRectangleBorder(),
+          shape: const RoundedRectangleBorder(),
+          trailing: const SizedBox.shrink(),
+          title: Container(
+            padding: const EdgeInsets.all(DesignTokens.spacingM),
+            decoration: BoxDecoration(
+              color: equipo.color,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.sports_soccer,
+                  color: equipo.textColor,
+                  size: DesignTokens.iconSizeM,
+                ),
+                const SizedBox(width: DesignTokens.spacingS),
+                Text(
+                  'Equipo ${equipo.displayName}',
+                  style: textTheme.titleSmall?.copyWith(
+                    color: equipo.textColor,
+                    fontWeight: DesignTokens.fontWeightBold,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: DesignTokens.spacingS,
+                    vertical: DesignTokens.spacingXxs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+                  ),
+                  child: Text(
+                    '${jugadores.length}',
+                    style: textTheme.labelLarge?.copyWith(
+                      color: equipo.textColor,
+                      fontWeight: DesignTokens.fontWeightBold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: DesignTokens.spacingS),
+                Icon(
+                  Icons.expand_more,
+                  color: equipo.textColor,
+                  size: DesignTokens.iconSizeM,
+                ),
+              ],
+            ),
+          ),
+          children: [
+            if (jugadores.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(DesignTokens.spacingL),
+                child: Center(
+                  child: Text(
+                    'Sin jugadores asignados',
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: jugadores.length,
+                separatorBuilder: (_, __) => Divider(
+                  height: 1,
+                  color: equipo.color.withValues(alpha: 0.2),
+                ),
+                itemBuilder: (context, index) {
+                  final jugador = jugadores[index];
+                  return _buildJugadorTile(
+                      context, jugador, colorScheme, textTheme);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Mobile: Card simple con lista de jugadores
@@ -304,7 +423,7 @@ class EquipoContainerWidget extends StatelessWidget {
     );
   }
 
-  /// Tile de jugador para mobile
+  /// Tile de jugador para mobile - touch target 48dp
   Widget _buildJugadorTile(
     BuildContext context,
     JugadorAsignacionModel jugador,

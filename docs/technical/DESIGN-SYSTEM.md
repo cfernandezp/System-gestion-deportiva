@@ -389,28 +389,29 @@ Container(
 
 ---
 
-## Breakpoints
+## Pantallas Mobile
 
 | Token | Valor | Descripcion |
 |-------|-------|-------------|
-| `breakpointMobile` | 600px | Ancho maximo mobile |
-| `breakpointTablet` | 900px | Ancho maximo tablet |
-| `breakpointDesktop` | 1200px | Ancho minimo desktop |
-| `maxContentWidth` | 1440px | Ancho maximo de contenido |
+| Pantalla pequeña | 320px | Dispositivos compactos |
+| Pantalla regular | 375-414px | Dispositivos estándar (iPhone, Android) |
+| Pantalla grande | 428px+ | Dispositivos grandes (iPhone Pro Max, tablets) |
+
+### Plataforma Target
+
+**Android / iOS exclusivamente** - No se diseña para web/desktop.
 
 ### Ejemplo de Uso
 
 ```dart
 Widget build(BuildContext context) {
-  final width = MediaQuery.of(context).size.width;
-
-  if (width < DesignTokens.breakpointMobile) {
-    return MobileLayout();
-  } else if (width < DesignTokens.breakpointTablet) {
-    return TabletLayout();
-  } else {
-    return DesktopLayout();
-  }
+  return Scaffold(
+    appBar: AppBar(title: Text('Mi Pantalla')),
+    body: SafeArea(
+      child: _buildContent(),
+    ),
+    bottomNavigationBar: AppBottomNavBar(currentIndex: 0),
+  );
 }
 ```
 
@@ -434,7 +435,7 @@ Widget build(BuildContext context) {
 
 ---
 
-## Patrones de Layout - OBLIGATORIO
+## Patrones de Layout Mobile - OBLIGATORIO
 
 ### ⚠️ REGLA CRITICA PARA AGENTES IA
 
@@ -443,129 +444,83 @@ Widget build(BuildContext context) {
 - `lib/features/admin/presentation/pages/usuarios_page.dart`
 - `lib/features/home/presentation/pages/home_page.dart`
 
-### Layout Dashboard (Desktop/Tablet)
+### Layout Mobile (Patron Unico)
 
 ```dart
-// ✅ CORRECTO - Contenido alineado a izquierda, usa espacio disponible
-DashboardShell(
-  currentRoute: '/mi-ruta',
-  title: 'Titulo Pagina',
-  breadcrumbs: ['Inicio', 'Seccion', 'Pagina'],
-  child: SingleChildScrollView(
-    padding: const EdgeInsets.all(DesignTokens.spacingL),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,  // ← SIEMPRE a la izquierda
-      children: [
-        // Header de seccion
-        Text('Seccion', style: textTheme.headlineMedium),
-        const SizedBox(height: DesignTokens.spacingM),
+// ✅ CORRECTO - Scaffold con AppBar y BottomNav
+Scaffold(
+  appBar: AppBar(title: Text('Titulo')),
+  body: SafeArea(
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(DesignTokens.spacingM),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Contenido full-width
+          _buildContenido(),
+        ],
+      ),
+    ),
+  ),
+  bottomNavigationBar: AppBottomNavBar(currentIndex: 0),
+  floatingActionButton: FloatingActionButton(
+    onPressed: _crear,
+    child: Icon(Icons.add),
+  ),
+)
+```
 
-        // Contenido - USA TODO EL ANCHO DISPONIBLE
-        _buildContenido(),
+### Listados → ListView con Cards
+
+```dart
+// ✅ CORRECTO - ListView con Cards (patron mobile nativo)
+ListView.builder(
+  padding: EdgeInsets.all(DesignTokens.spacingM),
+  itemCount: items.length,
+  itemBuilder: (context, index) => _ItemCard(item: items[index]),
+)
+
+// ❌ INCORRECTO - DataTable en mobile
+DataTable(columns: [...], rows: [...])
+```
+
+### Formularios en Mobile
+
+```dart
+// ✅ CORRECTO - Pantalla completa para formularios
+Scaffold(
+  appBar: AppBar(
+    title: Text('Nuevo Elemento'),
+    leading: IconButton(icon: Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+    actions: [TextButton(onPressed: _guardar, child: Text('Guardar'))],
+  ),
+  body: SingleChildScrollView(
+    padding: EdgeInsets.all(DesignTokens.spacingM),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AppTextField(label: 'Campo 1'),
+        SizedBox(height: DesignTokens.spacingM),
+        AppTextField(label: 'Campo 2'),
       ],
     ),
   ),
 )
 
-// ❌ INCORRECTO - NO centrar contenido como modal
-Center(  // ← PROHIBIDO en páginas dashboard
-  child: ConstrainedBox(
-    constraints: BoxConstraints(maxWidth: 800),  // ← PROHIBIDO
-    child: Card(
-      // Esto es patrón de MODAL, no de página
-    ),
-  ),
-)
-```
-
-### Layout Mobile
-
-```dart
-// ✅ CORRECTO - Scaffold simple sin DashboardShell
-Scaffold(
-  appBar: AppBar(title: Text('Titulo')),
-  body: SingleChildScrollView(
-    padding: const EdgeInsets.all(DesignTokens.spacingM),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [...],
-    ),
-  ),
-)
-```
-
-### ResponsiveLayout Obligatorio
-
-**TODA página debe usar ResponsiveLayout:**
-
-```dart
-@override
-Widget build(BuildContext context) {
-  return ResponsiveLayout(
-    mobileBody: _buildMobileView(),
-    desktopBody: _buildDesktopView(),
-  );
-}
-
-Widget _buildDesktopView() {
-  return DashboardShell(
-    currentRoute: '/mi-ruta',
-    title: 'Mi Pagina',
-    child: // Contenido alineado izquierda
-  );
-}
-
-Widget _buildMobileView() {
-  return Scaffold(
-    appBar: AppBar(...),
-    body: // Contenido
-  );
-}
-```
-
-### Formularios en Dashboard
-
-```dart
-// ✅ CORRECTO - Formulario integrado en dashboard
-SingleChildScrollView(
-  padding: EdgeInsets.all(DesignTokens.spacingL),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      // Campos en filas cuando hay espacio
-      Row(
-        children: [
-          Expanded(child: _buildCampo1()),
-          SizedBox(width: DesignTokens.spacingM),
-          Expanded(child: _buildCampo2()),
-        ],
-      ),
-      SizedBox(height: DesignTokens.spacingM),
-      _buildCampo3(),  // Campo full width
-    ],
-  ),
-)
-
-// ❌ INCORRECTO - Card centrada tipo modal
-Center(
-  child: Card(
-    child: Padding(
-      padding: EdgeInsets.all(32),
-      child: Form(...),
-    ),
-  ),
-)
+// ❌ INCORRECTO - Dialog modal para formularios largos
+showDialog(builder: (_) => Dialog(child: FormularioLargo()))
 ```
 
 ### Reglas de Oro
 
-| ✅ Hacer | ❌ NO Hacer |
-|----------|-------------|
-| `CrossAxisAlignment.start` | `Center` wrapper |
-| Usar todo el ancho disponible | `maxWidth` restrictivo |
-| Padding con `DesignTokens.spacingL` | Padding hardcodeado |
-| Campos en `Row` + `Expanded` | Todo apilado vertical |
-| `DashboardShell` para desktop | Card flotante tipo modal |
+| Hacer | NO Hacer |
+|-------|----------|
+| `Scaffold` + `AppBar` + `BottomNav` | `DashboardShell` / `Sidebar` |
+| `ListView` con `Cards` | `DataTable` |
+| Pantalla completa para formularios | `Dialog` para formularios |
+| `BottomSheet` para filtros | Panel lateral de filtros |
+| `FloatingActionButton` para accion principal | Boton en sidebar |
+| `Navigator.push` para detalle/crear | Dialog modal |
 
 ---
 

@@ -22,7 +22,7 @@ import '../../../../core/theme/design_tokens.dart';
 class PremiumBadge extends StatelessWidget {
   final String label;
 
-  const PremiumBadge({super.key, this.label = 'Premium'});
+  const PremiumBadge({super.key, this.label = 'Pro'});
 
   @override
   Widget build(BuildContext context) {

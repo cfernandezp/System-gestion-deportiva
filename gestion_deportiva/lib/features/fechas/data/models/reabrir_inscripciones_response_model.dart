@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// Modelo de respuesta para reabrir_inscripciones RPC
 /// E003-HU-004: Cerrar Inscripciones (CA-006: Reabrir)
 ///
@@ -100,7 +102,7 @@ class ReabrirInscripcionesResponseModel extends Equatable {
       reabiertoPor: json['reabierto_por'] ?? '',
       reabiertoPorNombre: json['reabierto_por_nombre'] ?? '',
       reabiertoAt: json['reabierto_at'] != null
-          ? DateTime.parse(json['reabierto_at']).toLocal()
+          ? AppDateUtils.parseUtcToLocal(json['reabierto_at'])
           : DateTime.now(),
       reabiertoAtFormato: json['reabierto_at_formato'] ?? '',
     );

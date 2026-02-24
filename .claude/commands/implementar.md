@@ -1,7 +1,7 @@
 # Comando: /implementar
 
 ## Descripción
-Comando para coordinar la implementación de Historias de Usuario (HU) invocando al **web-architect-expert**.
+Comando para coordinar la implementación de Historias de Usuario (HU) invocando al **mobile-architect-expert**.
 
 ## Uso
 ```bash
@@ -18,15 +18,15 @@ Comando para coordinar la implementación de Historias de Usuario (HU) invocando
 1. **Valida** que la HU esté en estado REF (Refinada)
 2. **Cambia estado** a DEV (En Desarrollo)
 3. **Coordina agentes** en orden secuencial:
-   - @supabase-expert → Backend
-   - @flutter-expert → Frontend
-   - @ux-ui-expert → UI
-   - @qa-testing-expert → Validación
+   - @supabase-expert -> Backend
+   - @flutter-expert -> Frontend
+   - @ux-ui-expert -> UI Mobile (Android/iOS)
+   - @qa-testing-expert -> Validación
 4. **Gestiona correcciones** si QA encuentra errores
 5. **Completa la HU** cambiando estado a COM
 
 ## Resultado Esperado
 - HU completamente implementada
 - Secciones técnicas documentadas en la HU
-- App compilando y funcionando
+- App compilando y funcionando en Android/iOS
 - Usuario informado de pasos de deploy pendientes

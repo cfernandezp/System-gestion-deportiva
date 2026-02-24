@@ -400,6 +400,12 @@ class _AgregarJugadorEnJuegoBottomSheetState
                 (j.apodo?.toLowerCase().contains(query) ?? false);
           }).toList();
 
+    // Separar en jugadores e invitados
+    final jugadoresGrupo =
+        jugadoresFiltrados.where((j) => !j.esInvitado).toList();
+    final invitadosGrupo =
+        jugadoresFiltrados.where((j) => j.esInvitado).toList();
+
     return Column(
       children: [
         // Buscador
@@ -449,15 +455,56 @@ class _AgregarJugadorEnJuegoBottomSheetState
 
         const SizedBox(height: DesignTokens.spacingS),
 
-        // Lista de jugadores
+        // Lista de jugadores agrupada por seccion
         Expanded(
-          child: ListView.builder(
+          child: ListView(
             controller: scrollController,
-            itemCount: jugadoresFiltrados.length,
-            itemBuilder: (context, index) {
-              final jugador = jugadoresFiltrados[index];
-              return _buildJugadorTile(context, jugador);
-            },
+            children: [
+              // Seccion Jugadores
+              if (jugadoresGrupo.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Text(
+                    'Jugadores (${jugadoresGrupo.length})',
+                    style: textTheme.labelLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: DesignTokens.fontWeightSemiBold,
+                    ),
+                  ),
+                ),
+                ...jugadoresGrupo.map((j) => _buildJugadorTile(context, j)),
+              ],
+
+              // Seccion Invitados
+              if (invitadosGrupo.isNotEmpty) ...[
+                const Divider(height: 16),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Text(
+                    'Invitados (${invitadosGrupo.length})',
+                    style: textTheme.labelLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: DesignTokens.fontWeightSemiBold,
+                    ),
+                  ),
+                ),
+                ...invitadosGrupo.map((j) => _buildJugadorTile(context, j)),
+              ],
+
+              // Sin resultados de busqueda
+              if (jugadoresFiltrados.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(DesignTokens.spacingL),
+                  child: Center(
+                    child: Text(
+                      'No se encontraron jugadores',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ],
@@ -478,20 +525,30 @@ class _AgregarJugadorEnJuegoBottomSheetState
         ),
         child: Row(
           children: [
-            // Avatar
+            // Avatar diferenciado por rol
             Container(
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                gradient: DesignTokens.primaryGradient,
+                gradient: jugador.esInvitado ? null : DesignTokens.primaryGradient,
+                color: jugador.esInvitado
+                    ? DesignTokens.accentColor.withValues(alpha: 0.15)
+                    : null,
                 borderRadius:
                     BorderRadius.circular(DesignTokens.radiusFull),
+                border: jugador.esInvitado
+                    ? Border.all(
+                        color: DesignTokens.accentColor.withValues(alpha: 0.5),
+                      )
+                    : null,
               ),
               child: Center(
                 child: Text(
                   jugador.inicial,
                   style: textTheme.titleSmall?.copyWith(
-                    color: Colors.white,
+                    color: jugador.esInvitado
+                        ? DesignTokens.accentColor
+                        : Colors.white,
                     fontWeight: DesignTokens.fontWeightBold,
                   ),
                 ),
@@ -520,6 +577,29 @@ class _AgregarJugadorEnJuegoBottomSheetState
                 ],
               ),
             ),
+            // Badge invitado
+            if (jugador.esInvitado)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spacingS,
+                  vertical: DesignTokens.spacingXs,
+                ),
+                decoration: BoxDecoration(
+                  color: DesignTokens.accentColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+                  border: Border.all(
+                    color: DesignTokens.accentColor.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Text(
+                  'Invitado',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: DesignTokens.accentColor,
+                    fontWeight: DesignTokens.fontWeightMedium,
+                  ),
+                ),
+              ),
+            if (jugador.esInvitado) const SizedBox(width: DesignTokens.spacingS),
             // Icono de agregar
             Icon(
               Icons.add_circle_outline,

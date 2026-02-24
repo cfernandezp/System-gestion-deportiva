@@ -87,12 +87,16 @@ class ResponsiveLayout extends StatelessWidget {
         }
 
         // RN-006: Fallback seguro - mobile centrado con max-width
-        return Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: DesignTokens.breakpointMobile,
+        // RN-008: scaffoldBackgroundColor para evitar fondo negro en tablet
+        return ColoredBox(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: DesignTokens.breakpointMobile,
+              ),
+              child: mobile,
             ),
-            child: mobile,
           ),
         );
       },
@@ -130,10 +134,14 @@ class TabletSafeWrapper extends StatelessWidget {
       return child;
     }
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        child: child,
+    // RN-008: scaffoldBackgroundColor para evitar fondo negro en tablet
+    return ColoredBox(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: child,
+        ),
       ),
     );
   }

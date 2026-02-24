@@ -14,19 +14,23 @@ import '../bloc/generar_codigo/generar_codigo.dart';
 /// Accesible para admin/coadmin autenticados
 /// Permite generar un codigo de recuperacion para un jugador del grupo
 class GenerarCodigoPage extends StatelessWidget {
-  const GenerarCodigoPage({super.key});
+  final String? celularPrecargado;
+
+  const GenerarCodigoPage({super.key, this.celularPrecargado});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => sl<GenerarCodigoBloc>(),
-      child: const _GenerarCodigoView(),
+      child: _GenerarCodigoView(celularPrecargado: celularPrecargado),
     );
   }
 }
 
 class _GenerarCodigoView extends StatefulWidget {
-  const _GenerarCodigoView();
+  final String? celularPrecargado;
+
+  const _GenerarCodigoView({this.celularPrecargado});
 
   @override
   State<_GenerarCodigoView> createState() => _GenerarCodigoViewState();
@@ -35,6 +39,14 @@ class _GenerarCodigoView extends StatefulWidget {
 class _GenerarCodigoViewState extends State<_GenerarCodigoView> {
   final _celularController = TextEditingController();
   final _celularFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.celularPrecargado != null) {
+      _celularController.text = widget.celularPrecargado!;
+    }
+  }
 
   @override
   void dispose() {

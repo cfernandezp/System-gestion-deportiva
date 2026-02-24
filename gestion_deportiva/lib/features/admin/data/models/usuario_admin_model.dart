@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// Modelo de usuario para lista de administracion
 /// HU-005: Gestion de Roles
 /// Convierte snake_case (BD) a camelCase (Dart)
@@ -30,9 +32,7 @@ class UsuarioAdminModel extends Equatable {
       email: json['email'] ?? '',
       rol: json['rol'] ?? 'jugador',
       estado: json['estado'] ?? '',
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at']).toLocal()
-          : null,
+      createdAt: AppDateUtils.tryParseUtcToLocal(json['created_at']),
     );
   }
 

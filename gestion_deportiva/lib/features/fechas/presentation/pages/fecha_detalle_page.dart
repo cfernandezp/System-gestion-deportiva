@@ -15,6 +15,7 @@ import '../../../partidos/presentation/bloc/lista_partidos/lista_partidos.dart';
 import '../../../partidos/presentation/bloc/partido/partido.dart';
 import '../../../partidos/presentation/widgets/widgets.dart';
 import '../../data/models/color_equipo.dart';
+import '../../data/models/equipo_resumen_model.dart';
 import '../../data/models/fecha_detalle_model.dart';
 import '../../data/models/fecha_model.dart';
 import '../../data/models/jugador_asignacion_model.dart';
@@ -196,7 +197,13 @@ class _MobileDetalleView extends StatefulWidget {
 
 class _MobileDetalleViewState extends State<_MobileDetalleView> {
   /// Estado de la card de info: expandida o colapsada
-  bool _infoExpandida = true;
+  bool _infoExpandida = false;
+
+  /// Flag para auto-colapsar solo una vez cuando cambia a en_juego
+  bool _infoExpandidaIniciada = false;
+
+  /// BLoC de asignaciones - para seccion de equipos en en_juego
+  AsignacionesBloc? _asignacionesBloc;
 
   /// BLoC de partido - se crea una sola vez y se reutiliza
   PartidoBloc? _partidoBloc;
@@ -224,11 +231,21 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
   @override
   void dispose() {
     // Cerrar los blocs si fueron creados
+    _asignacionesBloc?.close();
     _partidoBloc?.close();
     _golesBloc?.close();
     _finalizarPartidoBloc?.close();
     _listaPartidosBloc?.close();
     super.dispose();
+  }
+
+  /// Obtiene o crea el AsignacionesBloc (singleton por vista)
+  AsignacionesBloc _getOrCreateAsignacionesBloc() {
+    if (_asignacionesBloc == null) {
+      _asignacionesBloc = AsignacionesBloc(repository: sl());
+      _asignacionesBloc!.add(CargarAsignacionesEvent(fechaId: fechaId));
+    }
+    return _asignacionesBloc!;
   }
 
   /// Obtiene o crea el PartidoBloc (singleton por vista)
@@ -267,6 +284,7 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
 
   /// Refresca todos los datos de la pagina:
   /// - InscripcionBloc (detalle de fecha)
+  /// - AsignacionesBloc (equipos)
   /// - PartidoBloc (partido activo)
   /// - ListaPartidosBloc (lista de partidos)
   void _refrescarTodo(BuildContext context) {
@@ -274,6 +292,10 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
     context.read<InscripcionBloc>().add(
           CargarFechaDetalleEvent(fechaId: fechaId),
         );
+    // Refrescar asignaciones (si el bloc ya existe)
+    if (_asignacionesBloc != null) {
+      _asignacionesBloc!.add(CargarAsignacionesEvent(fechaId: fechaId));
+    }
     // Refrescar partido activo (si el bloc ya existe)
     if (_partidoBloc != null) {
       _partidoBloc!.add(CargarPartidoActivoEvent(fechaId: fechaId));
@@ -286,6 +308,14 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
 
   @override
   Widget build(BuildContext context) {
+    // Auto-colapsar info card cuando estado es en_juego (solo la primera vez)
+    if (!_infoExpandidaIniciada && fechaDetalle != null) {
+      _infoExpandidaIniciada = true;
+      if (fechaDetalle!.fecha.estado == EstadoFecha.enJuego) {
+        _infoExpandida = false;
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detalle de Pichanga'),
@@ -729,7 +759,7 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
       );
     }
 
-    // Estado en_juego o finalizada: mostrar partidos con scroll
+    // Estado en_juego o finalizada: mostrar equipos + partidos con scroll
     if (estado == EstadoFecha.enJuego || estado == EstadoFecha.finalizada) {
       return RefreshIndicator(
         onRefresh: () async {
@@ -743,6 +773,8 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _buildEquiposSectionCompacta(context),
+              const SizedBox(height: DesignTokens.spacingM),
               _buildPartidoSection(context),
               const SizedBox(height: DesignTokens.spacingL),
             ],
@@ -922,14 +954,18 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
             child: Row(
               children: [
                 Icon(
-                  Icons.calendar_month,
+                  fecha.estado == EstadoFecha.enJuego
+                      ? Icons.sports_soccer
+                      : Icons.calendar_month,
                   color: colorScheme.primary,
                   size: DesignTokens.iconSizeM,
                 ),
                 const SizedBox(width: DesignTokens.spacingS),
                 Expanded(
                   child: Text(
-                    '${fecha.fechaFormato} ${fecha.horaFormato}  |  ${fecha.lugar}  |  ${fecha.costoFormato}',
+                    fecha.estado == EstadoFecha.enJuego
+                        ? '${fecha.estado.displayName}  |  ${fecha.lugar}  |  ${fecha.numEquipos} equipos'
+                        : '${fecha.fechaFormato} ${fecha.horaFormato}  |  ${fecha.lugar}  |  ${fecha.costoFormato}',
                     style: textTheme.bodyMedium?.copyWith(
                       fontWeight: DesignTokens.fontWeightMedium,
                     ),
@@ -1365,6 +1401,164 @@ class _MobileDetalleViewState extends State<_MobileDetalleView> {
               },
               icon: const Icon(Icons.refresh),
               label: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Seccion compacta de equipos visible durante en_juego/finalizada
+  /// Muestra cards de equipos con jugadores asignados
+  Widget _buildEquiposSectionCompacta(BuildContext context) {
+    return BlocProvider.value(
+      value: _getOrCreateAsignacionesBloc(),
+      child: BlocBuilder<AsignacionesBloc, AsignacionesState>(
+        builder: (context, state) {
+          // Extraer data de cualquier estado que la tenga
+          final ObtenerAsignacionesDataModel? data;
+          if (state is AsignacionesLoaded) {
+            data = state.data;
+          } else if (state is EquipoAsignado) {
+            data = state.data;
+          } else if (state is EquipoDesasignado) {
+            data = state.data;
+          } else if (state is AusenteMarcado) {
+            data = state.data;
+          } else if (state is JugadorTardioInscrito) {
+            data = state.data;
+          } else {
+            data = null;
+          }
+
+          if (data == null) {
+            return const SizedBox.shrink();
+          }
+
+          final equipos = data.equipos;
+          final totalJugadores = data.resumen.totalInscritos;
+
+          if (equipos.isEmpty) return const SizedBox.shrink();
+
+          final textTheme = Theme.of(context).textTheme;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header: "Equipos (11)    [Gestionar]"
+              Row(
+                children: [
+                  Text(
+                    'Equipos ($totalJugadores)',
+                    style: textTheme.titleSmall?.copyWith(
+                      fontWeight: DesignTokens.fontWeightBold,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (fechaDetalle!.fecha.estado == EstadoFecha.enJuego ||
+                      fechaDetalle!.fecha.estado == EstadoFecha.cerrada)
+                    BlocBuilder<SessionBloc, SessionState>(
+                      builder: (context, sessionState) {
+                        final isAdminOCoadmin = sessionState is SessionAuthenticated &&
+                            (sessionState.rol.toLowerCase() == 'admin' ||
+                                sessionState.rol.toLowerCase() == 'administrador' ||
+                                sessionState.rol.toLowerCase() == 'co-admin' ||
+                                sessionState.rol.toLowerCase() == 'coadmin');
+                        if (!isAdminOCoadmin) return const SizedBox.shrink();
+                        return TextButton.icon(
+                          onPressed: () => context.go('/fechas/$fechaId/equipos'),
+                          icon: const Icon(Icons.settings, size: 16),
+                          label: const Text('Gestionar'),
+                        );
+                      },
+                    ),
+                ],
+              ),
+              const SizedBox(height: DesignTokens.spacingS),
+              // Grid de equipos
+              _buildEquiposGrid(context, equipos),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Grid de equipos: 2 columnas para 2 equipos, 2x2 para 3-4
+  Widget _buildEquiposGrid(BuildContext context, List<EquipoResumenModel> equipos) {
+    if (equipos.length <= 2) {
+      return Row(
+        children: [
+          for (int i = 0; i < equipos.length; i++) ...[
+            if (i > 0) const SizedBox(width: DesignTokens.spacingS),
+            Expanded(child: _buildEquipoCard(context, equipos[i])),
+          ],
+        ],
+      );
+    }
+
+    // 3-4 equipos: grid 2x2
+    return Wrap(
+      spacing: DesignTokens.spacingS,
+      runSpacing: DesignTokens.spacingS,
+      children: equipos.map((e) => SizedBox(
+        width: (MediaQuery.sizeOf(context).width - DesignTokens.spacingM * 2 - DesignTokens.spacingS) / 2,
+        child: _buildEquipoCard(context, e),
+      )).toList(),
+    );
+  }
+
+  /// Card compacta de un equipo con jugadores
+  Widget _buildEquipoCard(BuildContext context, EquipoResumenModel equipo) {
+    final textTheme = Theme.of(context).textTheme;
+    final colorEquipo = equipo.equipo;
+    final jugadores = equipo.jugadores;
+    const maxMostrar = 5;
+
+    return Card(
+      elevation: 0,
+      color: colorEquipo.color.withValues(alpha: 0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(DesignTokens.radiusM),
+        side: BorderSide(color: colorEquipo.color.withValues(alpha: 0.3)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(DesignTokens.spacingS),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header: circulo color + nombre + conteo
+            Row(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: colorEquipo.color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '${colorEquipo.displayName} (${equipo.cantidad})',
+                    style: textTheme.bodySmall?.copyWith(
+                      fontWeight: DesignTokens.fontWeightBold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            // Nombres separados por coma
+            Text(
+              jugadores.take(maxMostrar).map((j) => j.apodo ?? j.nombreCompleto).join(', ') +
+                  (jugadores.length > maxMostrar ? ', +${jugadores.length - maxMostrar} mas' : ''),
+              style: textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

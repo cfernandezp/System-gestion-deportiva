@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
 import 'fecha_model.dart';
 
 /// Modelo del indicador visual para una fecha
@@ -64,7 +65,7 @@ class FechaPorRolModel extends Equatable {
   final String lugar;
 
   /// Duracion en horas
-  final int duracionHoras;
+  final double duracionHoras;
 
   /// Numero de equipos
   final int numEquipos;
@@ -125,12 +126,12 @@ class FechaPorRolModel extends Equatable {
     return FechaPorRolModel(
       id: json['id'] ?? '',
       fechaHoraInicio: json['fecha_hora_inicio'] != null
-          ? DateTime.parse(json['fecha_hora_inicio'].toString()).toLocal()
+          ? AppDateUtils.parseUtcToLocal(json['fecha_hora_inicio'])
           : DateTime.now(),
       fechaFormato: json['fecha_formato'] ?? '',
       horaFormato: json['hora_formato'] ?? '',
       lugar: json['lugar'] ?? '',
-      duracionHoras: json['duracion_horas'] ?? 1,
+      duracionHoras: (json['duracion_horas'] ?? 1).toDouble(),
       numEquipos: json['num_equipos'] ?? 2,
       costoPorJugador: (json['costo_por_jugador'] ?? 0).toDouble(),
       costoFormato: json['costo_formato'] ?? 'S/ 0.00',
@@ -151,12 +152,16 @@ class FechaPorRolModel extends Equatable {
   /// Fecha y hora formateadas juntas
   String get fechaHoraDisplay => '$fechaFormato $horaFormato';
 
-  /// Descripcion del formato segun duracion
+  /// Duracion formateada para mostrar
+  String get duracionDisplay =>
+      duracionHoras % 1 == 0 ? '${duracionHoras.toInt()}h' : '${duracionHoras}h';
+
+  /// Descripcion del formato segun num_equipos
   String get formatoJuego {
-    if (duracionHoras == 1) {
-      return '2 equipos';
+    if (numEquipos == 2) {
+      return 'Partido directo';
     } else {
-      return '3 equipos (rotacion)';
+      return '$numEquipos equipos (rotacion)';
     }
   }
 
@@ -207,12 +212,8 @@ class FiltrosAplicadosModel extends Equatable {
     }
     return FiltrosAplicadosModel(
       estado: json['estado'],
-      fechaDesde: json['fecha_desde'] != null
-          ? DateTime.parse(json['fecha_desde'].toString()).toLocal()
-          : null,
-      fechaHasta: json['fecha_hasta'] != null
-          ? DateTime.parse(json['fecha_hasta'].toString()).toLocal()
-          : null,
+      fechaDesde: AppDateUtils.tryParseUtcToLocal(json['fecha_desde']),
+      fechaHasta: AppDateUtils.tryParseUtcToLocal(json['fecha_hasta']),
     );
   }
 

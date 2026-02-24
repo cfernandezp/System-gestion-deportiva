@@ -32,8 +32,8 @@ class RegistroAdminResponseModel extends Equatable {
       authUserId: data['auth_user_id'] ?? '',
       celular: data['celular'] ?? '',
       nombreCompleto: data['nombre_completo'] ?? '',
-      estado: data['estado'] ?? 'activo',
-      rol: data['rol'] ?? 'administrador',
+      estado: data['estado'] ?? 'aprobado',
+      rol: data['rol'] ?? 'admin',
       requiereCrearGrupo: data['requiere_crear_grupo'] ?? true,
       mensaje: json['message'] ?? '',
     );

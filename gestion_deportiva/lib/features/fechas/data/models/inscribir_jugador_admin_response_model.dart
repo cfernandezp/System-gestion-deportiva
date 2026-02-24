@@ -10,6 +10,7 @@ class JugadorDisponibleModel {
   final String nombreDisplay;
   final String? posicionPreferida;
   final String? fotoUrl;
+  final String? rolEnGrupo;
 
   const JugadorDisponibleModel({
     required this.id,
@@ -18,6 +19,7 @@ class JugadorDisponibleModel {
     required this.nombreDisplay,
     this.posicionPreferida,
     this.fotoUrl,
+    this.rolEnGrupo,
   });
 
   factory JugadorDisponibleModel.fromJson(Map<String, dynamic> json) {
@@ -28,11 +30,15 @@ class JugadorDisponibleModel {
       nombreDisplay: json['nombre_display'] as String? ?? json['nombre_completo'] as String,
       posicionPreferida: json['posicion_preferida'] as String?,
       fotoUrl: json['foto_url'] as String?,
+      rolEnGrupo: json['rol_en_grupo'] as String?,
     );
   }
 
   /// Inicial para avatar
   String get inicial => nombreDisplay.isNotEmpty ? nombreDisplay[0].toUpperCase() : '?';
+
+  /// Indica si el miembro tiene rol invitado en el grupo
+  bool get esInvitado => rolEnGrupo == 'invitado';
 }
 
 /// Modelo de respuesta de listar jugadores disponibles

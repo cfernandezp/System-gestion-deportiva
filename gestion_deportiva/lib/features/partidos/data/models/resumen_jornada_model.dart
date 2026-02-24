@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// Modelo de informacion de la fecha para el resumen de jornada
 /// E004-HU-007: Resumen de Jornada
 class FechaResumenModel extends Equatable {
@@ -36,7 +38,7 @@ class FechaResumenModel extends Equatable {
       id: json['id'] as String? ?? '',
       lugar: json['lugar'] as String? ?? '',
       fechaProgramada: json['fecha_programada'] != null
-          ? DateTime.parse(json['fecha_programada'] as String).toLocal()
+          ? AppDateUtils.parseUtcToLocal(json['fecha_programada'])
           : DateTime.now(),
       fechaFormato: json['fecha_formato'] as String? ?? '',
       estado: json['estado'] as String? ?? '',

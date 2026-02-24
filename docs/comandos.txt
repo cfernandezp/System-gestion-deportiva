@@ -9,6 +9,7 @@ data sqchema
 -- SCHEMA REFERENCE: Solo Tablas, Columnas y ENUMs
 -- =============================================
 
+
 -- 1. TIPOS ENUM
 SELECT 
     '## ENUMs' as seccion,
@@ -21,7 +22,7 @@ WHERE n.nspname = 'public'
 GROUP BY t.typname
 ORDER BY t.typname;
 
--- 2. TABLAS Y COLUMNAS
+-- 2. TABLAS Y COLUMNAS (incluye BASE TABLE y VIEW)
 SELECT 
     '## Tablas' as seccion,
     c.table_name,
@@ -35,5 +36,23 @@ JOIN information_schema.tables t
     ON c.table_name = t.table_name 
     AND c.table_schema = t.table_schema
 WHERE c.table_schema = 'public'
-    AND t.table_type = 'BASE TABLE'
+    AND t.table_type IN ('BASE TABLE', 'VIEW')
 ORDER BY c.table_name, c.ordinal_position;
+
+
+
+Iniciar la app:
+flutter devices
+cd gestion_deportiva 
+
+flutter run -d emulator-5554
+flutter run -d emulator-5556
+flutter run -d emulator-5558
+
+
+flutter run -d all
+
+
+Emulador	ID	API
+Pixel 8	emulator-5554	Android 14
+Pixel 4a	emulator-5556	Android 11

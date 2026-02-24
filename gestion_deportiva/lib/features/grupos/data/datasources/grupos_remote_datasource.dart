@@ -84,6 +84,28 @@ abstract class GruposRemoteDataSource {
     required String grupoId,
     required String miembroId,
   });
+
+  /// E002-HU-008: RPC registrar_invitado
+  /// Registra un invitado (sin cuenta) en el grupo
+  Future<Map<String, dynamic>> registrarInvitado({
+    required String grupoId,
+    required String nombre,
+  });
+
+  /// E002-HU-008: RPC eliminar_invitado
+  /// Elimina un invitado del grupo
+  Future<void> eliminarInvitado({
+    required String grupoId,
+    required String miembroId,
+  });
+
+  /// E002-HU-009: RPC promover_invitado_a_jugador
+  /// Promueve un invitado a jugador asignandole un celular
+  Future<Map<String, dynamic>> promoverInvitadoAJugador({
+    required String grupoId,
+    required String miembroId,
+    required String celular,
+  });
 }
 
 /// Implementacion con Supabase
@@ -497,6 +519,121 @@ class GruposRemoteDataSourceImpl implements GruposRemoteDataSource {
       rethrow;
     } catch (e) {
       debugPrint('[GruposDS] Error degradarCoadmin: $e');
+      throw ServerException(message: 'Error de conexion: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> registrarInvitado({
+    required String grupoId,
+    required String nombre,
+  }) async {
+    try {
+      debugPrint('[GruposDS] Registrando invitado "$nombre" en grupo $grupoId');
+
+      final response = await supabase.rpc(
+        'registrar_invitado',
+        params: {
+          'p_grupo_id': grupoId,
+          'p_nombre': nombre,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        final data = responseMap['data'] as Map<String, dynamic>? ?? {};
+        debugPrint('[GruposDS] Invitado registrado exitosamente');
+        return data;
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al registrar invitado',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      debugPrint('[GruposDS] Error registrarInvitado: $e');
+      throw ServerException(message: 'Error de conexion: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> eliminarInvitado({
+    required String grupoId,
+    required String miembroId,
+  }) async {
+    try {
+      debugPrint('[GruposDS] Eliminando invitado $miembroId del grupo $grupoId');
+
+      final response = await supabase.rpc(
+        'eliminar_invitado',
+        params: {
+          'p_grupo_id': grupoId,
+          'p_miembro_id': miembroId,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        debugPrint('[GruposDS] Invitado eliminado exitosamente');
+        return;
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al eliminar invitado',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      debugPrint('[GruposDS] Error eliminarInvitado: $e');
+      throw ServerException(message: 'Error de conexion: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> promoverInvitadoAJugador({
+    required String grupoId,
+    required String miembroId,
+    required String celular,
+  }) async {
+    try {
+      debugPrint('[GruposDS] Promoviendo invitado $miembroId a jugador en grupo $grupoId');
+
+      final response = await supabase.rpc(
+        'promover_invitado_a_jugador',
+        params: {
+          'p_grupo_id': grupoId,
+          'p_miembro_id': miembroId,
+          'p_celular': celular,
+        },
+      );
+
+      final responseMap = response as Map<String, dynamic>;
+
+      if (responseMap['success'] == true) {
+        final data = responseMap['data'] as Map<String, dynamic>? ?? {};
+        debugPrint('[GruposDS] Invitado promovido a jugador exitosamente');
+        return data;
+      } else {
+        final error = responseMap['error'] as Map<String, dynamic>? ?? {};
+        throw ServerException(
+          message: error['message'] ?? 'Error al promover invitado',
+          code: error['code'],
+          hint: error['hint'],
+        );
+      }
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      debugPrint('[GruposDS] Error promoverInvitadoAJugador: $e');
       throw ServerException(message: 'Error de conexion: ${e.toString()}');
     }
   }

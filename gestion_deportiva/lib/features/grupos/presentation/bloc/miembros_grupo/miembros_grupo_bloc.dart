@@ -17,6 +17,7 @@ class MiembrosGrupoBloc extends Bloc<MiembrosGrupoEvent, MiembrosGrupoState> {
     on<EliminarJugadorEvent>(_onEliminarJugador);
     on<PromoverACoadminEvent>(_onPromoverACoadmin);
     on<DegradarCoadminEvent>(_onDegradarCoadmin);
+    on<EliminarInvitadoEvent>(_onEliminarInvitado);
   }
 
   Future<void> _onCargarMiembros(
@@ -112,6 +113,24 @@ class MiembrosGrupoBloc extends Bloc<MiembrosGrupoEvent, MiembrosGrupoState> {
     result.fold(
       (failure) => emit(MiembrosGrupoError(failure.message)),
       (_) => emit(DegradarCoadminSuccess(event.nombreJugador)),
+    );
+  }
+
+  /// E002-HU-008: Eliminar invitado del grupo
+  Future<void> _onEliminarInvitado(
+    EliminarInvitadoEvent event,
+    Emitter<MiembrosGrupoState> emit,
+  ) async {
+    emit(MiembrosGrupoLoading());
+
+    final result = await repository.eliminarInvitado(
+      grupoId: event.grupoId,
+      miembroId: event.miembroId,
+    );
+
+    result.fold(
+      (failure) => emit(MiembrosGrupoError(failure.message)),
+      (_) => emit(EliminarInvitadoSuccess(event.nombreInvitado)),
     );
   }
 }

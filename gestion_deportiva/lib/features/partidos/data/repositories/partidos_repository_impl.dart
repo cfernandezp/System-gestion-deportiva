@@ -36,12 +36,14 @@ class PartidosRepositoryImpl implements PartidosRepository {
     required String fechaId,
     required String equipoLocal,
     required String equipoVisitante,
+    int? duracionMinutos,
   }) async {
     try {
       final result = await remoteDataSource.iniciarPartido(
         fechaId: fechaId,
         equipoLocal: equipoLocal,
         equipoVisitante: equipoVisitante,
+        duracionMinutos: duracionMinutos,
       );
       return Right(result);
     } on ServerException catch (e) {

@@ -7,6 +7,7 @@ import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../settings/presentation/bloc/theme/theme.dart';
 import '../bloc/login/login.dart';
 import '../bloc/session/session.dart';
 
@@ -123,8 +124,10 @@ class _LoginViewState extends State<_LoginView> {
           final isLoading = state is LoginLoading;
 
           return SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
+            child: Stack(
+              children: [
+                Center(
+                  child: SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
                   horizontal:
                       isMobile ? DesignTokens.spacingM : DesignTokens.spacingL,
@@ -250,6 +253,14 @@ class _LoginViewState extends State<_LoginView> {
                   ),
                 ),
               ),
+            ),
+                // Toggle de tema en esquina superior derecha
+                Positioned(
+                  top: DesignTokens.spacingS,
+                  right: DesignTokens.spacingS,
+                  child: _ThemeToggleButton(),
+                ),
+              ],
             ),
           );
         },
@@ -438,5 +449,62 @@ class _LoginViewState extends State<_LoginView> {
         duration: const Duration(seconds: 5),
       ),
     );
+  }
+}
+
+/// Toggle de tema discreto para la pantalla de login
+/// Cicla entre: system -> light -> dark -> system
+class _ThemeToggleButton extends StatelessWidget {
+  const _ThemeToggleButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final themeMode = context.watch<ThemeBloc>().state.themeMode;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return IconButton(
+      icon: Icon(
+        _themeIcon(themeMode),
+        color: colorScheme.onSurfaceVariant,
+      ),
+      tooltip: _themeTooltip(themeMode),
+      onPressed: () {
+        final nextMode = _nextThemeMode(themeMode);
+        context.read<ThemeBloc>().add(ChangeThemeEvent(nextMode));
+      },
+    );
+  }
+
+  IconData _themeIcon(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.system:
+        return Icons.brightness_auto;
+      case ThemeMode.light:
+        return Icons.light_mode;
+      case ThemeMode.dark:
+        return Icons.dark_mode;
+    }
+  }
+
+  String _themeTooltip(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.system:
+        return 'Tema: Sistema';
+      case ThemeMode.light:
+        return 'Tema: Claro';
+      case ThemeMode.dark:
+        return 'Tema: Oscuro';
+    }
+  }
+
+  ThemeMode _nextThemeMode(ThemeMode current) {
+    switch (current) {
+      case ThemeMode.system:
+        return ThemeMode.light;
+      case ThemeMode.light:
+        return ThemeMode.dark;
+      case ThemeMode.dark:
+        return ThemeMode.system;
+    }
   }
 }

@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// Modelo de cambios realizados al editar una fecha
 /// E003-HU-008: Editar Fecha
 /// CA-006: Resumen de cambios para confirmacion
@@ -68,8 +70,8 @@ class EditarFechaResponseModel extends Equatable {
   /// Hora formateada (HH:MM)
   final String horaFormato;
 
-  /// Duracion en horas (1 o 2)
-  final int duracionHoras;
+  /// Duracion en horas
+  final double duracionHoras;
 
   /// Lugar de la pichanga
   final String lugar;
@@ -140,14 +142,12 @@ class EditarFechaResponseModel extends Equatable {
       fechaId: json['fecha_id'] ?? '',
       cambiosRealizados: json['cambios_realizados'] ?? false,
       fechaHoraInicio: json['fecha_hora_inicio'] != null
-          ? DateTime.parse(json['fecha_hora_inicio']).toLocal()
+          ? AppDateUtils.parseUtcToLocal(json['fecha_hora_inicio'])
           : DateTime.now(),
-      fechaHoraLocal: json['fecha_hora_local'] != null
-          ? DateTime.parse(json['fecha_hora_local'])
-          : null,
+      fechaHoraLocal: AppDateUtils.tryParseUtcToLocal(json['fecha_hora_local']),
       fechaFormato: json['fecha_formato'] ?? '',
       horaFormato: json['hora_formato'] ?? '',
-      duracionHoras: json['duracion_horas'] ?? 1,
+      duracionHoras: (json['duracion_horas'] ?? 1).toDouble(),
       lugar: json['lugar'] ?? '',
       numEquipos: json['num_equipos'] ?? 2,
       costoPorJugador: (json['costo_por_jugador'] ?? 0).toDouble(),

@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// Modelo para solicitud de registro pendiente
 /// E001-HU-006: Gestionar Solicitudes de Registro
 ///
@@ -42,7 +44,7 @@ class SolicitudPendienteModel extends Equatable {
       nombreCompleto: json['nombre_completo'] as String,
       email: json['email'] as String,
       estado: json['estado'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
+      createdAt: AppDateUtils.parseUtcToLocal(json['created_at']),
       diasPendiente: json['dias_pendiente'] as int,
     );
   }

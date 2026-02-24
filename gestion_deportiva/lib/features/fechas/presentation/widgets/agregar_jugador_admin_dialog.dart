@@ -318,6 +318,12 @@ class _AgregarJugadorAdminDialogState extends State<AgregarJugadorAdminDialog> {
       );
     }
 
+    // Separar en jugadores e invitados
+    final jugadoresGrupo =
+        jugadoresFiltrados.where((j) => !j.esInvitado).toList();
+    final invitadosGrupo =
+        jugadoresFiltrados.where((j) => j.esInvitado).toList();
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -354,7 +360,7 @@ class _AgregarJugadorAdminDialogState extends State<AgregarJugadorAdminDialog> {
           children: [
             Expanded(
               child: Text(
-                '${jugadoresFiltrados.length} jugadores disponibles',
+                '${jugadoresFiltrados.length} disponibles',
                 style: textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -443,7 +449,7 @@ class _AgregarJugadorAdminDialogState extends State<AgregarJugadorAdminDialog> {
 
         const SizedBox(height: DesignTokens.spacingS),
 
-        // Lista de jugadores con checkboxes
+        // Lista de jugadores agrupada por seccion
         SizedBox(
           height: 280,
           child: jugadoresFiltrados.isEmpty
@@ -455,28 +461,72 @@ class _AgregarJugadorAdminDialogState extends State<AgregarJugadorAdminDialog> {
                     ),
                   ),
                 )
-              : ListView.builder(
+              : ListView(
                   shrinkWrap: true,
-                  itemCount: jugadoresFiltrados.length,
-                  itemBuilder: (context, index) {
-                    final jugador = jugadoresFiltrados[index];
-                    final isSelected =
-                        _jugadoresSeleccionados.contains(jugador.id);
+                  children: [
+                    // Seccion Jugadores
+                    if (jugadoresGrupo.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                        child: Text(
+                          'Jugadores (${jugadoresGrupo.length})',
+                          style: textTheme.labelLarge?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: DesignTokens.fontWeightSemiBold,
+                          ),
+                        ),
+                      ),
+                      ...jugadoresGrupo.map((jugador) {
+                        final isSelected =
+                            _jugadoresSeleccionados.contains(jugador.id);
+                        return _JugadorCheckboxTile(
+                          jugador: jugador,
+                          isSelected: isSelected,
+                          onChanged: (selected) {
+                            setState(() {
+                              if (selected) {
+                                _jugadoresSeleccionados.add(jugador.id);
+                              } else {
+                                _jugadoresSeleccionados.remove(jugador.id);
+                              }
+                            });
+                          },
+                        );
+                      }),
+                    ],
 
-                    return _JugadorCheckboxTile(
-                      jugador: jugador,
-                      isSelected: isSelected,
-                      onChanged: (selected) {
-                        setState(() {
-                          if (selected) {
-                            _jugadoresSeleccionados.add(jugador.id);
-                          } else {
-                            _jugadoresSeleccionados.remove(jugador.id);
-                          }
-                        });
-                      },
-                    );
-                  },
+                    // Seccion Invitados
+                    if (invitadosGrupo.isNotEmpty) ...[
+                      const Divider(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                        child: Text(
+                          'Invitados (${invitadosGrupo.length})',
+                          style: textTheme.labelLarge?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: DesignTokens.fontWeightSemiBold,
+                          ),
+                        ),
+                      ),
+                      ...invitadosGrupo.map((jugador) {
+                        final isSelected =
+                            _jugadoresSeleccionados.contains(jugador.id);
+                        return _JugadorCheckboxTile(
+                          jugador: jugador,
+                          isSelected: isSelected,
+                          onChanged: (selected) {
+                            setState(() {
+                              if (selected) {
+                                _jugadoresSeleccionados.add(jugador.id);
+                              } else {
+                                _jugadoresSeleccionados.remove(jugador.id);
+                              }
+                            });
+                          },
+                        );
+                      }),
+                    ],
+                  ],
                 ),
         ),
       ],
@@ -624,6 +674,30 @@ class _JugadorCheckboxTile extends StatelessWidget {
                 ],
               ),
             ),
+
+            // Badge invitado
+            if (jugador.esInvitado)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DesignTokens.spacingS,
+                  vertical: DesignTokens.spacingXs,
+                ),
+                decoration: BoxDecoration(
+                  color: DesignTokens.accentColor.withValues(alpha: 0.1),
+                  borderRadius:
+                      BorderRadius.circular(DesignTokens.radiusFull),
+                  border: Border.all(
+                    color: DesignTokens.accentColor.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Text(
+                  'Invitado',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: DesignTokens.accentColor,
+                    fontWeight: DesignTokens.fontWeightMedium,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -648,19 +722,29 @@ class _JugadorCheckboxTile extends StatelessWidget {
       );
     }
 
-    // Sin foto: inicial con gradiente
+    // Sin foto: avatar diferenciado por rol
     return Container(
       width: 36,
       height: 36,
       decoration: BoxDecoration(
-        gradient: DesignTokens.primaryGradient,
+        gradient: jugador.esInvitado ? null : DesignTokens.primaryGradient,
+        color: jugador.esInvitado
+            ? DesignTokens.accentColor.withValues(alpha: 0.15)
+            : null,
         borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+        border: jugador.esInvitado
+            ? Border.all(
+                color: DesignTokens.accentColor.withValues(alpha: 0.5),
+              )
+            : null,
       ),
       child: Center(
         child: Text(
           jugador.inicial,
           style: textTheme.titleSmall?.copyWith(
-            color: Colors.white,
+            color: jugador.esInvitado
+                ? DesignTokens.accentColor
+                : Colors.white,
             fontWeight: DesignTokens.fontWeightBold,
           ),
         ),

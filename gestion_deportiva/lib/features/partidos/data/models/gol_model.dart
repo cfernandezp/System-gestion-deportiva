@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// Modelo de gol individual
 /// E004-HU-003: Registrar Gol
 /// Representa un gol registrado en un partido
@@ -46,9 +48,7 @@ class GolModel extends Equatable {
       jugadorNombre: json['jugador_nombre'] as String?,
       minuto: json['minuto'] as int,
       esAutogol: json['es_autogol'] as bool? ?? false,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String).toLocal()
-          : null,
+      createdAt: AppDateUtils.tryParseUtcToLocal(json['created_at']),
     );
   }
 

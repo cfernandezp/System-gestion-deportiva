@@ -1,12 +1,12 @@
 ---
 description: Comando para orquestar la implementación de HUs coordinando todos los agentes especializados
 enabled: true
-agent: web-architect-expert
+agent: mobile-architect-expert
 ---
 
 # Comando: /orquestar
 
-Invoca al **web-architect-expert** para coordinar la implementación completa de una Historia de Usuario.
+Invoca al **mobile-architect-expert** para coordinar la implementación completa de una Historia de Usuario.
 
 ## Uso
 
@@ -28,20 +28,20 @@ Invoca al **web-architect-expert** para coordinar la implementación completa de
 /orquestar docs/historias-usuario/E001-HU-001-REF-gestion-miembros.md
 ```
 
-## Lo que hace el web-architect-expert:
+## Lo que hace el mobile-architect-expert:
 
-1. ✅ Lee y analiza la Historia de Usuario
-2. ✅ Cambia estado REF → DEV
-3. ✅ Invoca agentes en orden correcto (Backend → Frontend → UI → QA)
-4. ✅ Valida resultados entre fases
-5. ✅ Gestiona errores y re-ejecuta cuando sea necesario
-6. ✅ Cambia estado DEV → COM al completar
+1. Lee y analiza la Historia de Usuario
+2. Cambia estado REF -> DEV
+3. Invoca agentes en orden correcto (Backend -> Frontend -> UI -> QA)
+4. Valida resultados entre fases
+5. Gestiona errores y re-ejecuta cuando sea necesario
+6. Cambia estado DEV -> COM al completar
 
 ## Agentes que coordina:
 
 - **po-user-stories-template**: Creación/refinamiento de HUs
 - **negocio-deportivo-expert**: Análisis de reglas de negocio
-- **ux-ui-expert**: Diseño de interfaces
+- **ux-ui-expert**: Diseño de interfaces mobile (Android/iOS)
 - **supabase-expert**: Backend y base de datos
-- **flutter-expert**: Frontend Flutter Web/Mobile
+- **flutter-expert**: Frontend Flutter Mobile (Android/iOS)
 - **qa-testing-expert**: Testing y validación técnica

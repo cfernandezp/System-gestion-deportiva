@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// Modelo de Inscripcion a una fecha
 /// E003-HU-002: Inscribirse a Fecha
 /// Representa el estado de inscripcion del usuario actual
@@ -49,7 +51,7 @@ class InscripcionModel extends Equatable {
       nombreMiembro: json['nombre_miembro'] ?? '',
       estado: json['estado'] ?? 'confirmada',
       fechaInscripcion: json['fecha_inscripcion'] != null
-          ? DateTime.parse(json['fecha_inscripcion']).toLocal()
+          ? AppDateUtils.parseUtcToLocal(json['fecha_inscripcion'])
           : DateTime.now(),
       deudaGenerada: json['deuda_generada'] ?? false,
       montoDeuda: json['monto_deuda'] != null

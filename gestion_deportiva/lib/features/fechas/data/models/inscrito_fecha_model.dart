@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// Modelo de un jugador inscrito a una fecha
 /// E003-HU-003: Ver Inscritos
 /// Representa cada miembro inscrito segun respuesta del RPC obtener_inscritos_fecha
@@ -28,6 +30,9 @@ class InscritoFechaModel extends Equatable {
   /// RN-002: Campo publico permitido
   final String? posicionPreferida;
 
+  /// Rol del miembro en el grupo (admin, coadmin, jugador, invitado)
+  final String rolGrupo;
+
   /// CA-005: Indica si es el usuario actual logueado
   /// Se usa para destacar "(Tu)" en la lista
   final bool esUsuarioActual;
@@ -44,6 +49,7 @@ class InscritoFechaModel extends Equatable {
     required this.apodo,
     required this.nombreCompleto,
     this.posicionPreferida,
+    this.rolGrupo = 'jugador',
     required this.esUsuarioActual,
     this.inscritoAt,
     this.inscritoFormato,
@@ -69,10 +75,9 @@ class InscritoFechaModel extends Equatable {
       apodo: json['apodo'] ?? '',
       nombreCompleto: json['nombre_completo'] ?? '',
       posicionPreferida: json['posicion_preferida'],
+      rolGrupo: json['rol_grupo'] ?? 'jugador',
       esUsuarioActual: json['es_usuario_actual'] ?? false,
-      inscritoAt: json['inscrito_at'] != null
-          ? DateTime.parse(json['inscrito_at']).toLocal()
-          : null,
+      inscritoAt: AppDateUtils.tryParseUtcToLocal(json['inscrito_at']),
       inscritoFormato: json['inscrito_formato'],
     );
   }
@@ -85,11 +90,15 @@ class InscritoFechaModel extends Equatable {
       'apodo': apodo,
       'nombre_completo': nombreCompleto,
       'posicion_preferida': posicionPreferida,
+      'rol_grupo': rolGrupo,
       'es_usuario_actual': esUsuarioActual,
       'inscrito_at': inscritoAt?.toUtc().toIso8601String(),
       'inscrito_formato': inscritoFormato,
     };
   }
+
+  /// Indica si el inscrito tiene rol de invitado en el grupo
+  bool get esInvitado => rolGrupo == 'invitado';
 
   /// Nombre para mostrar:
   /// Si es usuario actual, agregar "(Tu)"
@@ -111,6 +120,7 @@ class InscritoFechaModel extends Equatable {
         apodo,
         nombreCompleto,
         posicionPreferida,
+        rolGrupo,
         esUsuarioActual,
         inscritoAt,
         inscritoFormato,

@@ -4,6 +4,8 @@
 export 'gol_detalle_model.dart';
 export 'mi_equipo_actividad_model.dart';
 export 'pichanga_activa_model.dart';
+export 'pichanga_finalizada_model.dart';
+export 'proxima_pichanga_model.dart';
 export 'partido_actividad_model.dart';
 export 'partido_en_curso_model.dart';
 export 'mi_actividad_response_model.dart';

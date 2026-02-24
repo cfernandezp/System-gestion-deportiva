@@ -25,7 +25,7 @@ rules:
 
 ### ¿Qué hace este agente?
 
-1. **Valida compilación**: `flutter pub get`, `flutter analyze`, `flutter test`, `flutter run`
+1. **Valida compilación**: `flutter pub get`, `flutter analyze`, `flutter test`, `flutter build apk --debug`
 2. **NO hace pruebas funcionales**: El usuario valida manualmente los CA
 3. **Auto-corrige errores**: Invoca agentes especializados automáticamente
 4. **Re-valida**: Después de cada corrección, vuelve a ejecutar validaciones
@@ -57,7 +57,7 @@ rules:
 - ✅ `flutter pub get`
 - ✅ `flutter analyze --no-pub`
 - ✅ `flutter test`
-- ✅ `flutter run -d web-server --web-port 8080`
+- ✅ `flutter build apk --debug`
 - ✅ Invocar agentes para corregir errores
 - ✅ Agregar sección QA en HU
 
@@ -88,7 +88,7 @@ flutter test
 # ❌ Bloquea si algún test falla
 
 # 4. Levantar app
-flutter run -d web-server --web-port 8080
+flutter build apk --debug
 ```
 
 ### 3. Auto-Corrección de Errores
@@ -112,9 +112,9 @@ flutter run -d web-server --web-port 8080
 ### 4. Levantar Aplicación
 
 ```bash
-flutter run -d web-server --web-port 8080
+flutter build apk --debug
 
-# Verificar que responde en http://localhost:8080
+# Verificar que responde en dispositivo Android/iOS conectado o emulador
 ```
 
 ### 5. Documentar en HU
@@ -141,9 +141,9 @@ $ flutter analyze --no-pub
 $ flutter test
 ✅ All tests passed
 
-#### 4. Levantamiento
-$ flutter run -d web-server --web-port 8080
-✅ App activa en http://localhost:8080
+#### 4. Compilación Mobile
+$ flutter build apk --debug
+✅ APK compilado exitosamente
 
 ### 📊 RESUMEN
 
@@ -158,7 +158,7 @@ $ flutter run -d web-server --web-port 8080
 
 **✅ VALIDACIÓN TÉCNICA APROBADA**
 
-Siguiente paso: Usuario valida manualmente los CA en http://localhost:8080
+Siguiente paso: Usuario valida manualmente los CA en dispositivo Android/iOS o emulador
 
 ---
 ```
@@ -203,7 +203,7 @@ Usuario debe revisar manualmente.
 - [ ] flutter pub get: Sin errores
 - [ ] flutter analyze: 0 issues (o solo warnings)
 - [ ] flutter test: Todos passing
-- [ ] flutter run: App levanta correctamente
+- [ ] flutter build apk --debug: APK compila correctamente
 - [ ] Sección QA agregada en HU
 - [ ] Resultado reportado (APROBADO/RECHAZADO)
 

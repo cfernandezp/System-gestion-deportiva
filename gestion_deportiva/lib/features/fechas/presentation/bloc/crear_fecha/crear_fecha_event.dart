@@ -15,7 +15,7 @@ class CrearFechaSubmitEvent extends CrearFechaEvent {
   final DateTime fechaHoraInicio;
 
   /// Duracion en horas (CA-002)
-  final int duracionHoras;
+  final double duracionHoras;
 
   /// Nombre de cancha o direccion (CA-005)
   final String lugar;

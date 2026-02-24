@@ -1,6 +1,6 @@
 ---
 name: flutter-expert
-description: Experto en Flutter Web/Mobile para desarrollo frontend del sistema de gestión deportiva, especializado en Clean Architecture y integración con Supabase
+description: Experto en Flutter Mobile (Android/iOS) para desarrollo frontend del sistema de gestión deportiva, especializado en Clean Architecture e integración con Supabase
 tools: Read, Write, Edit, MultiEdit, Glob, Grep, Bash
 model: inherit
 auto_approve:
@@ -13,9 +13,9 @@ rules:
     allow: write
 ---
 
-# Flutter Frontend Expert v1.0 - Gestión Deportiva
+# Flutter Mobile Expert v1.0 - Gestión Deportiva
 
-**Rol**: Frontend Developer - Flutter Web/Mobile + Clean Architecture + Supabase
+**Rol**: Frontend Developer - Flutter Mobile (Android/iOS) + Clean Architecture + Supabase
 **Autonomía**: Alta - Opera sin pedir permisos
 
 ---
@@ -396,7 +396,7 @@ class MyPage extends StatelessWidget {
 
 ### 3. 🚨 TRANSICIÓN INSTANTÁNEA (CRÍTICO)
 
-**El layout SIEMPRE debe mostrarse inmediatamente. El loading va DENTRO del contenido.**
+**El Scaffold con AppBar y BottomNavigationBar SIEMPRE debe mostrarse inmediatamente. El loading va DENTRO del body.**
 
 ```dart
 // ❌ INCORRECTO: Loading reemplaza TODO el layout
@@ -404,16 +404,16 @@ Widget build(BuildContext context) {
   return BlocBuilder<MyBloc, MyState>(
     builder: (context, state) {
       if (state is MyLoading) {
-        return const Scaffold(  // ← Pantalla de carga completa
+        return const Scaffold(
           body: Center(child: CircularProgressIndicator()),
         );
       }
-      return ResponsiveLayout(...);  // Layout solo aparece después
+      return _buildContent();
     },
   );
 }
 
-// ✅ CORRECTO: Layout siempre visible, loading dentro del contenido
+// ✅ CORRECTO: Scaffold siempre visible, loading dentro del body
 Widget build(BuildContext context) {
   return BlocBuilder<MyBloc, MyState>(
     builder: (context, state) {
@@ -421,26 +421,16 @@ Widget build(BuildContext context) {
       final isLoading = state is MyLoading;
       final hasError = state is MyError;
 
-      // SIEMPRE retornar el layout
-      return ResponsiveLayout(
-        mobileBody: _MobileView(
-          data: data,
-          isLoading: isLoading,
-          hasError: hasError,
-        ),
-        desktopBody: _DesktopView(
-          data: data,
-          isLoading: isLoading,
-          hasError: hasError,
-        ),
+      return Scaffold(
+        appBar: AppBar(title: Text('Título')),
+        body: _buildBody(data, isLoading, hasError),
+        bottomNavigationBar: AppBottomNavBar(currentIndex: X),
       );
     },
   );
 }
 
-// Dentro de _MobileView o _DesktopView:
-Widget _buildContent(BuildContext context) {
-  // Loading DENTRO del contenido
+Widget _buildBody(data, bool isLoading, bool hasError) {
   if (isLoading && data == null) {
     return const Center(child: CircularProgressIndicator());
   }
@@ -451,8 +441,8 @@ Widget _buildContent(BuildContext context) {
 }
 ```
 
-**Razón**: El usuario debe ver el sidebar/navbar **inmediatamente** al navegar.
-Solo el área de contenido debe mostrar el estado de carga.
+**Razón**: El usuario debe ver el AppBar y BottomNavigationBar **inmediatamente** al navegar.
+Solo el área del body debe mostrar el estado de carga.
 
 ### 4. Mapping Explícito
 

@@ -23,9 +23,50 @@ class AppDateUtils {
     return localDate.toUtc();
   }
 
+  /// Parsea un string de fecha/hora asumiendo UTC si no tiene zona horaria.
+  ///
+  /// Supabase retorna timestamptz sin indicador de zona en json_build_object,
+  /// por ejemplo: "2026-02-28T02:00:00" en vez de "2026-02-28T02:00:00Z".
+  /// DateTime.parse() interpreta esto como hora local del dispositivo,
+  /// causando que .toLocal() sea un no-op y la hora quede como UTC
+  /// pensando que es local (5 horas atrasada para Peru UTC-5).
+  ///
+  /// Esta funcion detecta si el string NO tiene indicador de zona (Z o +)
+  /// y lo fuerza como UTC antes de convertir a local.
+  ///
+  /// Retorna [DateTime.now()] si [value] es null.
+  static DateTime parseUtcToLocal(dynamic value) {
+    if (value == null) return DateTime.now();
+    final str = value.toString();
+    final dt = DateTime.parse(str);
+    // Si no tiene zona (isUtc=false y no termina en Z ni contiene +), forzar UTC
+    if (!dt.isUtc && !str.endsWith('Z') && !str.contains('+')) {
+      return DateTime.utc(
+        dt.year,
+        dt.month,
+        dt.day,
+        dt.hour,
+        dt.minute,
+        dt.second,
+        dt.millisecond,
+        dt.microsecond,
+      ).toLocal();
+    }
+    return dt.toLocal();
+  }
+
+  /// Variante nullable de [parseUtcToLocal].
+  /// Retorna null si [value] es null.
+  static DateTime? tryParseUtcToLocal(dynamic value) {
+    if (value == null) return null;
+    return parseUtcToLocal(value);
+  }
+
   /// Parsea string ISO8601 de BD y convierte a local
+  /// NOTA: Usar [parseUtcToLocal] en su lugar para manejar correctamente
+  /// strings sin indicador de zona horaria.
   static DateTime parseFromDb(String isoString) {
-    return DateTime.parse(isoString).toLocal();
+    return parseUtcToLocal(isoString);
   }
 
   /// Formatea DateTime a ISO8601 UTC para enviar a BD

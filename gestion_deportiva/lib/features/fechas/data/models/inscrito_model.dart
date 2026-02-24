@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// Modelo de un jugador inscrito a una fecha
 /// E003-HU-002: CA-001, CA-006
 /// Representa cada miembro inscrito en la lista de inscritos
@@ -45,7 +47,7 @@ class InscritoModel extends Equatable {
       posicion: json['posicion'],
       fotoUrl: json['foto_url'],
       fechaInscripcion: json['fecha_inscripcion'] != null
-          ? DateTime.parse(json['fecha_inscripcion']).toLocal()
+          ? AppDateUtils.parseUtcToLocal(json['fecha_inscripcion'])
           : DateTime.now(),
       estado: json['estado'] ?? 'confirmada',
     );

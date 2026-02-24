@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/theme/design_tokens.dart';
+import '../../../../core/utils/date_utils.dart';
 import '../../../../core/widgets/dashboard_shell.dart';
 import '../../../../core/widgets/responsive_layout.dart';
 import '../../data/models/models.dart';
@@ -82,21 +84,40 @@ class _MobileView extends StatelessWidget {
 
     if (state is MiActividadLoaded) {
       final actividad = (state as MiActividadLoaded).actividad;
-
-      // CA-010: Sin pichanga activa
-      if (!actividad.hayPichangaActiva) {
-        return _SinActividadView(
-          mensaje: actividad.mensajeSinActividad ??
-              'No hay pichanga activa donde estes inscrito',
-        );
-      }
-
-      return _ActividadContentView(actividad: actividad);
+      return _buildPorTipoActividad(actividad);
     }
 
     return const Center(
       child: Text('Cargando...'),
     );
+  }
+
+  Widget _buildPorTipoActividad(MiActividadResponseModel actividad) {
+    switch (actividad.tipoActividad) {
+      case 'en_vivo':
+        return _ActividadContentView(actividad: actividad);
+      case 'proxima':
+        if (actividad.proximaPichanga != null) {
+          return _ProximaPichangaView(pichanga: actividad.proximaPichanga!);
+        }
+        return _SinActividadView(
+          mensaje: actividad.mensajeSinActividad ??
+              'No hay pichanga activa donde estes inscrito',
+        );
+      case 'finalizada':
+        if (actividad.pichangaFinalizada != null) {
+          return _PichangaFinalizadaView(pichanga: actividad.pichangaFinalizada!);
+        }
+        return _SinActividadView(
+          mensaje: actividad.mensajeSinActividad ??
+              'No hay pichanga activa donde estes inscrito',
+        );
+      default:
+        return _SinActividadView(
+          mensaje: actividad.mensajeSinActividad ??
+              'No hay pichanga activa donde estes inscrito',
+        );
+    }
   }
 }
 
@@ -142,21 +163,40 @@ class _DesktopView extends StatelessWidget {
 
     if (state is MiActividadLoaded) {
       final actividad = (state as MiActividadLoaded).actividad;
-
-      // CA-010: Sin pichanga activa
-      if (!actividad.hayPichangaActiva) {
-        return _SinActividadView(
-          mensaje: actividad.mensajeSinActividad ??
-              'No hay pichanga activa donde estes inscrito',
-        );
-      }
-
-      return _ActividadContentView(actividad: actividad);
+      return _buildPorTipoActividad(actividad);
     }
 
     return const Center(
       child: Text('Cargando...'),
     );
+  }
+
+  Widget _buildPorTipoActividad(MiActividadResponseModel actividad) {
+    switch (actividad.tipoActividad) {
+      case 'en_vivo':
+        return _ActividadContentView(actividad: actividad);
+      case 'proxima':
+        if (actividad.proximaPichanga != null) {
+          return _ProximaPichangaView(pichanga: actividad.proximaPichanga!);
+        }
+        return _SinActividadView(
+          mensaje: actividad.mensajeSinActividad ??
+              'No hay pichanga activa donde estes inscrito',
+        );
+      case 'finalizada':
+        if (actividad.pichangaFinalizada != null) {
+          return _PichangaFinalizadaView(pichanga: actividad.pichangaFinalizada!);
+        }
+        return _SinActividadView(
+          mensaje: actividad.mensajeSinActividad ??
+              'No hay pichanga activa donde estes inscrito',
+        );
+      default:
+        return _SinActividadView(
+          mensaje: actividad.mensajeSinActividad ??
+              'No hay pichanga activa donde estes inscrito',
+        );
+    }
   }
 }
 
@@ -217,6 +257,561 @@ class _SinActividadView extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ============================================
+// VISTA PROXIMA PICHANGA
+// ============================================
+
+class _ProximaPichangaView extends StatelessWidget {
+  final ProximaPichangaModel pichanga;
+
+  const _ProximaPichangaView({required this.pichanga});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    // Color segun estado de inscripciones
+    final bool esAbierta = pichanga.estado == 'abierta';
+    final Color estadoColor = esAbierta
+        ? DesignTokens.successColor
+        : const Color(0xFFFF9800); // naranja
+    final String estadoLabel = esAbierta
+        ? 'Inscripciones Abiertas'
+        : 'Por Iniciar';
+
+    // Formatear fecha/hora para mostrar
+    String fechaFormateada = pichanga.fecha;
+    String horaFormateada = '';
+    try {
+      final dt = AppDateUtils.parseUtcToLocal(pichanga.fechaHora);
+      fechaFormateada = DateFormat("dd 'de' MMMM 'de' yyyy", 'es_PE').format(dt);
+      horaFormateada = DateFormat('HH:mm', 'es_PE').format(dt);
+    } catch (_) {
+      // Usar valor raw si falla el parseo
+    }
+
+    // Formato de juego
+    final formatoJuego = '${pichanga.numEquipos} equipos';
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(DesignTokens.spacingM),
+      child: Column(
+        children: [
+          const SizedBox(height: DesignTokens.spacingXl),
+          // Card principal
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+              border: Border.all(
+                color: estadoColor.withValues(alpha: 0.5),
+                width: 2,
+              ),
+              boxShadow: DesignTokens.shadowMd,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: DesignTokens.spacingM,
+                    vertical: DesignTokens.spacingM,
+                  ),
+                  decoration: BoxDecoration(
+                    color: estadoColor.withValues(alpha: 0.08),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(DesignTokens.radiusL - 2),
+                      topRight: Radius.circular(DesignTokens.radiusL - 2),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: DesignTokens.iconSizeM,
+                        color: estadoColor,
+                      ),
+                      const SizedBox(width: DesignTokens.spacingS),
+                      Text(
+                        'Proxima Pichanga',
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: DesignTokens.fontWeightSemiBold,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const Spacer(),
+                      // Badge de estado
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: DesignTokens.spacingS,
+                          vertical: DesignTokens.spacingXxs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: estadoColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+                          border: Border.all(
+                            color: estadoColor.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          estadoLabel,
+                          style: textTheme.labelSmall?.copyWith(
+                            color: estadoColor,
+                            fontWeight: DesignTokens.fontWeightSemiBold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Contenido
+                Padding(
+                  padding: const EdgeInsets.all(DesignTokens.spacingM),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Fecha y hora
+                      _InfoRow(
+                        icon: Icons.event,
+                        label: fechaFormateada,
+                        iconColor: colorScheme.primary,
+                      ),
+                      if (horaFormateada.isNotEmpty) ...[
+                        const SizedBox(height: DesignTokens.spacingS),
+                        _InfoRow(
+                          icon: Icons.access_time,
+                          label: horaFormateada,
+                          iconColor: colorScheme.primary,
+                        ),
+                      ],
+                      const SizedBox(height: DesignTokens.spacingS),
+
+                      // Lugar
+                      _InfoRow(
+                        icon: Icons.location_on_outlined,
+                        label: pichanga.lugar,
+                        iconColor: DesignTokens.errorColor,
+                      ),
+                      const SizedBox(height: DesignTokens.spacingS),
+
+                      // Costo
+                      if (pichanga.costoFormato.isNotEmpty) ...[
+                        _InfoRow(
+                          icon: Icons.payments_outlined,
+                          label: pichanga.costoFormato,
+                          iconColor: DesignTokens.accentColor,
+                        ),
+                        const SizedBox(height: DesignTokens.spacingS),
+                      ],
+
+                      // Formato de juego
+                      _InfoRow(
+                        icon: Icons.sports_soccer_outlined,
+                        label: formatoJuego,
+                        iconColor: DesignTokens.secondaryColor,
+                      ),
+                      const SizedBox(height: DesignTokens.spacingM),
+
+                      // Inscritos
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.people_outline,
+                            size: DesignTokens.iconSizeM,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: DesignTokens.spacingS),
+                          Text(
+                            '${pichanga.totalInscritos} inscritos',
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: DesignTokens.spacingM),
+                      const Divider(),
+                      const SizedBox(height: DesignTokens.spacingM),
+
+                      // Tu estado
+                      Row(
+                        children: [
+                          Text(
+                            'Tu estado',
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: DesignTokens.spacingS,
+                              vertical: DesignTokens.spacingXxs,
+                            ),
+                            decoration: BoxDecoration(
+                              color: DesignTokens.successColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+                              border: Border.all(
+                                color: DesignTokens.successColor.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.check_circle,
+                                  size: 14,
+                                  color: DesignTokens.successColor,
+                                ),
+                                const SizedBox(width: DesignTokens.spacingXxs),
+                                Text(
+                                  _capitalizar(pichanga.miInscripcion),
+                                  style: textTheme.labelMedium?.copyWith(
+                                    color: DesignTokens.successColor,
+                                    fontWeight: DesignTokens.fontWeightSemiBold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: DesignTokens.spacingL),
+
+                      // Boton ver detalle
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.tonal(
+                          onPressed: () {
+                            context.push('/fechas/${pichanga.fechaId}');
+                          },
+                          child: const Text('Ver detalle'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _capitalizar(String texto) {
+    if (texto.isEmpty) return texto;
+    return texto[0].toUpperCase() + texto.substring(1);
+  }
+}
+
+// ============================================
+// VISTA PICHANGA FINALIZADA
+// ============================================
+
+class _PichangaFinalizadaView extends StatelessWidget {
+  final PichangaFinalizadaModel pichanga;
+
+  const _PichangaFinalizadaView({required this.pichanga});
+
+  Color _colorFromName(String colorName) {
+    switch (colorName.toLowerCase()) {
+      case 'naranja':
+        return const Color(0xFFFF9800);
+      case 'verde':
+        return const Color(0xFF4CAF50);
+      case 'azul':
+        return const Color(0xFF2196F3);
+      case 'rojo':
+        return const Color(0xFFF44336);
+      case 'amarillo':
+        return const Color(0xFFFFEB3B);
+      case 'blanco':
+        return const Color(0xFFFFFFFF);
+      default:
+        return const Color(0xFFCCCCCC);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final Color borderColor = colorScheme.outlineVariant;
+
+    // Formatear fecha/hora
+    String fechaFormateada = pichanga.fecha;
+    String horaFormateada = '';
+    try {
+      final dt = AppDateUtils.parseUtcToLocal(pichanga.fechaHora);
+      fechaFormateada = DateFormat("dd 'de' MMMM 'de' yyyy", 'es_PE').format(dt);
+      horaFormateada = DateFormat('HH:mm', 'es_PE').format(dt);
+    } catch (_) {
+      // Usar valor raw si falla el parseo
+    }
+
+    // Texto "hace X horas"
+    final haceTexto = pichanga.finalizadaHaceHoras == 1
+        ? 'hace 1 hora'
+        : 'hace ${pichanga.finalizadaHaceHoras} horas';
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(DesignTokens.spacingM),
+      child: Column(
+        children: [
+          const SizedBox(height: DesignTokens.spacingXl),
+          // Card principal
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(DesignTokens.radiusL),
+              border: Border.all(
+                color: borderColor,
+                width: 2,
+              ),
+              boxShadow: DesignTokens.shadowMd,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: DesignTokens.spacingM,
+                    vertical: DesignTokens.spacingM,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(DesignTokens.radiusL - 2),
+                      topRight: Radius.circular(DesignTokens.radiusL - 2),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle,
+                        size: DesignTokens.iconSizeM,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: DesignTokens.spacingS),
+                      Text(
+                        'Pichanga Finalizada',
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: DesignTokens.fontWeightSemiBold,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const Spacer(),
+                      // Badge finalizada + hace X horas
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: DesignTokens.spacingS,
+                              vertical: DesignTokens.spacingXxs,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
+                            ),
+                            child: Text(
+                              'Finalizada',
+                              style: textTheme.labelSmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                                fontWeight: DesignTokens.fontWeightSemiBold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: DesignTokens.spacingXs),
+                          Text(
+                            haceTexto,
+                            style: textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Contenido
+                Padding(
+                  padding: const EdgeInsets.all(DesignTokens.spacingM),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Fecha y hora
+                      _InfoRow(
+                        icon: Icons.event,
+                        label: fechaFormateada,
+                        iconColor: colorScheme.primary,
+                      ),
+                      if (horaFormateada.isNotEmpty) ...[
+                        const SizedBox(height: DesignTokens.spacingS),
+                        _InfoRow(
+                          icon: Icons.access_time,
+                          label: horaFormateada,
+                          iconColor: colorScheme.primary,
+                        ),
+                      ],
+                      const SizedBox(height: DesignTokens.spacingS),
+
+                      // Lugar
+                      _InfoRow(
+                        icon: Icons.location_on_outlined,
+                        label: pichanga.lugar,
+                        iconColor: DesignTokens.errorColor,
+                      ),
+
+                      const SizedBox(height: DesignTokens.spacingM),
+
+                      // Mi equipo (si tiene)
+                      if (pichanga.miEquipoColor != null) ...[
+                        Row(
+                          children: [
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: _colorFromName(pichanga.miEquipoColor!),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: colorScheme.outlineVariant,
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: DesignTokens.spacingS),
+                            Text(
+                              'Equipo ${_capitalizar(pichanga.miEquipoColor!)} #${pichanga.miEquipoNumero ?? ''}',
+                              style: textTheme.bodyMedium?.copyWith(
+                                fontWeight: DesignTokens.fontWeightMedium,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: DesignTokens.spacingS),
+                      ],
+
+                      // Goles anotados (si tiene)
+                      if (pichanga.misGoles > 0) ...[
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.sports_soccer,
+                              size: DesignTokens.iconSizeM,
+                              color: DesignTokens.accentColor,
+                            ),
+                            const SizedBox(width: DesignTokens.spacingS),
+                            Text(
+                              '${pichanga.misGoles} ${pichanga.misGoles == 1 ? 'gol anotado' : 'goles anotados'}',
+                              style: textTheme.bodyMedium?.copyWith(
+                                fontWeight: DesignTokens.fontWeightMedium,
+                                color: DesignTokens.accentColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: DesignTokens.spacingS),
+                      ],
+
+                      // Total partidos jugados
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.sports_outlined,
+                            size: DesignTokens.iconSizeM,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: DesignTokens.spacingS),
+                          Text(
+                            '${pichanga.totalPartidos} ${pichanga.totalPartidos == 1 ? 'partido jugado' : 'partidos jugados'}',
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: DesignTokens.spacingL),
+
+                      // Boton ver resumen completo
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.tonal(
+                          onPressed: () {
+                            context.push('/fechas/${pichanga.fechaId}');
+                          },
+                          child: const Text('Ver resumen completo'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _capitalizar(String texto) {
+    if (texto.isEmpty) return texto;
+    return texto[0].toUpperCase() + texto.substring(1);
+  }
+}
+
+// ============================================
+// FILA DE INFORMACION REUTILIZABLE
+// ============================================
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color iconColor;
+
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: DesignTokens.iconSizeM,
+          color: iconColor,
+        ),
+        const SizedBox(width: DesignTokens.spacingS),
+        Expanded(
+          child: Text(
+            label,
+            style: textTheme.bodyMedium,
+          ),
+        ),
+      ],
     );
   }
 }

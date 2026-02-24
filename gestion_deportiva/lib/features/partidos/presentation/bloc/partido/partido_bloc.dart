@@ -142,6 +142,7 @@ class PartidoBloc extends Bloc<PartidoEvent, PartidoState> {
       fechaId: event.fechaId,
       equipoLocal: event.equipoLocal,
       equipoVisitante: event.equipoVisitante,
+      duracionMinutos: event.duracionMinutos,
     );
 
     result.fold(

@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
 import '../../../profile/data/models/perfil_model.dart';
 
 /// Modelo de estadisticas del jugador
@@ -72,7 +73,7 @@ class JugadorPerfilModel extends Equatable {
           : null,
       fotoUrl: json['foto_url'],
       fechaIngreso: json['fecha_ingreso'] != null
-          ? DateTime.parse(json['fecha_ingreso']).toLocal()
+          ? AppDateUtils.parseUtcToLocal(json['fecha_ingreso'])
           : DateTime.now(),
       fechaIngresoFormato: json['fecha_ingreso_formato'] ?? '',
       estadisticas: json['estadisticas'] != null

@@ -13,8 +13,10 @@ abstract class EditarFechaEvent extends Equatable {
 /// Parametros segun RPC backend:
 /// - fechaId: UUID de la fecha a editar
 /// - fechaHoraInicio: Nueva fecha y hora de inicio
-/// - duracionHoras: Nueva duracion (1 o 2 horas)
+/// - duracionHoras: Nueva duracion en horas (1, 1.5, 2, ..., 5)
 /// - lugar: Nuevo lugar (minimo 3 caracteres)
+/// - numEquipos: Numero de equipos (2-4)
+/// - costoPorJugador: Costo por jugador en soles (0-100)
 class EditarFechaSubmitEvent extends EditarFechaEvent {
   /// ID de la fecha a editar (p_fecha_id)
   final String fechaId;
@@ -24,22 +26,29 @@ class EditarFechaSubmitEvent extends EditarFechaEvent {
   final DateTime fechaHoraInicio;
 
   /// Nueva duracion en horas (p_duracion_horas)
-  /// RN-003: Solo 1 o 2 horas permitidas
-  final int duracionHoras;
+  final double duracionHoras;
 
   /// Nuevo lugar de la pichanga (p_lugar)
   /// Minimo 3 caracteres
   final String lugar;
+
+  /// Numero de equipos (2-4)
+  final int numEquipos;
+
+  /// Costo por jugador en soles (0-100)
+  final double costoPorJugador;
 
   const EditarFechaSubmitEvent({
     required this.fechaId,
     required this.fechaHoraInicio,
     required this.duracionHoras,
     required this.lugar,
+    required this.numEquipos,
+    required this.costoPorJugador,
   });
 
   @override
-  List<Object?> get props => [fechaId, fechaHoraInicio, duracionHoras, lugar];
+  List<Object?> get props => [fechaId, fechaHoraInicio, duracionHoras, lugar, numEquipos, costoPorJugador];
 }
 
 /// Evento para reiniciar el estado del formulario
@@ -57,12 +66,15 @@ class EditarFechaInicializarEvent extends EditarFechaEvent {
   final DateTime fechaHoraInicio;
 
   /// Duracion actual
-  final int duracionHoras;
+  final double duracionHoras;
 
   /// Lugar actual
   final String lugar;
 
-  /// Costo actual (para mostrar advertencia si cambia)
+  /// Numero de equipos actual
+  final int numEquipos;
+
+  /// Costo actual
   final double costoActual;
 
   /// Total de inscritos (para mostrar advertencia)
@@ -73,6 +85,7 @@ class EditarFechaInicializarEvent extends EditarFechaEvent {
     required this.fechaHoraInicio,
     required this.duracionHoras,
     required this.lugar,
+    required this.numEquipos,
     required this.costoActual,
     required this.totalInscritos,
   });
@@ -83,6 +96,7 @@ class EditarFechaInicializarEvent extends EditarFechaEvent {
         fechaHoraInicio,
         duracionHoras,
         lugar,
+        numEquipos,
         costoActual,
         totalInscritos,
       ];

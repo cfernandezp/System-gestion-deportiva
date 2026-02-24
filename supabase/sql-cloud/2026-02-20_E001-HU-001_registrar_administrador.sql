@@ -120,7 +120,7 @@ BEGIN
 
     -- =============================================
     -- Crear perfil de usuario administrador
-    -- RN-006: Estado activo inmediatamente
+    -- RN-006: Estado aprobado inmediatamente (admin no requiere aprobacion)
     -- =============================================
     INSERT INTO usuarios (
         auth_user_id,
@@ -146,12 +146,19 @@ BEGIN
             THEN LOWER(TRIM(p_email_respaldo))
             ELSE NULL
         END,
-        'activo',
-        'administrador',
+        'aprobado',
+        'admin',
         NOW(),
         NOW()
     )
     RETURNING id INTO v_usuario_id;
+
+    -- FIX: Confirmar email en auth.users para que signInWithPassword funcione
+    -- El email es ficticio (celular@gestiondeportiva.app) asi que nunca
+    -- se confirmaria por flujo normal de Supabase Auth
+    UPDATE auth.users
+    SET email_confirmed_at = COALESCE(email_confirmed_at, NOW())
+    WHERE id = p_auth_user_id;
 
     -- =============================================
     -- Retornar resultado exitoso
@@ -166,8 +173,8 @@ BEGIN
             'auth_user_id', p_auth_user_id,
             'celular', v_celular_limpio,
             'nombre_completo', TRIM(p_nombre_completo),
-            'estado', 'activo',
-            'rol', 'administrador',
+            'estado', 'aprobado',
+            'rol', 'admin',
             'requiere_crear_grupo', TRUE
         )
     );

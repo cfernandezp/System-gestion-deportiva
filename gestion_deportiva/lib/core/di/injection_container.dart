@@ -81,11 +81,15 @@ import '../../features/mi_actividad/data/repositories/mi_actividad_repository_im
 import '../../features/mi_actividad/domain/repositories/mi_actividad_repository.dart';
 import '../../features/mi_actividad/presentation/bloc/mi_actividad/mi_actividad_bloc.dart';
 
-// Estadisticas Feature (E006-HU-001: Ranking de Goleadores)
+// Estadisticas Feature (E006-HU-001: Ranking de Goleadores, E006-HU-003: Mis Estadisticas, E006-HU-004: Resultados por Fecha, E006-HU-005: Estadisticas Mensuales)
 import '../../features/estadisticas/data/datasources/estadisticas_remote_datasource.dart';
 import '../../features/estadisticas/data/repositories/estadisticas_repository_impl.dart';
 import '../../features/estadisticas/domain/repositories/estadisticas_repository.dart';
 import '../../features/estadisticas/presentation/bloc/ranking_goleadores/ranking_goleadores_bloc.dart';
+import '../../features/estadisticas/presentation/bloc/mis_estadisticas/mis_estadisticas_bloc.dart';
+import '../../features/estadisticas/presentation/bloc/resultados_fecha/resultados_fecha_bloc.dart';
+import '../../features/estadisticas/presentation/bloc/detalle_fecha/detalle_fecha_bloc.dart';
+import '../../features/estadisticas/presentation/bloc/estadisticas_mensuales/estadisticas_mensuales_bloc.dart';
 
 // Settings Feature (E000-HU-001: Sistema de Temas)
 import '../../features/settings/data/datasources/theme_local_datasource.dart';
@@ -107,6 +111,8 @@ import '../../features/grupos/presentation/bloc/crear_grupo/crear_grupo_bloc.dar
 import '../../features/grupos/presentation/bloc/editar_grupo/editar_grupo_bloc.dart';
 import '../../features/grupos/presentation/bloc/invitar_jugador/invitar_jugador_bloc.dart';
 import '../../features/grupos/presentation/bloc/miembros_grupo/miembros_grupo_bloc.dart';
+import '../../features/grupos/presentation/bloc/promover_invitado/promover_invitado_bloc.dart';
+import '../../features/grupos/presentation/bloc/registrar_invitado/registrar_invitado_bloc.dart';
 import '../../features/grupos/presentation/bloc/mis_grupos/mis_grupos_bloc.dart';
 import '../../features/grupos/presentation/bloc/seleccion_grupo/seleccion_grupo_bloc.dart';
 import '../../features/grupos/presentation/cubit/grupo_actual_cubit.dart';
@@ -306,6 +312,13 @@ Future<void> initializeDependencies() async {
   // Blocs
   // E006-HU-001: Ranking de Goleadores
   sl.registerFactory(() => RankingGoleadoresBloc(repository: sl()));
+  // E006-HU-003: Mis Estadisticas
+  sl.registerFactory(() => MisEstadisticasBloc(repository: sl()));
+  // E006-HU-004: Resultados por Fecha
+  sl.registerFactory(() => ResultadosFechaBloc(repository: sl()));
+  sl.registerFactory(() => DetalleFechaBloc(repository: sl()));
+  // E006-HU-005: Estadisticas Mensuales
+  sl.registerFactory(() => EstadisticasMensualesBloc(repository: sl()));
 
   // Repository
   sl.registerLazySingleton<EstadisticasRepository>(
@@ -352,6 +365,10 @@ Future<void> initializeDependencies() async {
   sl.registerFactory(() => MiembrosGrupoBloc(repository: sl()));
   // E002-HU-003: Editar Grupo
   sl.registerFactory(() => EditarGrupoBloc(repository: sl()));
+  // E002-HU-008: Registrar Invitado en el Grupo
+  sl.registerFactory(() => RegistrarInvitadoBloc(repository: sl()));
+  // E002-HU-009: Promover Invitado a Jugador
+  sl.registerFactory(() => PromoverInvitadoBloc(repository: sl()));
 
   // Repository
   sl.registerLazySingleton<GruposRepository>(

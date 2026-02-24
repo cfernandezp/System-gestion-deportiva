@@ -3,9 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../core/widgets/app_bottom_nav_bar.dart';
 import '../../../../core/widgets/dashboard_shell.dart';
-import '../../../../core/widgets/responsive_layout.dart';
+import '../../../../core/widgets/main_shell.dart';
 import '../../../settings/presentation/bloc/theme/theme.dart';
 import '../../data/models/perfil_model.dart';
 import '../bloc/perfil/perfil.dart';
@@ -30,14 +29,12 @@ class PerfilPage extends StatelessWidget {
         final isRefreshing = state is PerfilRefreshing;
 
         // E000-HU-004 RN-006: Tablet usa mobile con max-width centrado (fallback)
-        return ResponsiveLayout(
-          mobile: _MobilePerfilView(
-            perfil: perfil,
-            isLoading: isLoading,
-            isRefreshing: isRefreshing,
-            hasError: hasError,
-            errorMessage: errorMessage,
-          ),
+        return _MobilePerfilView(
+          perfil: perfil,
+          isLoading: isLoading,
+          isRefreshing: isRefreshing,
+          hasError: hasError,
+          errorMessage: errorMessage,
         );
       },
     );
@@ -75,7 +72,9 @@ class _MobilePerfilView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // MainShell: mobile = AppBottomNavBar, tablet = NavigationRail
+    return MainShell(
+      currentIndex: 1,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -94,7 +93,6 @@ class _MobilePerfilView extends StatelessWidget {
             : null,
       ),
       body: _buildBody(context),
-      bottomNavigationBar: const AppBottomNavBar(currentIndex: 1),
     );
   }
 

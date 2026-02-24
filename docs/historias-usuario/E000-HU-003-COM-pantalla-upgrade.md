@@ -17,24 +17,24 @@
 ### Criterios de Aceptacion
 
 #### CA-001: Redireccion desde feature bloqueada
-- [x] **DADO** que tengo plan Gratuito e intento usar una feature premium (ej: formato triangular)
+- [x] **DADO** que tengo plan Gratis e intento usar una feature de pago (ej: estadisticas avanzadas, temas personalizados, mas de 2 equipos)
 - [x] **CUANDO** el sistema detecta que la feature no esta disponible en mi plan
 - [x] **ENTONCES** me muestra la pantalla de upgrade en lugar de un mensaje de error generico
 
 #### CA-002: Redireccion desde limite alcanzado
-- [x] **DADO** que tengo plan Gratuito y alcance un limite numerico (ej: 35 jugadores)
+- [x] **DADO** que tengo plan Gratis y alcance un limite numerico (ej: 25 jugadores, 1 grupo, 1 co-admin)
 - [x] **CUANDO** intento exceder el limite
-- [x] **ENTONCES** me muestra la pantalla de upgrade indicando que con el plan Premium tengo mayor capacidad
+- [x] **ENTONCES** me muestra la pantalla de upgrade indicando que con planes de pago tengo mayor capacidad
 
 #### CA-003: Informacion del plan Premium
 - [x] **DADO** que veo la pantalla de upgrade
 - [x] **CUANDO** leo el contenido
-- [x] **ENTONCES** veo una lista clara de beneficios del plan Premium:
-  - Formato triangular (3 equipos)
-  - Hasta 70 jugadores por grupo
-  - Hasta 20 grupos
-  - Estadisticas avanzadas
-  - Temas personalizados por grupo
+- [x] **ENTONCES** veo una comparativa de los 5 planes disponibles (Gratis, Plan 5, Plan 10, Plan 15, Plan 20) con sus limites y precios:
+  - Grupos por admin: 1 / 5 / 10 / 15 / 20
+  - Jugadores por grupo: 25 / 50 / 50 / 70 / 70
+  - Co-admins, invitados, equipos por fecha
+  - Features: estadisticas avanzadas (desde Plan 5), temas personalizados (desde Plan 10)
+  - Precios: S/0, S/9.90, S/19.90, S/29.90, S/39.90 mensual
 
 #### CA-004: Mensaje de "Proximamente"
 - [x] **DADO** que veo la pantalla de upgrade
@@ -56,14 +56,14 @@
 ### RN-001: Pantalla informativa, no transaccional
 **Contexto**: Cuando un usuario es redirigido a la pantalla de upgrade.
 **Restriccion**: No debe haber boton de "Comprar" ni formulario de pago. Es solo informativa por ahora.
-**Validacion**: La pantalla muestra beneficios del plan Premium, un mensaje de "Proximamente", y un boton de "Volver". No recoge datos de pago ni hace promesas de fechas.
+**Validacion**: La pantalla muestra comparativa de los 5 planes con precios, un mensaje de "Proximamente", y un boton de "Volver". No recoge datos de pago ni hace promesas de fechas.
 **Caso especial**: Cuando se implemente la pasarela de pago (epica futura), esta pantalla se convertira en el punto de compra real.
 
 ### RN-002: Mensaje contextualizado segun el motivo
 **Contexto**: Cuando el usuario llega a la pantalla desde diferentes situaciones.
 **Restriccion**: No mostrar siempre el mismo mensaje generico.
-**Validacion**: El mensaje se adapta segun el motivo de redireccion: (1) Si fue por feature bloqueada: "El formato triangular esta disponible en el Plan Premium", (2) Si fue por limite numerico: "Tu grupo alcanzo el limite de 35 jugadores. Con Plan Premium puedes tener hasta 70". El mensaje debe ser claro y motivar al upgrade sin ser agresivo.
-**Caso especial**: Si el usuario llega desde el menu de configuracion (explorando planes), muestra la comparacion general de ambos planes.
+**Validacion**: El mensaje se adapta segun el motivo de redireccion: (1) Si fue por feature bloqueada: "Las estadisticas avanzadas estan disponibles desde el Plan 5", (2) Si fue por limite numerico: "Tu grupo alcanzo el limite de 25 jugadores. Con Plan 5 puedes tener hasta 50". El mensaje debe ser claro y motivar al upgrade sin ser agresivo.
+**Caso especial**: Si el usuario llega desde el menu de configuracion (explorando planes), muestra la comparacion general de los 5 planes con precios.
 
 ### RN-003: No bloquear la experiencia del usuario
 **Contexto**: Al mostrar la pantalla de upgrade.

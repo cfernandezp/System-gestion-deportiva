@@ -4,9 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../core/widgets/app_bottom_nav_bar.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/logout_button.dart';
+import '../../../../core/widgets/main_shell.dart';
 import '../../../../core/widgets/responsive_layout.dart';
 import '../../../auth/presentation/bloc/session/session.dart';
 import '../../../settings/presentation/bloc/theme/theme.dart';
@@ -54,7 +54,8 @@ class _MobileHomeView extends StatelessWidget {
     final grupoActualCubit = sl<GrupoActualCubit>();
     final grupoActual = grupoActualCubit.grupoActual;
 
-    return Scaffold(
+    return MainShell(
+      currentIndex: 0,
       appBar: AppBar(
         title: Column(
           children: [
@@ -94,7 +95,6 @@ class _MobileHomeView extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: const AppBottomNavBar(currentIndex: 0),
     );
   }
 }
@@ -112,7 +112,9 @@ class _TabletHomeView extends StatelessWidget {
     final grupoActualCubit = sl<GrupoActualCubit>();
     final grupoActual = grupoActualCubit.grupoActual;
 
-    return Scaffold(
+    // MainShell maneja NavigationRail en tablet automaticamente
+    return MainShell(
+      currentIndex: 0,
       appBar: AppBar(
         title: Column(
           children: [
@@ -138,46 +140,34 @@ class _TabletHomeView extends StatelessWidget {
           const LogoutButton(variant: LogoutButtonVariant.iconOnly),
         ],
       ),
-      body: SafeArea(
-        child: Row(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(DesignTokens.spacingL),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // CA-005: NavigationRail lateral en tablet
-            _TabletNavigationRail(currentIndex: 0),
+            const MiActividadVivoWidget(),
 
-            // Contenido principal expandido
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(DesignTokens.spacingL),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const MiActividadVivoWidget(),
-
-                    // CA-003: Layout 2 columnas en tablet
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Columna izquierda: Welcome card
-                        Expanded(
-                          flex: 1,
-                          child: _buildWelcomeCard(context),
-                        ),
-                        const SizedBox(width: DesignTokens.spacingL),
-                        // Columna derecha: Info rapida
-                        Expanded(
-                          flex: 1,
-                          child: _buildInfoCard(context),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: DesignTokens.spacingL),
-
-                    // CA-003: Accesos rapidos en grid 3-4 columnas en tablet
-                    _buildQuickAccessSection(context, crossAxisCount: 4),
-                  ],
+            // CA-003: Layout 2 columnas en tablet
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Columna izquierda: Welcome card
+                Expanded(
+                  flex: 1,
+                  child: _buildWelcomeCard(context),
                 ),
-              ),
+                const SizedBox(width: DesignTokens.spacingL),
+                // Columna derecha: Info rapida
+                Expanded(
+                  flex: 1,
+                  child: _buildInfoCard(context),
+                ),
+              ],
             ),
+            const SizedBox(height: DesignTokens.spacingL),
+
+            // CA-003: Accesos rapidos en grid 3-4 columnas en tablet
+            _buildQuickAccessSection(context, crossAxisCount: 4),
           ],
         ),
       ),
@@ -226,83 +216,6 @@ class _TabletHomeView extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-// ============================================
-// CA-005/RN-004: NavigationRail para tablet
-// Reemplaza BottomNavigationBar en tablet
-// ============================================
-
-class _TabletNavigationRail extends StatelessWidget {
-  final int currentIndex;
-
-  const _TabletNavigationRail({required this.currentIndex});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return BlocBuilder<SessionBloc, SessionState>(
-      builder: (context, state) {
-        String userRole = 'jugador';
-        if (state is SessionAuthenticated) {
-          userRole = state.rol.toLowerCase();
-        }
-
-        final items = AppBottomNavBar.getItemsForRole(userRole);
-
-        return NavigationRail(
-          selectedIndex: currentIndex,
-          onDestinationSelected: (index) {
-            if (index < items.length) {
-              context.go(items[index].route);
-            }
-          },
-          labelType: NavigationRailLabelType.all,
-          backgroundColor: colorScheme.surface,
-          selectedIconTheme: IconThemeData(color: colorScheme.primary),
-          selectedLabelTextStyle: TextStyle(
-            color: colorScheme.primary,
-            fontWeight: DesignTokens.fontWeightSemiBold,
-            fontSize: DesignTokens.fontSizeXs,
-          ),
-          unselectedIconTheme: IconThemeData(
-            color: colorScheme.onSurfaceVariant,
-          ),
-          unselectedLabelTextStyle: TextStyle(
-            color: colorScheme.onSurfaceVariant,
-            fontSize: DesignTokens.fontSizeXs,
-          ),
-          leading: Padding(
-            padding: const EdgeInsets.only(
-              top: DesignTokens.spacingS,
-              bottom: DesignTokens.spacingM,
-            ),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                gradient: DesignTokens.primaryGradient,
-                borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-              ),
-              child: const Icon(
-                Icons.sports_soccer,
-                color: Colors.white,
-                size: DesignTokens.iconSizeM,
-              ),
-            ),
-          ),
-          destinations: items
-              .map((item) => NavigationRailDestination(
-                    icon: Icon(item.icon),
-                    selectedIcon: Icon(item.selectedIcon),
-                    label: Text(item.label),
-                  ))
-              .toList(),
-        );
-      },
     );
   }
 }
@@ -538,12 +451,12 @@ List<_QuickAccessItem> _getAccesosPorRol(String rol,
           enabled: false,
         ),
         _QuickAccessItem(
-          title: 'Reportes',
-          description: 'Ver estadisticas y reportes',
+          title: 'Estadisticas',
+          description: 'Rankings y estadisticas del grupo',
           icon: Icons.analytics_outlined,
           color: const Color(0xFFEC4899),
-          route: '/reportes',
-          enabled: false,
+          route: '/estadisticas',
+          enabled: true,
         ),
         ...accesosComunes,
       ];
@@ -575,7 +488,7 @@ List<_QuickAccessItem> _getAccesosPorRol(String rol,
           icon: Icons.analytics_outlined,
           color: DesignTokens.accentColor,
           route: '/estadisticas',
-          enabled: false,
+          enabled: true,
         ),
         ...accesosComunes,
       ];

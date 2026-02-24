@@ -6,6 +6,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../core/services/alarm_service.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../data/models/partido_model.dart';
+import '../bloc/goles/goles.dart';
 import '../bloc/partido/partido.dart';
 import '../widgets/partido_en_vivo_widget.dart';
 import '../widgets/temporizador_fullscreen.dart';
@@ -100,9 +101,16 @@ class _PartidoEnVivoPageState extends State<PartidoEnVivoPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => sl<PartidoBloc>()
-        ..add(CargarPartidoActivoEvent(fechaId: widget.fechaId)),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => sl<PartidoBloc>()
+            ..add(CargarPartidoActivoEvent(fechaId: widget.fechaId)),
+        ),
+        BlocProvider(
+          create: (context) => sl<GolesBloc>(),
+        ),
+      ],
       child: Builder(
         builder: (blocContext) {
           return Scaffold(
@@ -122,31 +130,46 @@ class _PartidoEnVivoPageState extends State<PartidoEnVivoPage> {
               ],
             ),
             body: SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(DesignTokens.spacingM),
-                child: BlocBuilder<PartidoBloc, PartidoState>(
-                  builder: (context, state) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Widget de partido en vivo
-                        PartidoEnVivoWidget(
-                          esAdmin: widget.esAdmin,
-                          onPantallaCompleta: (partido) =>
-                              _abrirPantallaCompleta(blocContext, partido),
-                          onEstadoCambiado: () {
-                            // Recargar datos si cambia el estado
-                          },
-                        ),
+              child: BlocListener<PartidoBloc, PartidoState>(
+                listener: (context, state) {
+                  // Cargar goles cuando el partido se carga
+                  if (state is PartidoEnCurso) {
+                    context.read<GolesBloc>().add(
+                          CargarGolesEvent(partidoId: state.partido.id),
+                        );
+                  } else if (state is PartidoPausado) {
+                    context.read<GolesBloc>().add(
+                          CargarGolesEvent(partidoId: state.partido.id),
+                        );
+                  }
+                },
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(DesignTokens.spacingM),
+                  child: BlocBuilder<PartidoBloc, PartidoState>(
+                    builder: (context, state) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Widget de partido en vivo
+                          PartidoEnVivoWidget(
+                            esAdmin: widget.esAdmin,
+                            golesBloc: blocContext.read<GolesBloc>(),
+                            onPantallaCompleta: (partido) =>
+                                _abrirPantallaCompleta(blocContext, partido),
+                            onEstadoCambiado: () {
+                              // Recargar datos si cambia el estado
+                            },
+                          ),
 
-                        const SizedBox(height: DesignTokens.spacingL),
+                          const SizedBox(height: DesignTokens.spacingL),
 
-                        // Informacion adicional
-                        if (state is PartidoEnCurso || state is PartidoPausado)
-                          _buildInfoAdicional(context, state),
-                      ],
-                    );
-                  },
+                          // Informacion adicional
+                          if (state is PartidoEnCurso || state is PartidoPausado)
+                            _buildInfoAdicional(context, state),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ),

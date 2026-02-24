@@ -47,6 +47,10 @@ class InscritosListWidget extends StatefulWidget {
   /// E003-HU-011: Si la fecha esta abierta (para mostrar boton agregar)
   final bool fechaAbierta;
 
+  /// Si true, el ListView interno usa shrinkWrap:false para llenar
+  /// el espacio disponible de un Expanded padre
+  final bool useExpanded;
+
   const InscritosListWidget({
     super.key,
     required this.fechaId,
@@ -56,6 +60,7 @@ class InscritosListWidget extends StatefulWidget {
     this.expandible = true,
     this.capacidadMaxima,
     this.fechaAbierta = false,
+    this.useExpanded = false,
   });
 
   @override
@@ -157,7 +162,7 @@ class _InscritosListWidgetState extends State<InscritosListWidget>
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: widget.useExpanded ? MainAxisSize.max : MainAxisSize.min,
         children: [
           // Header con contador (CA-003)
           _buildHeader(context, state),
@@ -168,7 +173,10 @@ class _InscritosListWidgetState extends State<InscritosListWidget>
               height: 1,
               color: colorScheme.outlineVariant.withValues(alpha: 0.5),
             ),
-            _buildListaContent(context, state),
+            if (widget.useExpanded)
+              Expanded(child: _buildListaContent(context, state))
+            else
+              _buildListaContent(context, state),
           ],
         ],
       ),
@@ -607,7 +615,7 @@ class _InscritosListWidgetState extends State<InscritosListWidget>
         await Future.delayed(const Duration(milliseconds: 500));
       },
       child: ListView.separated(
-        shrinkWrap: true,
+        shrinkWrap: !widget.useExpanded,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.symmetric(
           vertical:
@@ -698,8 +706,43 @@ class _InscritoTile extends StatelessWidget {
                       ),
                     ],
                   ),
-                  // CA-002: Posicion preferida
-                  if (inscrito.posicionPreferida != null &&
+                  // Subtitulo: posicion o badge invitado
+                  if (inscrito.esInvitado)
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'Invitado',
+                            style: (compacto ? textTheme.labelSmall : textTheme.bodySmall)
+                                ?.copyWith(
+                              color: Colors.orange,
+                              fontWeight: DesignTokens.fontWeightMedium,
+                              fontSize: compacto ? 9 : 11,
+                            ),
+                          ),
+                        ),
+                        if (inscrito.posicionPreferida != null &&
+                            inscrito.posicionPreferida!.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            inscrito.posicionPreferida!,
+                            style: (compacto ? textTheme.labelSmall : textTheme.bodySmall)
+                                ?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
+                    )
+                  else if (inscrito.posicionPreferida != null &&
                       inscrito.posicionPreferida!.isNotEmpty)
                     Text(
                       inscrito.posicionPreferida!,

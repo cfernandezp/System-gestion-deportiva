@@ -32,14 +32,18 @@ class IniciarPartidoEvent extends PartidoEvent {
   /// Color del equipo visitante
   final String equipoVisitante;
 
+  /// Duracion del partido en minutos (opcional, override del calculo automatico)
+  final int? duracionMinutos;
+
   const IniciarPartidoEvent({
     required this.fechaId,
     required this.equipoLocal,
     required this.equipoVisitante,
+    this.duracionMinutos,
   });
 
   @override
-  List<Object?> get props => [fechaId, equipoLocal, equipoVisitante];
+  List<Object?> get props => [fechaId, equipoLocal, equipoVisitante, duracionMinutos];
 }
 
 /// CA-005: Evento para pausar partido en curso

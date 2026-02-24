@@ -5,11 +5,10 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/di/injection_container.dart'; // Para CrearFechaBloc en dialog
 import '../../../../core/theme/design_tokens.dart';
-import '../../../../core/widgets/app_bottom_nav_bar.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
 import '../../../../core/widgets/dashboard_shell.dart';
-import '../../../../core/widgets/responsive_layout.dart';
+import '../../../../core/widgets/main_shell.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../data/models/fecha_model.dart';
 import '../../data/models/listar_fechas_por_rol_response_model.dart';
@@ -43,11 +42,9 @@ class FechasDisponiblesPage extends StatelessWidget {
         // Determinar si es admin desde el estado
         final esAdmin = _esAdminDesdeEstado(state);
 
-        // Siempre mostrar el layout, el loading/error va dentro del contenido
-        // E000-HU-004 RN-006: Tablet usa fallback centrado
-        return ResponsiveLayout(
-          mobile: _MobileFechasView(esAdmin: esAdmin),
-        );
+        // MainShell dentro de _MobileFechasView maneja responsive:
+        // mobile = AppBottomNavBar, tablet = NavigationRail
+        return _MobileFechasView(esAdmin: esAdmin);
       },
     );
   }
@@ -182,7 +179,9 @@ class _MobileFechasViewState extends State<_MobileFechasView>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
+    // MainShell: mobile = AppBottomNavBar, tablet = NavigationRail
+    return MainShell(
+      currentIndex: 3,
       appBar: AppBar(
         title: const Text('Pichangas'),
         centerTitle: true,
@@ -215,7 +214,6 @@ class _MobileFechasViewState extends State<_MobileFechasView>
               label: const Text('Nueva'),
             )
           : null,
-      bottomNavigationBar: const AppBottomNavBar(currentIndex: 3),
     );
   }
 
@@ -1486,7 +1484,7 @@ class _DataTablePanel extends StatelessWidget {
                             cells: [
                               DataCell(_buildFechaHoraCell(context, fecha)),
                               DataCell(_buildLugarCell(context, fecha)),
-                              DataCell(Text('${fecha.duracionHoras}h')),
+                              DataCell(Text(fecha.duracionDisplay)),
                               DataCell(_buildCostoCell(context, fecha)),
                               DataCell(_buildInscritosCell(context, fecha)),
                               DataCell(_buildEstadoBadge(context, fecha)),
@@ -2053,7 +2051,7 @@ class _FechaPorRolCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          '${fecha.horaFormato} - ${fecha.duracionHoras}h',
+                          '${fecha.horaFormato} - ${fecha.duracionDisplay}',
                           style: textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurfaceVariant,
                           ),
@@ -2875,14 +2873,14 @@ class _CrearFechaDialogState extends State<_CrearFechaDialog> {
 
   DateTime _fechaSeleccionada = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _horaSeleccionada = const TimeOfDay(hour: 20, minute: 0);
-  int _duracionHoras = 2;
+  double _duracionHoras = 1.0;
   int _numEquipos = 2;
 
   @override
   void initState() {
     super.initState();
     _lugarController = TextEditingController();
-    _costoController = TextEditingController(text: '8.00');
+    _costoController = TextEditingController(text: '0.00');
   }
 
   @override
@@ -2907,7 +2905,7 @@ class _CrearFechaDialogState extends State<_CrearFechaDialog> {
   }
 
   double get _costoPorJugador {
-    return double.tryParse(_costoController.text) ?? 8.00;
+    return double.tryParse(_costoController.text) ?? 0.00;
   }
 
   String get _fechaFormateada {
@@ -2963,8 +2961,8 @@ class _CrearFechaDialogState extends State<_CrearFechaDialog> {
 
   bool get _formularioValido {
     final lugar = _lugarController.text.trim();
-    final costo = double.tryParse(_costoController.text) ?? 0;
-    return _esFechaFutura && lugar.length >= 3 && costo > 0;
+    final costo = double.tryParse(_costoController.text) ?? -1;
+    return _esFechaFutura && lugar.length >= 3 && costo >= 0 && costo <= 100;
   }
 
   void _crearFecha() {
@@ -3107,26 +3105,26 @@ class _CrearFechaDialogState extends State<_CrearFechaDialog> {
 
                             _buildLabel('Duracion *', colorScheme),
                             const SizedBox(height: DesignTokens.spacingS),
-                            SizedBox(
-                              width: double.infinity,
-                              child: SegmentedButton<int>(
-                                segments: const [
-                                  ButtonSegment(
-                                    value: 1,
-                                    label: Text('1 hora'),
-                                    icon: Icon(Icons.timer),
-                                  ),
-                                  ButtonSegment(
-                                    value: 2,
-                                    label: Text('2 horas'),
-                                    icon: Icon(Icons.timer),
-                                  ),
-                                ],
-                                selected: {_duracionHoras},
-                                onSelectionChanged: (values) {
-                                  setState(() => _duracionHoras = values.first);
-                                },
+                            DropdownButtonFormField<double>(
+                              value: _duracionHoras,
+                              decoration: const InputDecoration(
+                                prefixIcon: Icon(Icons.timer),
+                                border: OutlineInputBorder(),
                               ),
+                              items: const [
+                                DropdownMenuItem(value: 1.0, child: Text('1 hora')),
+                                DropdownMenuItem(value: 1.5, child: Text('1.5 horas')),
+                                DropdownMenuItem(value: 2.0, child: Text('2 horas')),
+                                DropdownMenuItem(value: 2.5, child: Text('2.5 horas')),
+                                DropdownMenuItem(value: 3.0, child: Text('3 horas')),
+                                DropdownMenuItem(value: 3.5, child: Text('3.5 horas')),
+                                DropdownMenuItem(value: 4.0, child: Text('4 horas')),
+                                DropdownMenuItem(value: 4.5, child: Text('4.5 horas')),
+                                DropdownMenuItem(value: 5.0, child: Text('5 horas')),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) setState(() => _duracionHoras = value);
+                              },
                             ),
                             const SizedBox(height: DesignTokens.spacingM),
 
@@ -3163,17 +3161,21 @@ class _CrearFechaDialogState extends State<_CrearFechaDialog> {
                             TextFormField(
                               controller: _costoController,
                               decoration: const InputDecoration(
-                                labelText: 'Costo por jugador (S/) *',
-                                hintText: 'Ej: 8.00',
+                                labelText: 'Costo por jugador',
+                                hintText: 'Ej: 10.00',
+                                prefixText: 'S/ ',
                                 prefixIcon: Icon(Icons.attach_money),
-                                helperText: 'Monto que pagara cada jugador',
+                                helperText: 'Monto que pagara cada jugador (0 = gratis)',
                               ),
                               keyboardType: const TextInputType.numberWithOptions(
                                   decimal: true),
                               validator: (value) {
                                 final costo = double.tryParse(value ?? '');
-                                if (costo == null || costo <= 0) {
-                                  return 'Ingrese un monto valido mayor a 0';
+                                if (costo == null || costo < 0) {
+                                  return 'Ingrese un monto valido';
+                                }
+                                if (costo > 100) {
+                                  return 'El monto maximo es S/ 100.00';
                                 }
                                 return null;
                               },

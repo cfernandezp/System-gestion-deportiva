@@ -127,3 +127,13 @@ class DegradarCoadminSuccess extends MiembrosGrupoState {
   @override
   List<Object?> get props => [nombreJugador];
 }
+
+/// E002-HU-008: Invitado eliminado del grupo exitosamente
+class EliminarInvitadoSuccess extends MiembrosGrupoState {
+  final String nombreInvitado;
+
+  const EliminarInvitadoSuccess(this.nombreInvitado);
+
+  @override
+  List<Object?> get props => [nombreInvitado];
+}

@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// Modelo de respuesta del cierre de sesion
 /// Mapea la respuesta JSON de la funcion RPC cerrar_sesion
 /// HU-004: Cierre de Sesion
@@ -41,7 +43,7 @@ class CerrarSesionResponseModel extends Equatable {
       email: data['email'] ?? '',
       // Parsear fecha UTC y convertir a local (Zona horaria Peru)
       fechaCierre: data['fecha_cierre'] != null
-          ? DateTime.parse(data['fecha_cierre']).toLocal()
+          ? AppDateUtils.parseUtcToLocal(data['fecha_cierre'])
           : DateTime.now(),
       sesionInvalidada: data['sesion_invalidada'] ?? false,
       mensaje: json['message'] ?? '',

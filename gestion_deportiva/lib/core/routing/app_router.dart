@@ -43,6 +43,19 @@ import '../../features/mi_actividad/presentation/pages/mi_actividad_page.dart';
 // E006-HU-001: Ranking de Goleadores
 import '../../features/estadisticas/presentation/bloc/ranking_goleadores/ranking_goleadores.dart';
 import '../../features/estadisticas/presentation/pages/ranking_goleadores_page.dart';
+// E006-HU-003: Mis Estadisticas
+import '../../features/estadisticas/presentation/bloc/mis_estadisticas/mis_estadisticas.dart';
+import '../../features/estadisticas/presentation/pages/mis_estadisticas_page.dart';
+// E006-HU-004: Resultados por Fecha
+import '../../features/estadisticas/presentation/bloc/resultados_fecha/resultados_fecha.dart';
+import '../../features/estadisticas/presentation/pages/resultados_fecha_page.dart';
+import '../../features/estadisticas/presentation/bloc/detalle_fecha/detalle_fecha.dart';
+import '../../features/estadisticas/presentation/pages/detalle_fecha_resultados_page.dart';
+// E006-HU-005: Estadisticas Mensuales
+import '../../features/estadisticas/presentation/bloc/estadisticas_mensuales/estadisticas_mensuales.dart';
+import '../../features/estadisticas/presentation/pages/estadisticas_mensuales_page.dart';
+// Estadisticas Hub
+import '../../features/estadisticas/presentation/pages/estadisticas_hub_page.dart';
 // E000-HU-001: Sistema de Temas - Configuracion
 import '../../features/settings/presentation/bloc/theme/theme.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
@@ -152,8 +165,17 @@ class AppRouter {
   static const String adminSolicitudes = '/admin/solicitudes';
   // E004-HU-008: Mi Actividad en Vivo
   static const String miActividad = '/mi-actividad';
+  // E006: Estadisticas Hub
+  static const String estadisticas = '/estadisticas';
   // E006-HU-001: Ranking de Goleadores
   static const String rankingGoleadores = '/ranking-goleadores';
+  // E006-HU-003: Mis Estadisticas
+  static const String misEstadisticas = '/mis-estadisticas';
+  // E006-HU-004: Resultados por Fecha
+  static const String resultadosFecha = '/resultados-fecha';
+  static const String detalleFechaResultados = '/resultados-fecha/:id';
+  // E006-HU-005: Estadisticas Mensuales
+  static const String estadisticasMensuales = '/estadisticas-mensuales';
   // E000-HU-001: Sistema de Temas - Configuracion
   static const String configuracion = '/configuracion';
   // E002-HU-001: Crear Grupo Deportivo
@@ -513,6 +535,16 @@ class AppRouter {
         ),
       ),
 
+      // E006: Estadisticas Hub - Menu de opciones de estadisticas
+      GoRoute(
+        path: '/estadisticas',
+        name: 'estadisticas',
+        pageBuilder: (context, state) => _buildPageWithFadeTransition(
+          key: state.pageKey,
+          child: const EstadisticasHubPage(),
+        ),
+      ),
+
       // E006-HU-001: Ranking de Goleadores
       // CA-001 a CA-007: Ranking de goleadores con podio, filtros y destacado
       GoRoute(
@@ -526,6 +558,86 @@ class AppRouter {
             child: const RankingGoleadoresPage(),
           ),
         ),
+      ),
+
+      // E006-HU-003: Mis Estadisticas
+      // CA-001 a CA-008: Dashboard personal del jugador
+      GoRoute(
+        path: '/mis-estadisticas',
+        name: 'misEstadisticas',
+        pageBuilder: (context, state) {
+          final grupoActual = sl<GrupoActualCubit>().grupoActual;
+          final grupoId = grupoActual?.grupoId ?? '';
+          return _buildPageWithFadeTransition(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (context) => sl<MisEstadisticasBloc>()
+                ..add(CargarMisEstadisticasEvent(grupoId: grupoId)),
+              child: const MisEstadisticasPage(),
+            ),
+          );
+        },
+      ),
+
+      // E006-HU-004: Resultados por Fecha - Historial
+      // CA-001, CA-007, CA-008: Lista de fechas finalizadas con filtros
+      GoRoute(
+        path: '/resultados-fecha',
+        name: 'resultadosFecha',
+        pageBuilder: (context, state) {
+          final grupoActual = sl<GrupoActualCubit>().grupoActual;
+          final grupoId = grupoActual?.grupoId ?? '';
+          return _buildPageWithFadeTransition(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (context) => sl<ResultadosFechaBloc>()
+                ..add(CargarHistorialFechasEvent(grupoId: grupoId)),
+              child: const ResultadosFechaPage(),
+            ),
+          );
+        },
+      ),
+
+      // E006-HU-004: Resultados por Fecha - Detalle
+      // CA-002 a CA-006: Partidos, tabla, goleadores, asistentes
+      GoRoute(
+        path: '/resultados-fecha/:id',
+        name: 'detalleFechaResultados',
+        pageBuilder: (context, state) {
+          final fechaId = state.pathParameters['id'] ?? '';
+          final grupoActual = sl<GrupoActualCubit>().grupoActual;
+          final grupoId = grupoActual?.grupoId ?? '';
+          return _buildPageWithFadeTransition(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (context) => sl<DetalleFechaBloc>()
+                ..add(CargarDetalleFechaEvent(
+                  fechaId: fechaId,
+                  grupoId: grupoId,
+                )),
+              child: DetalleFechaResultadosPage(fechaId: fechaId),
+            ),
+          );
+        },
+      ),
+
+      // E006-HU-005: Estadisticas Mensuales
+      // CA-001 a CA-008: Estadisticas agregadas por mes del grupo
+      GoRoute(
+        path: '/estadisticas-mensuales',
+        name: 'estadisticasMensuales',
+        pageBuilder: (context, state) {
+          final grupoActual = sl<GrupoActualCubit>().grupoActual;
+          final grupoId = grupoActual?.grupoId ?? '';
+          return _buildPageWithFadeTransition(
+            key: state.pageKey,
+            child: BlocProvider(
+              create: (context) => sl<EstadisticasMensualesBloc>()
+                ..add(CargarEstadisticasMensualesEvent(grupoId: grupoId)),
+              child: const EstadisticasMensualesPage(),
+            ),
+          );
+        },
       ),
 
       // E000-HU-001: Configuracion - Sistema de Temas

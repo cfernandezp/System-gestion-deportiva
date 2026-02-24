@@ -14,6 +14,8 @@
 ## Descripcion
 Muestra el goleador destacado de cada fecha jugada. Cuando se finaliza una jornada, se determina automaticamente quien fue el maximo anotador y se le otorga el reconocimiento de "Goleador de la Fecha".
 
+**Restriccion de plan**: Goleador de la fecha basico visible para todos. Historial completo de goleadores por fecha y badge disponible desde Plan 5+.
+
 ---
 
 ## Criterios de Aceptacion (CA)
@@ -32,7 +34,7 @@ Muestra el goleador destacado de cada fecha jugada. Cuando se finaliza una jorna
 - **Entonces** se muestran TODOS los empatados como co-goleadores
 - **Y** cada uno recibe el reconocimiento
 
-### CA-003: Historial de goleadores por fecha
+### CA-003: Historial de goleadores por fecha (Plan 5+)
 - **Dado** que accedo a "Goleadores por Fecha"
 - **Cuando** veo la lista
 - **Entonces** veo cada fecha finalizada con su(s) goleador(es):
@@ -53,13 +55,13 @@ Muestra el goleador destacado de cada fecha jugada. Cuando se finaliza una jorna
   - Titulo: "Felicidades! Eres el goleador de la fecha"
   - Mensaje: "Anotaste X goles en la pichanga del [fecha]"
 
-### CA-006: Contador de veces goleador de la fecha
+### CA-006: Contador de veces goleador de la fecha (Plan 5+)
 - **Dado** que veo el perfil de un jugador
 - **Cuando** ha sido goleador de la fecha alguna vez
 - **Entonces** veo la metrica "Veces goleador de la fecha: X"
 - **Y** este contador aparece en "Mis Estadisticas" (E006-HU-003)
 
-### CA-007: Badge o icono de goleador
+### CA-007: Badge o icono de goleador (Plan 5+)
 - **Dado** que un jugador es goleador de la fecha
 - **Cuando** veo la lista de goleadores de esa fecha
 - **Entonces** tiene un badge/icono especial (ej: estrella, balon dorado)
@@ -72,7 +74,6 @@ Muestra el goleador destacado de cada fecha jugada. Cuando se finaliza una jorna
 **Contexto**: Al finalizar una fecha.
 **Restriccion**: El goleador de la fecha es el jugador con mas goles validos en esa fecha.
 **Validacion**: MAX(COUNT goles) WHERE anulado=false AND es_autogol=false AND jugador_id IS NOT NULL GROUP BY jugador_id.
-**Regla calculo**: N/A.
 **Caso especial**: Si hay empate, todos los empatados son co-goleadores.
 
 ### RN-002: Solo Goles Validos
@@ -82,21 +83,18 @@ Muestra el goleador destacado de cada fecha jugada. Cuando se finaliza una jorna
   2. es_autogol = false
   3. jugador_id IS NOT NULL
 **Validacion**: Filtrar goles con condiciones.
-**Regla calculo**: N/A.
 **Caso especial**: Autogoles no cuentan para ser goleador.
 
 ### RN-003: Minimo de Goles
 **Contexto**: Para ser goleador de la fecha.
 **Restriccion**: Se requiere al menos 1 gol para ser goleador de la fecha.
 **Validacion**: COUNT goles >= 1.
-**Regla calculo**: N/A.
 **Caso especial**: Si todos tienen 0 goles, no hay goleador de la fecha.
 
 ### RN-004: Registro al Finalizar Fecha
 **Contexto**: Cuando se registra el goleador.
 **Restriccion**: El goleador de la fecha se determina automaticamente cuando la fecha cambia a estado = 'finalizada'.
 **Validacion**: Trigger o funcion al finalizar fecha.
-**Regla calculo**: N/A.
 **Caso especial**: Si se anula un gol despues de finalizar y cambia al goleador, se debe recalcular.
 
 ### RN-005: Notificacion Automatica
@@ -106,35 +104,33 @@ Muestra el goleador destacado de cada fecha jugada. Cuando se finaliza una jorna
   - usuario_id: el/los goleadores
   - titulo y mensaje segun CA-005
 **Validacion**: INSERT en notificaciones.
-**Regla calculo**: N/A.
 **Caso especial**: Si hay co-goleadores, ambos reciben notificacion.
 
 ### RN-006: Contador de Veces Goleador
 **Contexto**: Estadistica individual.
 **Restriccion**: Contar cuantas fechas un jugador ha sido goleador (o co-goleador).
 **Validacion**: COUNT fechas WHERE jugador es goleador de la fecha.
-**Regla calculo**: Cada fecha donde fue goleador (o co-goleador) suma 1.
 **Caso especial**: Co-goleadores: ambos suman 1 a su contador.
 
 ### RN-007: No Hay Desempate
 **Contexto**: Empate en goles maximos.
 **Restriccion**: NO hay criterio de desempate. Si 2+ jugadores tienen el maximo de goles, TODOS son goleadores de la fecha.
-**Validacion**: N/A.
-**Regla calculo**: N/A.
 **Caso especial**: Puede haber 2, 3 o mas goleadores de la fecha.
 
-### RN-008: Visibilidad
-**Contexto**: Quien ve esta informacion.
-**Restriccion**: El goleador de la fecha es informacion publica visible para todos los usuarios autenticados.
-**Validacion**: Usuario autenticado.
-**Regla calculo**: N/A.
-**Caso especial**: N/A.
+### RN-008: Restriccion por Plan
+**Contexto**: Feature flag de stats avanzadas.
+**Restriccion**:
+  - Plan Gratis: Ve goleador en resumen de fecha actual (CA-001, CA-002, CA-004)
+  - Plan 5+: Todo lo anterior + historial de goleadores, contador, badge
+**Validacion**: Verificar plan del usuario via limites_plan.stats_avanzadas.
+**Caso especial**: Invitados no pueden ser goleadores de la fecha (solo jugadores).
 
 ---
 
 ## Notas Tecnicas
 - Refinado por @negocio-deportivo-expert
-- Esta funcionalidad se integra con E003-HU-010 (Finalizar Fecha) para determinar automaticamente el goleador
+- Esta funcionalidad se integra con E007-HU-010 (Finalizar Fecha) para determinar automaticamente el goleador
+- Depende de E004 (goles) y E007 (fechas)
 
 ---
 **Creado**: 2025-01-15

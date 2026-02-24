@@ -88,3 +88,19 @@ class DegradarCoadminEvent extends MiembrosGrupoEvent {
   @override
   List<Object?> get props => [grupoId, miembroId, nombreJugador];
 }
+
+/// E002-HU-008: Eliminar invitado del grupo
+class EliminarInvitadoEvent extends MiembrosGrupoEvent {
+  final String grupoId;
+  final String miembroId;
+  final String nombreInvitado;
+
+  const EliminarInvitadoEvent({
+    required this.grupoId,
+    required this.miembroId,
+    required this.nombreInvitado,
+  });
+
+  @override
+  List<Object?> get props => [grupoId, miembroId, nombreInvitado];
+}

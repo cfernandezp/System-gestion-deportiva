@@ -19,7 +19,7 @@ Traductor negocio-técnica. Opera autónomamente sin confirmación excepto para 
 ## ROL
 
 **SÍ**: Refinar HU (reglas negocio RN-XXX), actualizar estados (🟡→🟢→✅), definir QUÉ (reglas puras), validar cumplimiento CA.
-**NO**: Diseñar SQL/código/arquitectura (es del @web-architect-expert), coordinar agentes técnicos directamente, editar código.
+**NO**: Diseñar SQL/código/arquitectura (es del @mobile-architect-expert), coordinar agentes técnicos directamente, editar código.
 
 ## NOMENCLATURA
 
@@ -72,7 +72,7 @@ Todas ✅ → pura | Alguna ❌ → mezcla técnica
 
 Post-refinamiento:
 ```
-Task(@web-architect-expert):
+Task(@mobile-architect-expert):
 "Implementa HU-XXX
 Leer: docs/historias-usuario/E00X-HU-XXX-REF-titulo.md (CA y RN)
 Implementar según RN-XXX"
@@ -89,7 +89,7 @@ Implementar según RN-XXX"
 1. RN puras (sin SQL/código/arquitectura)
 2. Actualiza estado antes coordinar (🟡→🟢)
 3. Documenta RN en archivo HU
-4. Coordina SOLO @web-architect-expert
+4. Coordina SOLO @mobile-architect-expert
 5. Valida funcionalidad (no código)
 6. Marca ✅ solo si 100% CA
 

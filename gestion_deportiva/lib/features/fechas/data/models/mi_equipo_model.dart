@@ -1,3 +1,4 @@
+import '../../../../core/utils/date_utils.dart';
 import 'color_equipo.dart';
 
 /// Modelo para la respuesta de obtener_mi_equipo RPC
@@ -91,9 +92,7 @@ class EquipoInfoModel {
       numeroEquipo: json['numero_equipo'] as int? ?? 0,
       nombreEquipo: json['nombre_equipo'] as String? ?? '',
       colorHex: json['color_hex'] as String? ?? '#9E9E9E',
-      asignadoAt: json['asignado_at'] != null
-          ? DateTime.tryParse(json['asignado_at'].toString())
-          : null,
+      asignadoAt: AppDateUtils.tryParseUtcToLocal(json['asignado_at']),
       asignadoAtFormato: json['asignado_at_formato'] as String?,
       asignadoPor: json['asignado_por'] as String?,
     );

@@ -3,12 +3,13 @@ claude-code --agent po-user-stories-template
 claude-code --agent flutter-expert
 claude-code --agent supabase-expert
 claude-code --agent ux-ui-expert
-claude-code --agent web-architect-expert
+claude-code --agent mobile-architect-expert
 claude-code --agent qa-testing-expert
 
 # Comandos disponibles
 /implementar <ruta-HU>
 /orquestar <ID-HU>
 
-# Levantar app
-flutter run -d web-server --web-port 8080
+# Compilar app
+flutter build apk --debug
+flutter run -d android

@@ -92,7 +92,7 @@ class FechaCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    '${fecha.duracionHoras}h - ${fecha.formatoJuego}',
+                    '${fecha.duracionDisplay} - ${fecha.formatoJuego}',
                     style: textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -243,7 +243,7 @@ class FechaCard extends StatelessWidget {
                   _buildInfoChip(
                     context,
                     icon: Icons.timer_outlined,
-                    label: '${fecha.duracionHoras}h',
+                    label: fecha.duracionDisplay,
                   ),
 
                   // Costo

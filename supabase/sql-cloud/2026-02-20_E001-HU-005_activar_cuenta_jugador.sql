@@ -180,6 +180,13 @@ BEGIN
         updated_at = NOW()
     WHERE id = v_usuario_id;
 
+    -- FIX: Confirmar email en auth.users para que signInWithPassword funcione
+    -- El email es ficticio (celular@gestiondeportiva.app) asi que nunca
+    -- se confirmaria por flujo normal de Supabase Auth
+    UPDATE auth.users
+    SET email_confirmed_at = COALESCE(email_confirmed_at, NOW())
+    WHERE id = p_auth_user_id;
+
     -- RN-003 (caso especial): Contar grupos activos
     SELECT COUNT(*) INTO v_grupos_count
     FROM miembros_grupo

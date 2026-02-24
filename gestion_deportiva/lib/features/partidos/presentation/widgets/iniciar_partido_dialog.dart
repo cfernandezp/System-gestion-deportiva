@@ -99,6 +99,15 @@ class _IniciarPartidoDialogState extends State<IniciarPartidoDialog> {
   ColorEquipo? _equipoLocal;
   ColorEquipo? _equipoVisitante;
 
+  /// Duracion editable del partido en minutos
+  late int _duracionMinutos;
+
+  @override
+  void initState() {
+    super.initState();
+    _duracionMinutos = widget.duracionMinutos;
+  }
+
   /// RN-006: Validar equipos diferentes
   bool get _equiposValidos =>
       _equipoLocal != null &&
@@ -413,7 +422,7 @@ class _IniciarPartidoDialogState extends State<IniciarPartidoDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // CA-002: Mostrar duracion automatica
+        // CA-002: Duracion editable con botones +/-
         Container(
           padding: const EdgeInsets.all(DesignTokens.spacingM),
           decoration: BoxDecoration(
@@ -442,7 +451,7 @@ class _IniciarPartidoDialogState extends State<IniciarPartidoDialog> {
                       ),
                     ),
                     Text(
-                      '${widget.duracionMinutos} minutos',
+                      '$_duracionMinutos min',
                       style: textTheme.titleMedium?.copyWith(
                         fontWeight: DesignTokens.fontWeightBold,
                         color: colorScheme.primary,
@@ -451,10 +460,23 @@ class _IniciarPartidoDialogState extends State<IniciarPartidoDialog> {
                   ],
                 ),
               ),
-              Icon(
-                Icons.auto_mode,
-                color: colorScheme.primary.withValues(alpha: 0.5),
-                size: DesignTokens.iconSizeS,
+              // Boton menos
+              IconButton(
+                onPressed: _duracionMinutos > 5
+                    ? () => setState(() => _duracionMinutos -= 5)
+                    : null,
+                icon: const Icon(Icons.remove_circle_outline),
+                iconSize: 36,
+                color: colorScheme.primary,
+              ),
+              // Boton mas
+              IconButton(
+                onPressed: _duracionMinutos < 60
+                    ? () => setState(() => _duracionMinutos += 5)
+                    : null,
+                icon: const Icon(Icons.add_circle_outline),
+                iconSize: 36,
+                color: colorScheme.primary,
               ),
             ],
           ),
@@ -633,7 +655,7 @@ class _IniciarPartidoDialogState extends State<IniciarPartidoDialog> {
           ),
           const SizedBox(height: DesignTokens.spacingS),
           Text(
-            '${widget.duracionMinutos} minutos',
+            '$_duracionMinutos minutos',
             style: textTheme.bodyMedium?.copyWith(
               color: colorScheme.secondary,
               fontWeight: DesignTokens.fontWeightMedium,
@@ -644,7 +666,7 @@ class _IniciarPartidoDialogState extends State<IniciarPartidoDialog> {
     );
   }
 
-  /// Inicia el partido
+  /// Inicia el partido con la duracion seleccionada
   void _iniciarPartido(BuildContext context) {
     if (!_equiposValidos) return;
 
@@ -653,6 +675,7 @@ class _IniciarPartidoDialogState extends State<IniciarPartidoDialog> {
             fechaId: widget.fechaDetalle.fecha.fechaId,
             equipoLocal: _equipoLocal!.toBackend(),
             equipoVisitante: _equipoVisitante!.toBackend(),
+            duracionMinutos: _duracionMinutos,
           ),
         );
   }

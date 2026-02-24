@@ -1,10 +1,10 @@
 /// Tipo de motivo por el que se muestra la pantalla de upgrade
 /// RN-002: Mensaje contextualizado segun el motivo
 enum UpgradeReasonType {
-  /// Feature bloqueada (ej: formato triangular)
+  /// Feature bloqueada (ej: formato triangular, estadisticas avanzadas)
   featureBloqueada,
 
-  /// Limite numerico alcanzado (ej: 35 jugadores)
+  /// Limite numerico alcanzado (ej: 25 jugadores en plan Gratis)
   limiteAlcanzado,
 
   /// Explorando planes desde configuracion
@@ -19,11 +19,11 @@ class UpgradeReason {
   /// Nombre de la feature bloqueada (ej: "Formato triangular")
   final String? featureName;
 
-  /// Limite actual alcanzado (ej: 35)
+  /// Limite actual alcanzado (ej: 25)
   final int? limiteActual;
 
-  /// Limite Premium disponible (ej: 70)
-  final int? limitePremium;
+  /// Limite superior disponible en planes de pago (ej: 70)
+  final int? limiteSuperior;
 
   /// Recurso del limite (ej: "jugadores")
   final String? recursoLimite;
@@ -32,7 +32,7 @@ class UpgradeReason {
     required this.type,
     this.featureName,
     this.limiteActual,
-    this.limitePremium,
+    this.limiteSuperior,
     this.recursoLimite,
   });
 
@@ -41,18 +41,18 @@ class UpgradeReason {
       : type = UpgradeReasonType.featureBloqueada,
         featureName = feature,
         limiteActual = null,
-        limitePremium = null,
+        limiteSuperior = null,
         recursoLimite = null;
 
   /// Factory para limite alcanzado
   const UpgradeReason.limite({
     required String recurso,
     required int actual,
-    required int premium,
+    required int superior,
   })  : type = UpgradeReasonType.limiteAlcanzado,
         featureName = null,
         limiteActual = actual,
-        limitePremium = premium,
+        limiteSuperior = superior,
         recursoLimite = recurso;
 
   /// Factory para explorar planes
@@ -60,19 +60,19 @@ class UpgradeReason {
       : type = UpgradeReasonType.explorarPlanes,
         featureName = null,
         limiteActual = null,
-        limitePremium = null,
+        limiteSuperior = null,
         recursoLimite = null;
 
   /// Mensaje contextualizado segun el tipo (RN-002)
   String get mensajeContextual {
     switch (type) {
       case UpgradeReasonType.featureBloqueada:
-        return '$featureName esta disponible en el Plan Premium';
+        return '$featureName esta disponible en nuestros planes de pago';
       case UpgradeReasonType.limiteAlcanzado:
         return 'Tu grupo alcanzo el limite de $limiteActual $recursoLimite. '
-            'Con Plan Premium puedes tener hasta $limitePremium';
+            'Con nuestros planes de pago puedes tener hasta $limiteSuperior';
       case UpgradeReasonType.explorarPlanes:
-        return 'Conoce los beneficios del Plan Premium';
+        return 'Conoce los beneficios de nuestros planes';
     }
   }
 }

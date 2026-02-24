@@ -8,9 +8,9 @@ class CrearFechaRequestModel extends Equatable {
   /// CA-002, RN-004: Debe ser fecha futura
   final DateTime fechaHoraInicio;
 
-  /// Duracion en horas (1 o 2)
+  /// Duracion en horas (1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5)
   /// CA-002: Seleccionado por el administrador
-  final int duracionHoras;
+  final double duracionHoras;
 
   /// Nombre de cancha o direccion
   /// CA-005: Campo obligatorio, minimo 3 caracteres
@@ -53,9 +53,9 @@ class CrearFechaRequestModel extends Equatable {
       return 'La fecha debe ser futura';
     }
 
-    // Duracion valida (1-3 horas)
-    if (duracionHoras < 1 || duracionHoras > 3) {
-      return 'La duracion debe ser entre 1 y 3 horas';
+    // Duracion valida (1-5 horas, incrementos de 0.5)
+    if (duracionHoras < 1.0 || duracionHoras > 5.0) {
+      return 'La duracion debe ser entre 1 y 5 horas';
     }
 
     // CA-005: Lugar obligatorio
@@ -72,9 +72,9 @@ class CrearFechaRequestModel extends Equatable {
       return 'El numero de equipos debe ser entre 2 y 4';
     }
 
-    // Costo valido
-    if (costoPorJugador <= 0) {
-      return 'El costo debe ser mayor a 0';
+    // Costo valido (0-100)
+    if (costoPorJugador < 0 || costoPorJugador > 100) {
+      return 'El costo debe ser entre S/ 0.00 y S/ 100.00';
     }
 
     return null; // Sin errores
@@ -83,7 +83,7 @@ class CrearFechaRequestModel extends Equatable {
   /// Obtiene el formato de juego segun numero de equipos
   String get formatoJuego {
     if (numEquipos == 2) {
-      return '2 equipos - Partido continuo';
+      return 'Partido directo';
     } else {
       return '$numEquipos equipos con rotacion';
     }

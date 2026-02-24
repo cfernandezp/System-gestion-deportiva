@@ -1,3 +1,4 @@
+import '../../../../core/utils/date_utils.dart';
 import 'color_equipo.dart';
 import 'mi_equipo_model.dart';
 
@@ -129,9 +130,7 @@ class FechaResumenModel {
   factory FechaResumenModel.fromJson(Map<String, dynamic> json) {
     return FechaResumenModel(
       id: json['id'] as String? ?? '',
-      fechaHoraInicio: json['fecha_hora_inicio'] != null
-          ? DateTime.tryParse(json['fecha_hora_inicio'].toString())
-          : null,
+      fechaHoraInicio: AppDateUtils.tryParseUtcToLocal(json['fecha_hora_inicio']),
       fechaFormato: json['fecha_formato'] as String? ?? '',
       horaFormato: json['hora_formato'] as String? ?? '',
       lugar: json['lugar'] as String? ?? '',

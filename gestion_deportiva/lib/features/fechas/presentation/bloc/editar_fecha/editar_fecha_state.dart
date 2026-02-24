@@ -25,10 +25,13 @@ class EditarFechaFormularioListo extends EditarFechaState {
   final DateTime fechaHoraInicio;
 
   /// Duracion actual
-  final int duracionHoras;
+  final double duracionHoras;
 
   /// Lugar actual
   final String lugar;
+
+  /// Numero de equipos actual
+  final int numEquipos;
 
   /// Costo actual
   final double costoActual;
@@ -41,20 +44,10 @@ class EditarFechaFormularioListo extends EditarFechaState {
     required this.fechaHoraInicio,
     required this.duracionHoras,
     required this.lugar,
+    required this.numEquipos,
     required this.costoActual,
     required this.totalInscritos,
   });
-
-  /// CA-004: Calcula el nuevo costo segun duracion
-  /// RN-003: 1 hora = S/8.00, 2 horas = S/10.00
-  double calcularNuevoCosto(int nuevaDuracion) {
-    return nuevaDuracion == 1 ? 8.00 : 10.00;
-  }
-
-  /// CA-004: Verifica si el costo cambiaria con nueva duracion
-  bool costoCambiaria(int nuevaDuracion) {
-    return calcularNuevoCosto(nuevaDuracion) != costoActual;
-  }
 
   @override
   List<Object?> get props => [
@@ -62,6 +55,7 @@ class EditarFechaFormularioListo extends EditarFechaState {
         fechaHoraInicio,
         duracionHoras,
         lugar,
+        numEquipos,
         costoActual,
         totalInscritos,
       ];

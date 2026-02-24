@@ -48,8 +48,9 @@ class EditarFechaDialog extends StatefulWidget {
             ..add(EditarFechaInicializarEvent(
               fechaId: fechaDetalle.fecha.fechaId,
               fechaHoraInicio: fechaDetalle.fecha.fechaHoraInicio,
-              duracionHoras: fechaDetalle.fecha.duracionHoras,
+              duracionHoras: fechaDetalle.fecha.duracionHoras.toDouble(),
               lugar: fechaDetalle.fecha.lugar,
+              numEquipos: fechaDetalle.fecha.numEquipos,
               costoActual: fechaDetalle.fecha.costoPorJugador,
               totalInscritos: fechaDetalle.totalInscritos,
             )),
@@ -69,8 +70,9 @@ class EditarFechaDialog extends StatefulWidget {
             ..add(EditarFechaInicializarEvent(
               fechaId: fechaDetalle.fecha.fechaId,
               fechaHoraInicio: fechaDetalle.fecha.fechaHoraInicio,
-              duracionHoras: fechaDetalle.fecha.duracionHoras,
+              duracionHoras: fechaDetalle.fecha.duracionHoras.toDouble(),
               lugar: fechaDetalle.fecha.lugar,
+              numEquipos: fechaDetalle.fecha.numEquipos,
               costoActual: fechaDetalle.fecha.costoPorJugador,
               totalInscritos: fechaDetalle.totalInscritos,
             )),
@@ -98,16 +100,20 @@ class EditarFechaDialog extends StatefulWidget {
 class _EditarFechaDialogState extends State<EditarFechaDialog> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _lugarController;
+  late TextEditingController _costoController;
 
   // Valores editables
   late DateTime _fechaSeleccionada;
   late TimeOfDay _horaSeleccionada;
-  late int _duracionHoras;
+  late double _duracionHoras;
+  late int _numEquipos;
 
   // Valores originales para comparar
   late DateTime _fechaOriginal;
-  late int _duracionOriginal;
+  late double _duracionOriginal;
   late String _lugarOriginal;
+  late int _numEquiposOriginal;
+  late double _costoOriginal;
 
   @override
   void initState() {
@@ -124,18 +130,25 @@ class _EditarFechaDialogState extends State<EditarFechaDialog> {
       hour: fecha.fechaHoraInicio.hour,
       minute: fecha.fechaHoraInicio.minute,
     );
-    _duracionHoras = fecha.duracionHoras;
+    _duracionHoras = fecha.duracionHoras.toDouble();
+    _numEquipos = fecha.numEquipos;
     _lugarController = TextEditingController(text: fecha.lugar);
+    _costoController = TextEditingController(
+      text: fecha.costoPorJugador.toStringAsFixed(2),
+    );
 
     // Guardar originales
     _fechaOriginal = fecha.fechaHoraInicio;
-    _duracionOriginal = fecha.duracionHoras;
+    _duracionOriginal = fecha.duracionHoras.toDouble();
     _lugarOriginal = fecha.lugar;
+    _numEquiposOriginal = fecha.numEquipos;
+    _costoOriginal = fecha.costoPorJugador;
   }
 
   @override
   void dispose() {
     _lugarController.dispose();
+    _costoController.dispose();
     super.dispose();
   }
 
@@ -155,14 +168,9 @@ class _EditarFechaDialogState extends State<EditarFechaDialog> {
     return _fechaHoraInicio.isAfter(DateTime.now());
   }
 
-  /// CA-004: Calcula el nuevo costo segun duracion (RN-003)
-  double get _nuevoCosto {
-    return _duracionHoras == 1 ? 8.00 : 10.00;
-  }
-
-  /// Verifica si el costo cambiaria
-  bool get _costoCambiaria {
-    return _nuevoCosto != widget.fechaDetalle.fecha.costoPorJugador;
+  /// Obtiene costo parseado del controller
+  double get _costoPorJugador {
+    return double.tryParse(_costoController.text) ?? 0.00;
   }
 
   /// Verifica si hay cambios
@@ -170,13 +178,16 @@ class _EditarFechaDialogState extends State<EditarFechaDialog> {
     final fechaCambio = _fechaHoraInicio != _fechaOriginal;
     final duracionCambio = _duracionHoras != _duracionOriginal;
     final lugarCambio = _lugarController.text.trim() != _lugarOriginal;
-    return fechaCambio || duracionCambio || lugarCambio;
+    final equiposCambio = _numEquipos != _numEquiposOriginal;
+    final costoCambio = _costoPorJugador != _costoOriginal;
+    return fechaCambio || duracionCambio || lugarCambio || equiposCambio || costoCambio;
   }
 
   /// Valida el formulario completo
   bool get _formularioValido {
     final lugar = _lugarController.text.trim();
-    return _esFechaFutura && lugar.length >= 3 && _hayCambios;
+    final costo = double.tryParse(_costoController.text) ?? -1;
+    return _esFechaFutura && lugar.length >= 3 && _hayCambios && costo >= 0 && costo <= 100;
   }
 
   /// Formatea fecha para mostrar (Peru)
@@ -224,6 +235,14 @@ class _EditarFechaDialogState extends State<EditarFechaDialog> {
     }
   }
 
+  /// Formatea duracion para mostrar
+  String _formatearDuracion(double horas) {
+    if (horas == horas.truncateToDouble()) {
+      return '${horas.toInt()} hora${horas.toInt() != 1 ? 's' : ''}';
+    }
+    return '$horas horas';
+  }
+
   /// CA-006: Muestra dialogo de confirmacion con resumen de cambios
   void _mostrarConfirmacion(BuildContext context) {
     final totalInscritos = widget.fechaDetalle.totalInscritos;
@@ -262,8 +281,8 @@ class _EditarFechaDialogState extends State<EditarFechaDialog> {
               _ConfirmacionItem(
                 icon: Icons.timer,
                 label: 'Duracion',
-                oldValue: '$_duracionOriginal hora${_duracionOriginal != 1 ? 's' : ''}',
-                newValue: '$_duracionHoras hora${_duracionHoras != 1 ? 's' : ''}',
+                oldValue: _formatearDuracion(_duracionOriginal),
+                newValue: _formatearDuracion(_duracionHoras),
               ),
 
             if (_lugarController.text.trim() != _lugarOriginal)
@@ -274,39 +293,21 @@ class _EditarFechaDialogState extends State<EditarFechaDialog> {
                 newValue: _lugarController.text.trim(),
               ),
 
-            // CA-004: Advertencia de cambio de costo
-            if (_costoCambiaria) ...[
-              const SizedBox(height: DesignTokens.spacingM),
-              Container(
-                padding: const EdgeInsets.all(DesignTokens.spacingM),
-                decoration: BoxDecoration(
-                  color: DesignTokens.accentColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(DesignTokens.radiusM),
-                  border: Border.all(
-                    color: DesignTokens.accentColor.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.attach_money,
-                      color: DesignTokens.accentColor,
-                      size: DesignTokens.iconSizeM,
-                    ),
-                    const SizedBox(width: DesignTokens.spacingS),
-                    Expanded(
-                      child: Text(
-                        'El costo cambiara de S/ ${widget.fechaDetalle.fecha.costoPorJugador.toStringAsFixed(2)} a S/ ${_nuevoCosto.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          color: DesignTokens.accentColor,
-                          fontWeight: DesignTokens.fontWeightMedium,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+            if (_numEquipos != _numEquiposOriginal)
+              _ConfirmacionItem(
+                icon: Icons.groups,
+                label: 'Equipos',
+                oldValue: '$_numEquiposOriginal equipos',
+                newValue: '$_numEquipos equipos',
               ),
-            ],
+
+            if (_costoPorJugador != _costoOriginal)
+              _ConfirmacionItem(
+                icon: Icons.attach_money,
+                label: 'Costo',
+                oldValue: 'S/ ${_costoOriginal.toStringAsFixed(2)}',
+                newValue: 'S/ ${_costoPorJugador.toStringAsFixed(2)}',
+              ),
 
             // Mostrar cantidad de inscritos a notificar
             if (totalInscritos > 0) ...[
@@ -374,6 +375,8 @@ class _EditarFechaDialogState extends State<EditarFechaDialog> {
         fechaHoraInicio: _fechaHoraInicio,
         duracionHoras: _duracionHoras,
         lugar: _lugarController.text.trim(),
+        numEquipos: _numEquipos,
+        costoPorJugador: _costoPorJugador,
       ));
     }
   }
@@ -680,11 +683,19 @@ class _EditarFechaDialogState extends State<EditarFechaDialog> {
           _buildCampoDuracion(colorScheme),
           const SizedBox(height: DesignTokens.spacingM),
 
+          // Selector de numero de equipos
+          _buildCampoEquipos(colorScheme),
+          const SizedBox(height: DesignTokens.spacingM),
+
+          // Campo de costo por jugador
+          _buildCampoCosto(),
+          const SizedBox(height: DesignTokens.spacingM),
+
           // Campo de lugar
           _buildCampoLugar(),
           const SizedBox(height: DesignTokens.spacingM),
 
-          // CA-004: Preview de formato y costo
+          // Preview de formato resultante
           _buildPreviewFormato(colorScheme),
         ],
       ),
@@ -796,6 +807,19 @@ class _EditarFechaDialogState extends State<EditarFechaDialog> {
     );
   }
 
+  /// Opciones de duracion disponibles
+  static const _duracionOpciones = [
+    (valor: 1.0, label: '1 hora'),
+    (valor: 1.5, label: '1.5 horas'),
+    (valor: 2.0, label: '2 horas'),
+    (valor: 2.5, label: '2.5 horas'),
+    (valor: 3.0, label: '3 horas'),
+    (valor: 3.5, label: '3.5 horas'),
+    (valor: 4.0, label: '4 horas'),
+    (valor: 4.5, label: '4.5 horas'),
+    (valor: 5.0, label: '5 horas'),
+  ];
+
   Widget _buildCampoDuracion(ColorScheme colorScheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -808,58 +832,87 @@ class _EditarFechaDialogState extends State<EditarFechaDialog> {
           ),
         ),
         const SizedBox(height: DesignTokens.spacingS),
+        DropdownButtonFormField<double>(
+          value: _duracionHoras,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.timer),
+            border: OutlineInputBorder(),
+          ),
+          items: _duracionOpciones
+              .map((op) => DropdownMenuItem<double>(
+                    value: op.valor,
+                    child: Text(op.label),
+                  ))
+              .toList(),
+          onChanged: (value) {
+            if (value != null) setState(() => _duracionHoras = value);
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCampoEquipos(ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Cantidad de equipos *',
+          style: TextStyle(
+            fontWeight: DesignTokens.fontWeightMedium,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: DesignTokens.spacingS),
         SegmentedButton<int>(
           segments: const [
             ButtonSegment(
-              value: 1,
-              label: Text('1 hora'),
-              icon: Icon(Icons.timer),
+              value: 2,
+              label: Text('2'),
+              icon: Icon(Icons.group),
             ),
             ButtonSegment(
-              value: 2,
-              label: Text('2 horas'),
-              icon: Icon(Icons.timer),
+              value: 3,
+              label: Text('3'),
+              icon: Icon(Icons.groups),
+            ),
+            ButtonSegment(
+              value: 4,
+              label: Text('4'),
+              icon: Icon(Icons.groups),
             ),
           ],
-          selected: {_duracionHoras},
+          selected: {_numEquipos},
           onSelectionChanged: (values) {
-            setState(() => _duracionHoras = values.first);
+            setState(() => _numEquipos = values.first);
           },
         ),
-        // CA-004: Advertencia de cambio de costo si hay inscritos
-        if (_costoCambiaria && widget.fechaDetalle.totalInscritos > 0) ...[
-          const SizedBox(height: DesignTokens.spacingS),
-          Container(
-            padding: const EdgeInsets.all(DesignTokens.spacingS),
-            decoration: BoxDecoration(
-              color: DesignTokens.accentColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(DesignTokens.radiusS),
-              border: Border.all(
-                color: DesignTokens.accentColor.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.warning_amber,
-                  color: DesignTokens.accentColor,
-                  size: DesignTokens.iconSizeS,
-                ),
-                const SizedBox(width: DesignTokens.spacingS),
-                Expanded(
-                  child: Text(
-                    'Hay ${widget.fechaDetalle.totalInscritos} inscrito${widget.fechaDetalle.totalInscritos != 1 ? 's' : ''}. El costo cambiara.',
-                    style: TextStyle(
-                      fontSize: DesignTokens.fontSizeS,
-                      color: DesignTokens.accentColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ],
+    );
+  }
+
+  Widget _buildCampoCosto() {
+    return TextFormField(
+      controller: _costoController,
+      decoration: const InputDecoration(
+        labelText: 'Costo por jugador',
+        hintText: 'Ej: 10.00',
+        prefixText: 'S/ ',
+        prefixIcon: Icon(Icons.attach_money),
+        helperText: 'Monto que pagara cada jugador (0 = gratis)',
+      ),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      onChanged: (_) => setState(() {}),
+      validator: (value) {
+        final costo = double.tryParse(value ?? '');
+        if (costo == null || costo < 0) {
+          return 'Ingrese un monto valido';
+        }
+        if (costo > 100) {
+          return 'El monto maximo es S/ 100.00';
+        }
+        return null;
+      },
     );
   }
 
@@ -883,12 +936,11 @@ class _EditarFechaDialogState extends State<EditarFechaDialog> {
     );
   }
 
-  /// CA-004: Preview de formato y costo actualizado
+  /// Preview de formato resultante
   Widget _buildPreviewFormato(ColorScheme colorScheme) {
-    final numEquipos = _duracionHoras == 1 ? 2 : 3;
-    final formatoDescripcion = _duracionHoras == 1
-        ? '2 equipos - Partido continuo'
-        : '3 equipos con rotacion';
+    final formatoDescripcion = _numEquipos == 2
+        ? 'Partido directo'
+        : '$_numEquipos equipos con rotacion';
 
     return Container(
       padding: const EdgeInsets.all(DesignTokens.spacingM),
@@ -899,89 +951,34 @@ class _EditarFechaDialogState extends State<EditarFechaDialog> {
           color: colorScheme.secondary.withValues(alpha: 0.3),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(
-                numEquipos == 2 ? Icons.group : Icons.groups,
-                color: colorScheme.secondary,
-              ),
-              const SizedBox(width: DesignTokens.spacingM),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Formato resultante',
-                      style: TextStyle(
-                        fontSize: DesignTokens.fontSizeS,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: DesignTokens.spacingXs),
-                    Text(
-                      formatoDescripcion,
-                      style: TextStyle(
-                        fontWeight: DesignTokens.fontWeightSemiBold,
-                        color: colorScheme.onSecondaryContainer,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          Icon(
+            _numEquipos == 2 ? Icons.group : Icons.groups,
+            color: colorScheme.secondary,
           ),
-          const SizedBox(height: DesignTokens.spacingM),
-          Row(
-            children: [
-              Icon(
-                Icons.attach_money,
-                color: colorScheme.secondary,
-              ),
-              const SizedBox(width: DesignTokens.spacingM),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Costo por jugador',
-                      style: TextStyle(
-                        fontSize: DesignTokens.fontSizeS,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: DesignTokens.spacingXs),
-                    Row(
-                      children: [
-                        Text(
-                          'S/ ${_nuevoCosto.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontWeight: DesignTokens.fontWeightBold,
-                            fontSize: DesignTokens.fontSizeL,
-                            color: _costoCambiaria
-                                ? DesignTokens.accentColor
-                                : colorScheme.onSecondaryContainer,
-                          ),
-                        ),
-                        if (_costoCambiaria) ...[
-                          const SizedBox(width: DesignTokens.spacingS),
-                          Text(
-                            '(antes: S/ ${widget.fechaDetalle.fecha.costoPorJugador.toStringAsFixed(2)})',
-                            style: TextStyle(
-                              fontSize: DesignTokens.fontSizeS,
-                              color: colorScheme.onSurfaceVariant,
-                              decoration: TextDecoration.lineThrough,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
+          const SizedBox(width: DesignTokens.spacingM),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Formato resultante',
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeS,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: DesignTokens.spacingXs),
+                Text(
+                  formatoDescripcion,
+                  style: TextStyle(
+                    fontWeight: DesignTokens.fontWeightSemiBold,
+                    color: colorScheme.onSecondaryContainer,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

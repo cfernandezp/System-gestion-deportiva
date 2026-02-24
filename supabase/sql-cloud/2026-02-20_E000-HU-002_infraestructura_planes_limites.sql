@@ -74,7 +74,7 @@ ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plan_id UUID REFERENCES planes(id)
 UPDATE usuarios
 SET plan_id = (SELECT id FROM planes WHERE slug = 'gratis' LIMIT 1)
 WHERE plan_id IS NULL
-  AND rol IN ('admin', 'administrador');
+  AND rol = 'admin';
 
 -- =============================================
 -- PASO 4: Trigger para auto-asignar plan Gratis
@@ -84,7 +84,7 @@ CREATE OR REPLACE FUNCTION trigger_asignar_plan_gratis()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Solo asignar si es admin y no tiene plan
-    IF NEW.plan_id IS NULL AND NEW.rol IN ('admin', 'administrador') THEN
+    IF NEW.plan_id IS NULL AND NEW.rol = 'admin' THEN
         NEW.plan_id := (SELECT id FROM planes WHERE slug = 'gratis' AND activo = TRUE LIMIT 1);
     END IF;
     RETURN NEW;

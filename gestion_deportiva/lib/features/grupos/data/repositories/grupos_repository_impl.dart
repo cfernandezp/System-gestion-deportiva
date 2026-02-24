@@ -282,4 +282,78 @@ class GruposRepositoryImpl implements GruposRepository {
       ));
     }
   }
+
+  @override
+  Future<Either<Failure, Map<String, dynamic>>> registrarInvitado({
+    required String grupoId,
+    required String nombre,
+  }) async {
+    try {
+      final result = await remoteDataSource.registrarInvitado(
+        grupoId: grupoId,
+        nombre: nombre,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado: ${e.toString()}',
+      ));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> eliminarInvitado({
+    required String grupoId,
+    required String miembroId,
+  }) async {
+    try {
+      await remoteDataSource.eliminarInvitado(
+        grupoId: grupoId,
+        miembroId: miembroId,
+      );
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado: ${e.toString()}',
+      ));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Map<String, dynamic>>> promoverInvitadoAJugador({
+    required String grupoId,
+    required String miembroId,
+    required String celular,
+  }) async {
+    try {
+      final result = await remoteDataSource.promoverInvitadoAJugador(
+        grupoId: grupoId,
+        miembroId: miembroId,
+        celular: celular,
+      );
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        message: e.message,
+        code: e.code,
+        hint: e.hint,
+      ));
+    } catch (e) {
+      return Left(ServerFailure(
+        message: 'Error inesperado: ${e.toString()}',
+      ));
+    }
+  }
 }

@@ -14,6 +14,8 @@
 ## Descripcion
 Muestra el ranking de jugadores ordenados por puntos acumulados. Los puntos se otorgan segun la posicion final del equipo en cada fecha jugada. Todos los jugadores del equipo reciben los mismos puntos.
 
+**Restriccion de plan**: Stats avanzadas (filtros por periodo, detalle de puntos) disponibles desde Plan 5+. Plan Gratis ve ranking basico (historico, sin filtros).
+
 ---
 
 ## Sistema de Puntos
@@ -46,15 +48,16 @@ Muestra el ranking de jugadores ordenados por puntos acumulados. Los puntos se o
 - **Entonces** veo: posicion, foto/avatar, apodo, puntos totales
 - **Y** opcionalmente: fechas jugadas, promedio de puntos por fecha
 
-### CA-003: Filtro por periodo
+### CA-003: Filtro por periodo (Plan 5+)
 - **Dado** que veo el ranking
 - **Cuando** quiero ver periodos especificos
 - **Entonces** puedo filtrar por:
   - Historico (todos los tiempos)
   - Este ano
   - Este mes
+- **Nota**: Plan Gratis solo ve Historico
 
-### CA-004: Detalle de puntos del jugador
+### CA-004: Detalle de puntos del jugador (Plan 5+)
 - **Dado** que selecciono un jugador del ranking
 - **Cuando** veo su detalle
 - **Entonces** veo desglose:
@@ -90,22 +93,18 @@ Muestra el ranking de jugadores ordenados por puntos acumulados. Los puntos se o
   3. Si aun empate: resultado directo entre equipos empatados
   4. Si aun empate: comparten posicion
 **Validacion**: Calcular suma de goles a favor y en contra de todos los partidos del equipo.
-**Regla calculo**:
-  - Diferencia = SUM(goles_cuando_local) + SUM(goles_cuando_visitante) - SUM(goles_recibidos)
 **Caso especial**: Si solo hay 1 equipo o no hubo partidos, no se otorgan puntos.
 
 ### RN-002: Asignacion de Puntos a Jugadores
 **Contexto**: Al finalizar una fecha.
 **Restriccion**: Todos los jugadores asignados al equipo reciben los mismos puntos que su equipo gano.
 **Validacion**: Jugador debe tener registro en asignaciones_equipos para esa fecha.
-**Regla calculo**: Puntos_jugador = Puntos_segun_posicion_equipo.
 **Caso especial**: Jugadores que cancelaron inscripcion no reciben puntos aunque hayan tenido equipo asignado previamente.
 
 ### RN-003: Solo Fechas Finalizadas
 **Contexto**: Para evitar rankings incompletos.
 **Restriccion**: Solo se contabilizan puntos de fechas con estado = 'finalizada'.
 **Validacion**: fecha.estado = 'finalizada'.
-**Regla calculo**: N/A.
 **Caso especial**: Fechas canceladas no otorgan puntos.
 
 ### RN-004: Puntos Segun Cantidad de Equipos
@@ -114,7 +113,6 @@ Muestra el ranking de jugadores ordenados por puntos acumulados. Los puntos se o
   - 2 equipos: 1ro=3pts, 2do=1pt
   - 3 equipos: 1ro=3pts, 2do=2pts, 3ro=1pt
 **Validacion**: Obtener num_equipos de la fecha.
-**Regla calculo**: Ver tabla de Sistema de Puntos arriba.
 **Caso especial**: Si una fecha tiene otro numero de equipos, extrapolar (4 equipos: 3,2,1,0 pts).
 
 ### RN-005: Criterios de Desempate
@@ -125,38 +123,34 @@ Muestra el ranking de jugadores ordenados por puntos acumulados. Los puntos se o
   3. Mayor cantidad de goles anotados (aporte individual)
   4. Fecha de registro mas antigua (veterania)
 **Validacion**: ORDER BY puntos DESC, fechas DESC, goles DESC, created_at ASC.
-**Regla calculo**: N/A.
 **Caso especial**: Si aun empatan, comparten posicion.
 
 ### RN-006: Inscripcion Activa Requerida
 **Contexto**: Para recibir puntos de una fecha.
 **Restriccion**: El jugador debe tener inscripcion con estado = 'inscrito' (no 'cancelado') en la fecha.
 **Validacion**: EXISTS inscripcion WHERE usuario_id=X AND fecha_id=Y AND estado='inscrito'.
-**Regla calculo**: N/A.
 **Caso especial**: Si cancelo antes de finalizar la fecha, no recibe puntos aunque jugo.
 
 ### RN-007: Visibilidad del Ranking
 **Contexto**: Quien puede ver el ranking.
 **Restriccion**: El ranking es visible para todos los usuarios autenticados.
 **Validacion**: Usuario autenticado.
-**Regla calculo**: N/A.
-**Caso especial**: N/A.
+**Caso especial**: Invitados NO aparecen en rankings publicos (solo jugadores con rol 'jugador' o superior).
 
-### RN-008: Recalculo de Puntos
-**Contexto**: Cuando se recalculan los puntos.
-**Restriccion**: Los puntos se recalculan cuando:
-  1. Se finaliza una fecha
-  2. Se anula un gol que cambia posiciones (raro)
-  3. Se modifica una inscripcion retroactivamente (admin)
-**Validacion**: N/A.
-**Regla calculo**: N/A.
-**Caso especial**: Cambios retroactivos deben ser manuales por admin.
+### RN-008: Restriccion por Plan
+**Contexto**: Feature flag de stats avanzadas.
+**Restriccion**:
+  - Plan Gratis: Ranking basico (historico, sin filtros de periodo)
+  - Plan 5+: Stats avanzadas (filtros por periodo, detalle de puntos por fecha)
+**Validacion**: Verificar plan del usuario via limites_plan.stats_avanzadas.
+**Caso especial**: Si el admin baja de plan, los jugadores del grupo tambien pierden acceso avanzado.
 
 ---
 
 ## Notas Tecnicas
 - Refinado por @negocio-deportivo-expert
 - Requiere calculo de posiciones de equipo al finalizar fecha (puede ser trigger o funcion)
+- Depende de E007 (fechas, inscripciones, asignaciones_equipos) y E004 (partidos, goles)
 
 ---
 **Creado**: 2025-01-15

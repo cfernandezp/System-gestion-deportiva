@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// Modelo de usuario para mapear respuestas del backend
 /// Convierte snake_case (BD) a camelCase (Dart)
 class UsuarioModel extends Equatable {
@@ -34,9 +36,7 @@ class UsuarioModel extends Equatable {
       estado: json['estado'] ?? '',
       rol: json['rol'] ?? 'jugador',
       motivoRechazo: json['motivo_rechazo'],
-      creadoEn: json['created_at'] != null
-          ? DateTime.parse(json['created_at']).toLocal()
-          : null,
+      creadoEn: AppDateUtils.tryParseUtcToLocal(json['created_at']),
     );
   }
 

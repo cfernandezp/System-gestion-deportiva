@@ -73,4 +73,23 @@ enum ColorEquipo {
   String get displayName {
     return '${name[0].toUpperCase()}${name.substring(1)}';
   }
+
+  /// Abreviatura de 3 letras para botones compactos en cancha
+  /// NAR, VER, AZU, ROJ, AMA, BLA
+  String get shortLabel {
+    switch (this) {
+      case ColorEquipo.naranja:
+        return 'NAR';
+      case ColorEquipo.verde:
+        return 'VER';
+      case ColorEquipo.azul:
+        return 'AZU';
+      case ColorEquipo.rojo:
+        return 'ROJ';
+      case ColorEquipo.amarillo:
+        return 'AMA';
+      case ColorEquipo.blanco:
+        return 'BLA';
+    }
+  }
 }

@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// Modelo de un miembro del grupo
 /// E001-HU-004 CA-005: Ver lista de jugadores con estado
 class MiembroGrupoModel extends Equatable {
@@ -41,9 +43,7 @@ class MiembroGrupoModel extends Equatable {
       estadoUsuario: json['estado_usuario'] ?? '',
       apodo: json['apodo'],
       fotoUrl: json['foto_url'],
-      createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'].toString())
-          : null,
+      createdAt: AppDateUtils.tryParseUtcToLocal(json['created_at']),
     );
   }
 

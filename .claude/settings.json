@@ -22,9 +22,9 @@
     }
   },
   "agents": {
-    "default_agent": "web-architect-expert",
+    "default_agent": "mobile-architect-expert",
     "available_agents": [
-      "web-architect-expert",
+      "mobile-architect-expert",
       "negocio-deportivo-expert",
       "supabase-expert",
       "flutter-expert",
@@ -35,9 +35,9 @@
   },
   "project": {
     "name": "Sistema Gestión Deportiva",
-    "type": "flutter-web-mobile-supabase",
-    "platform": "web, mobile",
-    "target": "web_and_mobile_application",
+    "type": "flutter-mobile-supabase",
+    "platform": "mobile (Android, iOS)",
+    "target": "mobile_application",
     "documentation_path": "docs/"
   }
 }

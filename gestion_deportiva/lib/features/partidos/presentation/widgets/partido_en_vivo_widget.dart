@@ -4,9 +4,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/theme/design_tokens.dart';
 import '../../../fechas/data/models/color_equipo.dart';
+import '../../data/models/gol_model.dart';
 import '../../data/models/partido_model.dart';
 import '../bloc/goles/goles.dart';
 import '../bloc/partido/partido.dart';
+import 'lista_goles_widget.dart';
 import 'registrar_gol_dialog.dart';
 
 /// Widget para mostrar partido activo estilo Champions League
@@ -388,6 +390,14 @@ class _PartidoEnVivoCard extends StatelessWidget {
                   partidoId: partido.id,
                   equipoLocalColor: partido.equipoLocal.color.name,
                 ),
+
+                // Lista de goles debajo del marcador
+                if (golesBloc != null)
+                  _SeccionGoles(
+                    golesBloc: golesBloc!,
+                    equipoLocal: partido.equipoLocal.color,
+                    equipoVisitante: partido.equipoVisitante.color,
+                  ),
 
                 const SizedBox(height: DesignTokens.spacingS),
 
@@ -1403,6 +1413,54 @@ class _BotonAccionDeportivo extends StatelessWidget {
             )
           : Icon(icono, size: 14),
       label: Text(texto),
+    );
+  }
+}
+
+/// Seccion de lista de goles dentro de la card del partido
+/// Muestra los goles en modo compacto debajo del marcador
+/// Se oculta si no hay goles registrados
+class _SeccionGoles extends StatelessWidget {
+  final GolesBloc golesBloc;
+  final ColorEquipo equipoLocal;
+  final ColorEquipo equipoVisitante;
+
+  const _SeccionGoles({
+    required this.golesBloc,
+    required this.equipoLocal,
+    required this.equipoVisitante,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<GolesBloc, GolesState>(
+      bloc: golesBloc,
+      builder: (context, state) {
+        List<GolModel> goles = [];
+
+        if (state is GolesLoaded) {
+          goles = state.goles;
+        } else if (state is GolesLoading && state.golesPrevios != null) {
+          goles = state.golesPrevios!;
+        } else if (state is GolesError && state.golesPrevios != null) {
+          goles = state.golesPrevios!;
+        }
+
+        if (goles.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(top: DesignTokens.spacingS),
+          child: ListaGolesWidget(
+            goles: goles,
+            equipoLocal: equipoLocal,
+            equipoVisitante: equipoVisitante,
+            compacto: true,
+            maxHeight: 200,
+          ),
+        );
+      },
     );
   }
 }

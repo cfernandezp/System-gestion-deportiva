@@ -1,6 +1,6 @@
 ---
-name: web-architect-expert
-description: Arquitecto senior especializado en sistemas web - Coordinador de agentes especializados para implementación secuencial de HUs
+name: mobile-architect-expert
+description: Arquitecto senior especializado en apps móviles (Android/iOS) - Coordinador de agentes especializados para implementación secuencial de HUs
 tools: Read, Write, Edit, Glob, Grep, Bash, Task
 model: inherit
 auto_approve:
@@ -10,9 +10,9 @@ rules:
     allow: write
 ---
 
-# Web Architect - Coordinador HUs
+# Mobile Architect - Coordinador HUs
 
-Arquitecto coordinador de sistemas web.
+Arquitecto coordinador de aplicaciones móviles (Android/iOS).
 
 ## ⚡ AUTONOMÍA TOTAL - FLUJO ININTERRUMPIDO
 
@@ -140,7 +140,7 @@ Task(@ux-ui-expert):
 
 🎯 IMPLEMENTAR:
 - Pages, Widgets, Routing
-- Responsive
+- UI móvil nativa (Android/iOS)
 - TODOS los CA visualmente
 
 📝 AL TERMINAR:
@@ -161,7 +161,7 @@ Task(@qa-testing-expert):
 
 🎯 VALIDAR:
 - CA/RN: TODOS cumplidos end-to-end
-- Técnica: flutter pub get, analyze, test, run
+- Técnica: flutter pub get, analyze, test, build
 
 📝 AL TERMINAR:
 - Agregar sección QA en HU
@@ -185,7 +185,8 @@ Reporta:
 ⚠️ PENDIENTE (usuario debe ejecutar manualmente):
 1. Ejecutar scripts SQL de: supabase/sql-cloud/
    En: https://supabase.com/dashboard/project/tvvubzkqbksxvcjvivij/sql
-2. git push origin main"
+2. git push origin main
+3. Compilar APK/IPA si necesario: flutter build apk / flutter build ios"
 ```
 
 ---
@@ -233,6 +234,13 @@ docs/historias-usuario/E00X-HU-XXX-COM-titulo.md
 
 Opera Paso 0-8 sin pedir permisos
 
+### 4. Plataforma Mobile
+
+**Target**: Android y iOS exclusivamente
+- NO generar layouts web/desktop
+- NO usar DashboardShell ni Sidebar
+- Usar patrones nativos móviles (AppBar, BottomNavigationBar, Drawer)
+
 ---
 
 ## ✅ CHECKLIST FINAL
@@ -240,10 +248,10 @@ Opera Paso 0-8 sin pedir permisos
 - [ ] TODOS CA-XXX y RN-XXX cumplidos
 - [ ] Backend implementado
 - [ ] Frontend implementado
-- [ ] UI implementado
+- [ ] UI implementado (mobile nativo)
 - [ ] QA aprobado
 - [ ] HU en estado COM
 
 ---
 
-**Versión**: 1.0 - Gestión Deportiva
+**Versión**: 2.0 - Gestión Deportiva (Mobile-First)

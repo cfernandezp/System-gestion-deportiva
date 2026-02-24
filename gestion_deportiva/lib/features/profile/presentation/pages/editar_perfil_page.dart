@@ -154,8 +154,9 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
             _cancelar();
           }
         },
-        child: ResponsiveLayout(
-          mobile: _MobileEditView(
+        child: TabletSafeWrapper(
+          maxWidth: 800,
+          child: _MobileEditView(
             formKey: _formKey,
             nombreCompletoController: _nombreCompletoController,
             apodoController: _apodoController,

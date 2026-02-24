@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../models/upgrade_reason.dart';
 
-/// Pantalla de Upgrade - Placeholder Freemium
+/// Pantalla de Upgrade - Placeholder Freemium (5 planes)
 /// CA-001: Redireccion desde feature bloqueada
 /// CA-002: Redireccion desde limite alcanzado
-/// CA-003: Informacion del plan Premium
+/// CA-003: Informacion de los planes de pago
 /// CA-004: Mensaje "Proximamente"
 /// CA-005: Volver a pantalla anterior
 /// CA-006: Respeta tema activo
@@ -25,7 +25,7 @@ class UpgradePage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Plan Premium'),
+        title: const Text('Planes'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           // CA-005: Volver a pantalla anterior sin perder contexto
@@ -68,12 +68,12 @@ class UpgradePage extends StatelessWidget {
 
               const SizedBox(height: DesignTokens.spacingXl),
 
-              // CA-003: Lista de beneficios Premium
+              // CA-003: Resumen de beneficios de planes de pago
               _BeneficiosCard(colorScheme: colorScheme, theme: theme),
 
               const SizedBox(height: DesignTokens.spacingL),
 
-              // Comparativa de planes
+              // Comparativa de los 5 planes (scroll horizontal)
               _PlanesComparativa(colorScheme: colorScheme, theme: theme),
 
               const SizedBox(height: DesignTokens.spacingXl),
@@ -107,7 +107,7 @@ class UpgradePage extends StatelessWidget {
                     ),
                     const SizedBox(height: DesignTokens.spacingXs),
                     Text(
-                      'Estamos trabajando en la suscripcion Premium.\nTe avisaremos cuando este disponible.',
+                      'Estamos trabajando en las suscripciones.\nTe avisaremos cuando esten disponibles.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
@@ -138,7 +138,7 @@ class UpgradePage extends StatelessWidget {
   }
 }
 
-/// Card con lista de beneficios Premium
+/// Card con lista de beneficios de los planes de pago
 class _BeneficiosCard extends StatelessWidget {
   final ColorScheme colorScheme;
   final ThemeData theme;
@@ -161,7 +161,7 @@ class _BeneficiosCard extends StatelessWidget {
                 Icon(Icons.star, color: colorScheme.tertiary, size: 20),
                 const SizedBox(width: DesignTokens.spacingS),
                 Text(
-                  'Beneficios Premium',
+                  'Beneficios de nuestros planes',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: DesignTokens.fontWeightSemiBold,
                   ),
@@ -170,8 +170,8 @@ class _BeneficiosCard extends StatelessWidget {
             ),
             const SizedBox(height: DesignTokens.spacingM),
             _BeneficioItem(
-              icon: Icons.group_work,
-              text: 'Formato triangular (3 equipos)',
+              icon: Icons.groups,
+              text: 'Hasta 20 grupos por administrador',
               colorScheme: colorScheme,
               theme: theme,
             ),
@@ -182,8 +182,14 @@ class _BeneficiosCard extends StatelessWidget {
               theme: theme,
             ),
             _BeneficioItem(
-              icon: Icons.groups,
-              text: 'Hasta 20 grupos',
+              icon: Icons.group_work,
+              text: 'Formato triangular (hasta 4 equipos)',
+              colorScheme: colorScheme,
+              theme: theme,
+            ),
+            _BeneficioItem(
+              icon: Icons.person_add,
+              text: 'Hasta 10 invitados por grupo',
               colorScheme: colorScheme,
               theme: theme,
             ),
@@ -242,7 +248,36 @@ class _BeneficioItem extends StatelessWidget {
   }
 }
 
-/// Comparativa de limites Gratuito vs Premium
+/// Datos de un plan para la tabla comparativa
+class _PlanData {
+  final String nombre;
+  final String precio;
+  final bool destacado;
+  final String grupos;
+  final String jugadores;
+  final String invitados;
+  final String coAdmins;
+  final String equiposFecha;
+  final String logoMb;
+  final bool estadisticas;
+  final bool temasPersonalizados;
+
+  const _PlanData({
+    required this.nombre,
+    required this.precio,
+    this.destacado = false,
+    required this.grupos,
+    required this.jugadores,
+    required this.invitados,
+    required this.coAdmins,
+    required this.equiposFecha,
+    required this.logoMb,
+    required this.estadisticas,
+    required this.temasPersonalizados,
+  });
+}
+
+/// Comparativa de los 5 planes con scroll horizontal
 class _PlanesComparativa extends StatelessWidget {
   final ColorScheme colorScheme;
   final ThemeData theme;
@@ -252,9 +287,111 @@ class _PlanesComparativa extends StatelessWidget {
     required this.theme,
   });
 
+  static const _planes = <_PlanData>[
+    _PlanData(
+      nombre: 'Gratis',
+      precio: 'S/ 0',
+      grupos: '1',
+      jugadores: '25',
+      invitados: '1',
+      coAdmins: '1',
+      equiposFecha: '2',
+      logoMb: '2',
+      estadisticas: false,
+      temasPersonalizados: false,
+    ),
+    _PlanData(
+      nombre: 'Plan 5',
+      precio: 'S/ 9.90',
+      grupos: '5',
+      jugadores: '50',
+      invitados: '3',
+      coAdmins: '3',
+      equiposFecha: '3',
+      logoMb: '2',
+      estadisticas: true,
+      temasPersonalizados: false,
+    ),
+    _PlanData(
+      nombre: 'Plan 10',
+      precio: 'S/ 19.90',
+      destacado: true,
+      grupos: '10',
+      jugadores: '50',
+      invitados: '5',
+      coAdmins: '6',
+      equiposFecha: '4',
+      logoMb: '2',
+      estadisticas: true,
+      temasPersonalizados: true,
+    ),
+    _PlanData(
+      nombre: 'Plan 15',
+      precio: 'S/ 29.90',
+      grupos: '15',
+      jugadores: '70',
+      invitados: '8',
+      coAdmins: '9',
+      equiposFecha: '4',
+      logoMb: '2',
+      estadisticas: true,
+      temasPersonalizados: true,
+    ),
+    _PlanData(
+      nombre: 'Plan 20',
+      precio: 'S/ 39.90',
+      grupos: '20',
+      jugadores: '70',
+      invitados: '10',
+      coAdmins: '9',
+      equiposFecha: '4',
+      logoMb: '2',
+      estadisticas: true,
+      temasPersonalizados: true,
+    ),
+  ];
+
+  static const _conceptos = <String>[
+    'Grupos',
+    'Jugadores/grupo',
+    'Invitados/grupo',
+    'Co-admins/grupo',
+    'Equipos/fecha',
+    'Logo (MB)',
+    'Estadisticas avanzadas',
+    'Temas personalizados',
+  ];
+
+  String _valorPlan(_PlanData plan, int conceptoIndex) {
+    switch (conceptoIndex) {
+      case 0:
+        return plan.grupos;
+      case 1:
+        return plan.jugadores;
+      case 2:
+        return plan.invitados;
+      case 3:
+        return plan.coAdmins;
+      case 4:
+        return plan.equiposFecha;
+      case 5:
+        return plan.logoMb;
+      case 6:
+        return plan.estadisticas ? 'Si' : '-';
+      case 7:
+        return plan.temasPersonalizados ? 'Si' : '-';
+      default:
+        return '-';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    const double labelColumnWidth = 130.0;
+    const double planColumnWidth = 80.0;
+
     return Card(
+      clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.all(DesignTokens.spacingM),
         child: Column(
@@ -266,132 +403,217 @@ class _PlanesComparativa extends StatelessWidget {
                 fontWeight: DesignTokens.fontWeightSemiBold,
               ),
             ),
+            const SizedBox(height: DesignTokens.spacingS),
+            Text(
+              'Desliza para ver todos los planes',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: DesignTokens.spacingM),
-            // Header
-            Row(
-              children: [
-                const Expanded(flex: 3, child: SizedBox()),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'Gratis',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+
+            // Tabla con scroll horizontal
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: labelColumnWidth +
+                      (planColumnWidth * _planes.length),
                 ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'Premium',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: colorScheme.tertiary,
-                      fontWeight: DesignTokens.fontWeightSemiBold,
+                child: Column(
+                  children: [
+                    // Header: nombres de planes
+                    _buildHeaderRow(labelColumnWidth, planColumnWidth),
+                    const SizedBox(height: DesignTokens.spacingXs),
+
+                    // Header: precios
+                    _buildPrecioRow(labelColumnWidth, planColumnWidth),
+
+                    Divider(
+                      height: DesignTokens.spacingM,
+                      color: colorScheme.outlineVariant,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
+
+                    // Filas de conceptos
+                    for (int i = 0; i < _conceptos.length; i++) ...[
+                      _buildConceptoRow(
+                        labelColumnWidth,
+                        planColumnWidth,
+                        _conceptos[i],
+                        i,
+                      ),
+                      if (i < _conceptos.length - 1)
+                        const SizedBox(height: DesignTokens.spacingXs),
+                    ],
+                  ],
                 ),
-              ],
-            ),
-            const Divider(height: DesignTokens.spacingM),
-            _ComparativaRow(
-              label: 'Jugadores/grupo',
-              gratuito: '35',
-              premium: '70',
-              theme: theme,
-              colorScheme: colorScheme,
-            ),
-            _ComparativaRow(
-              label: 'Grupos',
-              gratuito: '5',
-              premium: '20',
-              theme: theme,
-              colorScheme: colorScheme,
-            ),
-            _ComparativaRow(
-              label: 'Co-admins',
-              gratuito: '3',
-              premium: '5',
-              theme: theme,
-              colorScheme: colorScheme,
-            ),
-            _ComparativaRow(
-              label: 'Logo (MB)',
-              gratuito: '2',
-              premium: '5',
-              theme: theme,
-              colorScheme: colorScheme,
-            ),
-            _ComparativaRow(
-              label: '3 equipos',
-              gratuito: '-',
-              premium: 'Si',
-              theme: theme,
-              colorScheme: colorScheme,
-            ),
-            _ComparativaRow(
-              label: 'Estadisticas+',
-              gratuito: '-',
-              premium: 'Si',
-              theme: theme,
-              colorScheme: colorScheme,
+              ),
             ),
           ],
         ),
       ),
     );
   }
-}
 
-class _ComparativaRow extends StatelessWidget {
-  final String label;
-  final String gratuito;
-  final String premium;
-  final ThemeData theme;
-  final ColorScheme colorScheme;
+  Widget _buildHeaderRow(double labelWidth, double planWidth) {
+    return Row(
+      children: [
+        SizedBox(width: labelWidth),
+        for (final plan in _planes)
+          SizedBox(
+            width: planWidth,
+            child: Column(
+              children: [
+                if (plan.destacado)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: DesignTokens.spacingXs,
+                      vertical: DesignTokens.spacingXxs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.tertiary,
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusXs,
+                      ),
+                    ),
+                    child: Text(
+                      'Popular',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onTertiary,
+                        fontWeight: DesignTokens.fontWeightSemiBold,
+                        fontSize: 9,
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox(height: 18),
+                const SizedBox(height: DesignTokens.spacingXxs),
+                Text(
+                  plan.nombre,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: plan.destacado
+                        ? DesignTokens.fontWeightBold
+                        : DesignTokens.fontWeightSemiBold,
+                    color: plan.destacado
+                        ? colorScheme.tertiary
+                        : colorScheme.onSurface,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
 
-  const _ComparativaRow({
-    required this.label,
-    required this.gratuito,
-    required this.premium,
-    required this.theme,
-    required this.colorScheme,
-  });
+  Widget _buildPrecioRow(double labelWidth, double planWidth) {
+    return Row(
+      children: [
+        SizedBox(
+          width: labelWidth,
+          child: Text(
+            'Precio/mes',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        for (final plan in _planes)
+          SizedBox(
+            width: planWidth,
+            child: Text(
+              plan.precio,
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: DesignTokens.fontWeightSemiBold,
+                color: plan.nombre == 'Gratis'
+                    ? colorScheme.onSurfaceVariant
+                    : colorScheme.tertiary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+      ],
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
+  Widget _buildConceptoRow(
+    double labelWidth,
+    double planWidth,
+    String concepto,
+    int conceptoIndex,
+  ) {
+    return Container(
       padding: const EdgeInsets.symmetric(vertical: DesignTokens.spacingXs),
+      decoration: BoxDecoration(
+        color: conceptoIndex.isEven
+            ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusXs),
+      ),
       child: Row(
         children: [
-          Expanded(
-            flex: 3,
-            child: Text(label, style: theme.textTheme.bodyMedium),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              gratuito,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
+          SizedBox(
+            width: labelWidth,
+            child: Padding(
+              padding: const EdgeInsets.only(left: DesignTokens.spacingXs),
+              child: Text(
+                concepto,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurface,
+                ),
               ),
-              textAlign: TextAlign.center,
             ),
           ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              premium,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.tertiary,
-                fontWeight: DesignTokens.fontWeightSemiBold,
+          for (int p = 0; p < _planes.length; p++)
+            SizedBox(
+              width: planWidth,
+              child: _buildCellValue(
+                _valorPlan(_planes[p], conceptoIndex),
+                isGratuito: p == 0,
+                isDestacado: _planes[p].destacado,
               ),
-              textAlign: TextAlign.center,
             ),
-          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCellValue(
+    String valor, {
+    required bool isGratuito,
+    required bool isDestacado,
+  }) {
+    // Para valores booleanos Si/-
+    if (valor == 'Si') {
+      return Icon(
+        Icons.check_circle,
+        size: 18,
+        color: DesignTokens.successColor,
+      );
+    }
+    if (valor == '-') {
+      return Icon(
+        Icons.remove_circle_outline,
+        size: 16,
+        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+      );
+    }
+
+    // Para valores numericos
+    return Text(
+      valor,
+      style: theme.textTheme.bodySmall?.copyWith(
+        fontWeight: isDestacado
+            ? DesignTokens.fontWeightBold
+            : DesignTokens.fontWeightMedium,
+        color: isGratuito
+            ? colorScheme.onSurfaceVariant
+            : isDestacado
+                ? colorScheme.tertiary
+                : colorScheme.onSurface,
+      ),
+      textAlign: TextAlign.center,
     );
   }
 }

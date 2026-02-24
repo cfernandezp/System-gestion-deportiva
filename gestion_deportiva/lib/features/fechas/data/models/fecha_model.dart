@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// Enum para estados del ciclo de vida de una fecha
 /// E003-HU-001: RN-006
 /// Estados: abierta -> cerrada -> en_juego -> finalizada
@@ -76,7 +78,7 @@ class FechaModel extends Equatable {
   final DateTime? fechaHoraLocal;
   final String fechaFormato;
   final String horaFormato;
-  final int duracionHoras;
+  final double duracionHoras;
   final String lugar;
   final int numEquipos;
   final double costoPorJugador;
@@ -117,14 +119,14 @@ class FechaModel extends Equatable {
     return FechaModel(
       fechaId: json['id'] ?? json['fecha_id'] ?? '',
       fechaHoraInicio: json['fecha_hora_inicio'] != null
-          ? DateTime.parse(json['fecha_hora_inicio']).toLocal()
+          ? AppDateUtils.parseUtcToLocal(json['fecha_hora_inicio'])
           : DateTime.now(),
       fechaHoraLocal: json['fecha_hora_local'] != null
-          ? DateTime.parse(json['fecha_hora_local'])
+          ? AppDateUtils.parseUtcToLocal(json['fecha_hora_local'])
           : null,
       fechaFormato: json['fecha_formato'] ?? '',
       horaFormato: json['hora_formato'] ?? '',
-      duracionHoras: json['duracion_horas'] ?? 1,
+      duracionHoras: (json['duracion_horas'] ?? 1).toDouble(),
       lugar: json['lugar'] ?? '',
       numEquipos: json['num_equipos'] ?? 2,
       costoPorJugador: (json['costo_por_jugador'] ?? 0).toDouble(),
@@ -133,9 +135,7 @@ class FechaModel extends Equatable {
       formatoJuego: json['formato_juego'] ?? '',
       createdBy: createdBy,
       createdByNombre: createdByNombre,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at']).toLocal()
-          : null,
+      createdAt: AppDateUtils.tryParseUtcToLocal(json['created_at']),
     );
   }
 
@@ -152,12 +152,16 @@ class FechaModel extends Equatable {
     };
   }
 
-  /// Descripcion del formato segun RN-002
+  /// Duracion formateada para mostrar (ej: "1h", "1.5h", "2h")
+  String get duracionDisplay =>
+      duracionHoras % 1 == 0 ? '${duracionHoras.toInt()}h' : '${duracionHoras}h';
+
+  /// Descripcion del formato segun num_equipos
   String get descripcionFormato {
-    if (duracionHoras == 1) {
-      return '2 equipos - Partido continuo';
+    if (numEquipos == 2) {
+      return 'Partido directo';
     } else {
-      return '3 equipos - Rotacion (ganador continua)';
+      return '$numEquipos equipos con rotacion';
     }
   }
 

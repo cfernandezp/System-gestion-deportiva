@@ -25,13 +25,14 @@ import '../models/resumen_jornada_model.dart';
 /// E004-HU-005: Finalizar Partido
 abstract class PartidosRemoteDataSource {
   /// Inicia un nuevo partido seleccionando 2 equipos
-  /// RPC: iniciar_partido(p_fecha_id, p_equipo_local, p_equipo_visitante)
+  /// RPC: iniciar_partido(p_fecha_id, p_equipo_local, p_equipo_visitante, p_duracion_minutos)
   /// CA-001, CA-002, CA-003, CA-006
   /// RN-001, RN-002, RN-003, RN-004, RN-005, RN-006
   Future<IniciarPartidoResponseModel> iniciarPartido({
     required String fechaId,
     required String equipoLocal,
     required String equipoVisitante,
+    int? duracionMinutos,
   });
 
   /// Pausa un partido en curso
@@ -128,18 +129,23 @@ class PartidosRemoteDataSourceImpl implements PartidosRemoteDataSource {
     required String fechaId,
     required String equipoLocal,
     required String equipoVisitante,
+    int? duracionMinutos,
   }) async {
     try {
-      // RPC: iniciar_partido(p_fecha_id, p_equipo_local, p_equipo_visitante)
+      // RPC: iniciar_partido(p_fecha_id, p_equipo_local, p_equipo_visitante, p_duracion_minutos)
       // CA-001, CA-002, CA-003, CA-006
       // RN-001 a RN-006
+      final params = <String, dynamic>{
+        'p_fecha_id': fechaId,
+        'p_equipo_local': equipoLocal,
+        'p_equipo_visitante': equipoVisitante,
+      };
+      if (duracionMinutos != null) {
+        params['p_duracion_minutos'] = duracionMinutos;
+      }
       final response = await supabase.rpc(
         'iniciar_partido',
-        params: {
-          'p_fecha_id': fechaId,
-          'p_equipo_local': equipoLocal,
-          'p_equipo_visitante': equipoVisitante,
-        },
+        params: params,
       );
 
       final responseMap = response as Map<String, dynamic>;

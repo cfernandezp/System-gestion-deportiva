@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// Modelo de respuesta para cerrar_inscripciones RPC
 /// E003-HU-004: Cerrar Inscripciones
 ///
@@ -97,7 +99,7 @@ class CerrarInscripcionesResponseModel extends Equatable {
       cerradoPor: json['cerrado_por'] ?? '',
       cerradoPorNombre: json['cerrado_por_nombre'] ?? '',
       cerradoAt: json['cerrado_at'] != null
-          ? DateTime.parse(json['cerrado_at']).toLocal()
+          ? AppDateUtils.parseUtcToLocal(json['cerrado_at'])
           : DateTime.now(),
       cerradoAtFormato: json['cerrado_at_formato'] ?? '',
     );

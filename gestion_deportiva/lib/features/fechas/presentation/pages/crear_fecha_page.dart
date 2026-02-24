@@ -28,14 +28,14 @@ class _CrearFechaPageState extends State<CrearFechaPage> {
   // Valores seleccionados
   DateTime _fechaSeleccionada = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _horaSeleccionada = const TimeOfDay(hour: 20, minute: 0);
-  int _duracionHoras = 2; // Default: 2 horas
+  double _duracionHoras = 1.0; // Default: 1 hora
   int _numEquipos = 2; // Default: 2 equipos
 
   @override
   void initState() {
     super.initState();
     _lugarController = TextEditingController();
-    _costoController = TextEditingController(text: '8.00');
+    _costoController = TextEditingController(text: '0.00');
 
     // Agregar listeners para actualizar el estado del boton
     _lugarController.addListener(_onFieldChanged);
@@ -74,15 +74,16 @@ class _CrearFechaPageState extends State<CrearFechaPage> {
 
   /// Obtiene costo parseado del controller
   double get _costoPorJugador {
-    return double.tryParse(_costoController.text) ?? 8.00;
+    return double.tryParse(_costoController.text) ?? 0.00;
   }
 
   /// Obtiene info de formato basado en valores seleccionados
   String get _formatoInfo {
+    final costoStr = 'S/ ${_costoPorJugador.toStringAsFixed(2)} por jugador';
     if (_numEquipos == 2) {
-      return '$_numEquipos equipos - S/ ${_costoPorJugador.toStringAsFixed(2)} por jugador';
+      return 'Partido directo - $costoStr';
     } else {
-      return '$_numEquipos equipos con rotacion - S/ ${_costoPorJugador.toStringAsFixed(2)} por jugador';
+      return '$_numEquipos equipos con rotacion - $costoStr';
     }
   }
 
@@ -134,8 +135,8 @@ class _CrearFechaPageState extends State<CrearFechaPage> {
   /// Valida el formulario completo
   bool get _formularioValido {
     final lugar = _lugarController.text.trim();
-    final costo = double.tryParse(_costoController.text) ?? 0;
-    return _esFechaFutura && lugar.length >= 3 && costo > 0;
+    final costo = double.tryParse(_costoController.text) ?? -1;
+    return _esFechaFutura && lugar.length >= 3 && costo >= 0 && costo <= 100;
   }
 
   /// Cancela y vuelve atras
@@ -220,8 +221,9 @@ class _CrearFechaPageState extends State<CrearFechaPage> {
         builder: (context, state) {
           final isLoading = state is CrearFechaLoading;
 
-          return ResponsiveLayout(
-            mobile: _MobileView(
+          return TabletSafeWrapper(
+            maxWidth: 800,
+            child: _MobileView(
               formKey: _formKey,
               lugarController: _lugarController,
               costoController: _costoController,
@@ -316,7 +318,7 @@ class _MobileView extends StatelessWidget {
   final TextEditingController costoController;
   final String fechaFormateada;
   final String horaFormateada;
-  final int duracionHoras;
+  final double duracionHoras;
   final int numEquipos;
   final String formatoInfo;
   final bool esFechaFutura;
@@ -324,7 +326,7 @@ class _MobileView extends StatelessWidget {
   final bool isLoading;
   final VoidCallback onSeleccionarFecha;
   final VoidCallback onSeleccionarHora;
-  final ValueChanged<int?> onDuracionChanged;
+  final ValueChanged<double?> onDuracionChanged;
   final ValueChanged<int?> onEquiposChanged;
   final VoidCallback onCancelar;
   final VoidCallback onCrear;
@@ -587,6 +589,19 @@ class _MobileView extends StatelessWidget {
     );
   }
 
+  /// Opciones de duracion disponibles
+  static const _duracionOpciones = [
+    (valor: 1.0, label: '1 hora'),
+    (valor: 1.5, label: '1.5 horas'),
+    (valor: 2.0, label: '2 horas'),
+    (valor: 2.5, label: '2.5 horas'),
+    (valor: 3.0, label: '3 horas'),
+    (valor: 3.5, label: '3.5 horas'),
+    (valor: 4.0, label: '4 horas'),
+    (valor: 4.5, label: '4.5 horas'),
+    (valor: 5.0, label: '5 horas'),
+  ];
+
   Widget _buildDuracionSelector(ColorScheme colorScheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -599,21 +614,19 @@ class _MobileView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: DesignTokens.spacingS),
-        SegmentedButton<int>(
-          segments: const [
-            ButtonSegment(
-              value: 1,
-              label: Text('1 hora'),
-              icon: Icon(Icons.timer),
-            ),
-            ButtonSegment(
-              value: 2,
-              label: Text('2 horas'),
-              icon: Icon(Icons.timer),
-            ),
-          ],
-          selected: {duracionHoras},
-          onSelectionChanged: (values) => onDuracionChanged(values.first),
+        DropdownButtonFormField<double>(
+          value: duracionHoras,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.timer),
+            border: OutlineInputBorder(),
+          ),
+          items: _duracionOpciones
+              .map((op) => DropdownMenuItem<double>(
+                    value: op.valor,
+                    child: Text(op.label),
+                  ))
+              .toList(),
+          onChanged: onDuracionChanged,
         ),
       ],
     );
@@ -660,16 +673,20 @@ class _MobileView extends StatelessWidget {
     return TextFormField(
       controller: costoController,
       decoration: const InputDecoration(
-        labelText: 'Costo por jugador (S/) *',
-        hintText: 'Ej: 8.00',
+        labelText: 'Costo por jugador',
+        hintText: 'Ej: 10.00',
+        prefixText: 'S/ ',
         prefixIcon: Icon(Icons.attach_money),
-        helperText: 'Monto que pagara cada jugador',
+        helperText: 'Monto que pagara cada jugador (0 = gratis)',
       ),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       validator: (value) {
         final costo = double.tryParse(value ?? '');
-        if (costo == null || costo <= 0) {
-          return 'Ingrese un monto valido mayor a 0';
+        if (costo == null || costo < 0) {
+          return 'Ingrese un monto valido';
+        }
+        if (costo > 100) {
+          return 'El monto maximo es S/ 100.00';
         }
         return null;
       },
@@ -750,7 +767,7 @@ class _DesktopView extends StatelessWidget {
   final TextEditingController costoController;
   final String fechaFormateada;
   final String horaFormateada;
-  final int duracionHoras;
+  final double duracionHoras;
   final int numEquipos;
   final String formatoInfo;
   final bool esFechaFutura;
@@ -758,7 +775,7 @@ class _DesktopView extends StatelessWidget {
   final bool isLoading;
   final VoidCallback onSeleccionarFecha;
   final VoidCallback onSeleccionarHora;
-  final ValueChanged<int?> onDuracionChanged;
+  final ValueChanged<double?> onDuracionChanged;
   final ValueChanged<int?> onEquiposChanged;
   final VoidCallback onCancelar;
   final VoidCallback onCrear;
@@ -1050,6 +1067,19 @@ class _DesktopView extends StatelessWidget {
     );
   }
 
+  /// Opciones de duracion disponibles
+  static const _duracionOpciones = [
+    (valor: 1.0, label: '1 hora'),
+    (valor: 1.5, label: '1.5 horas'),
+    (valor: 2.0, label: '2 horas'),
+    (valor: 2.5, label: '2.5 horas'),
+    (valor: 3.0, label: '3 horas'),
+    (valor: 3.5, label: '3.5 horas'),
+    (valor: 4.0, label: '4 horas'),
+    (valor: 4.5, label: '4.5 horas'),
+    (valor: 5.0, label: '5 horas'),
+  ];
+
   Widget _buildDuracionSelectorDesktop(ColorScheme colorScheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1062,24 +1092,19 @@ class _DesktopView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: DesignTokens.spacingS),
-        SegmentedButton<int>(
-          segments: const [
-            ButtonSegment(
-              value: 1,
-              label: Text('1 hora'),
-              icon: Icon(Icons.timer),
-            ),
-            ButtonSegment(
-              value: 2,
-              label: Text('2 horas'),
-              icon: Icon(Icons.timer),
-            ),
-          ],
-          selected: {duracionHoras},
-          onSelectionChanged: (values) => onDuracionChanged(values.first),
-          style: const ButtonStyle(
-            visualDensity: VisualDensity.comfortable,
+        DropdownButtonFormField<double>(
+          value: duracionHoras,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.timer),
+            border: OutlineInputBorder(),
           ),
+          items: _duracionOpciones
+              .map((op) => DropdownMenuItem<double>(
+                    value: op.valor,
+                    child: Text(op.label),
+                  ))
+              .toList(),
+          onChanged: onDuracionChanged,
         ),
       ],
     );
@@ -1129,16 +1154,20 @@ class _DesktopView extends StatelessWidget {
     return TextFormField(
       controller: costoController,
       decoration: const InputDecoration(
-        labelText: 'Costo por jugador (S/) *',
-        hintText: 'Ej: 8.00',
+        labelText: 'Costo por jugador',
+        hintText: 'Ej: 10.00',
+        prefixText: 'S/ ',
         prefixIcon: Icon(Icons.attach_money),
-        helperText: 'Monto que pagara cada jugador',
+        helperText: 'Monto que pagara cada jugador (0 = gratis)',
       ),
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       validator: (value) {
         final costo = double.tryParse(value ?? '');
-        if (costo == null || costo <= 0) {
-          return 'Ingrese un monto valido mayor a 0';
+        if (costo == null || costo < 0) {
+          return 'Ingrese un monto valido';
+        }
+        if (costo > 100) {
+          return 'El monto maximo es S/ 100.00';
         }
         return null;
       },
@@ -1193,7 +1222,7 @@ class _DesktopView extends StatelessWidget {
                 const SizedBox(height: DesignTokens.spacingXs),
                 Text(
                   numEquipos == 2
-                      ? 'Partido continuo entre 2 equipos'
+                      ? 'Partido directo entre 2 equipos'
                       : 'Rotacion: ganador continua, perdedor descansa',
                   style: TextStyle(
                     fontSize: DesignTokens.fontSizeS,

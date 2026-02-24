@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
+
 /// Modelo de datos de cancelacion de inscripcion
 /// E003-HU-007: Cancelar Inscripcion
 ///
@@ -82,7 +84,7 @@ class CancelarInscripcionDataModel extends Equatable {
       asignacionEliminada: json['asignacion_eliminada'] ?? false,
       puedeReinscribirse: json['puede_reinscribirse'] ?? true,
       canceladoAt: json['cancelado_at'] != null
-          ? DateTime.parse(json['cancelado_at']).toLocal()
+          ? AppDateUtils.parseUtcToLocal(json['cancelado_at'])
           : DateTime.now(),
       canceladoAtFormato: json['cancelado_at_formato'] ?? '',
     );
@@ -275,7 +277,7 @@ class CancelarInscripcionAdminDataModel extends Equatable {
       canceladoPor: AdminCanceladorModel.fromJson(
           json['cancelado_por'] as Map<String, dynamic>? ?? {}),
       canceladoAt: json['cancelado_at'] != null
-          ? DateTime.parse(json['cancelado_at']).toLocal()
+          ? AppDateUtils.parseUtcToLocal(json['cancelado_at'])
           : DateTime.now(),
       canceladoAtFormato: json['cancelado_at_formato'] ?? '',
     );

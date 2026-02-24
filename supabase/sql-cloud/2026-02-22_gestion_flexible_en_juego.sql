@@ -18,6 +18,18 @@
 -- ============================================================
 
 -- ============================================================
+-- DROP FUNCTIONS: Necesario porque cambiaron de JSON a JSONB
+-- PostgreSQL no permite cambiar el tipo de retorno con
+-- CREATE OR REPLACE. Se hace DROP IF EXISTS antes de recrear.
+-- Solo aplica a funciones que existian con RETURNS JSON
+-- y ahora retornan JSONB.
+-- ============================================================
+DROP FUNCTION IF EXISTS inscribir_jugador_admin(UUID, UUID);
+DROP FUNCTION IF EXISTS iniciar_fecha(UUID);
+DROP FUNCTION IF EXISTS listar_jugadores_disponibles_inscripcion(UUID);
+
+
+-- ============================================================
 -- 1. Agregar 'ausente' al enum estado_inscripcion
 -- ============================================================
 DO $$

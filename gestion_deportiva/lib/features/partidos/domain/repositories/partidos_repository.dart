@@ -32,6 +32,7 @@ abstract class PartidosRepository {
     required String fechaId,
     required String equipoLocal,
     required String equipoVisitante,
+    int? duracionMinutos,
   });
 
   /// Pausa un partido en curso

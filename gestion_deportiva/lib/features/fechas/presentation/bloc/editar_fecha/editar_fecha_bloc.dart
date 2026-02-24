@@ -12,7 +12,7 @@ import 'editar_fecha_state.dart';
 /// - CA-001: Solo admin puede ver boton editar
 /// - CA-002: Solo fechas con estado 'abierta' son editables
 /// - CA-003: Formulario precargado con datos actuales
-/// - CA-004: Recalculo automatico de formato y costo al cambiar duracion
+/// - CA-004: Duracion, num_equipos y costo independientes y editables
 /// - CA-005: Validacion de fecha futura
 /// - CA-006: Confirmacion con resumen de cambios
 /// - CA-007: Notificacion a inscritos
@@ -21,7 +21,6 @@ import 'editar_fecha_state.dart';
 /// Reglas de Negocio:
 /// - RN-001: Solo administradores pueden editar
 /// - RN-002: Solo fechas con estado 'abierta'
-/// - RN-003: Recalculo automatico (1h=S/8, 2h=S/10)
 /// - RN-004: Fecha futura obligatoria
 /// - RN-005: Unicidad de fecha (no colision)
 /// - RN-006: Ajuste de deudas pendientes
@@ -47,6 +46,7 @@ class EditarFechaBloc extends Bloc<EditarFechaEvent, EditarFechaState> {
       fechaHoraInicio: event.fechaHoraInicio,
       duracionHoras: event.duracionHoras,
       lugar: event.lugar,
+      numEquipos: event.numEquipos,
       costoActual: event.costoActual,
       totalInscritos: event.totalInscritos,
     ));
@@ -68,10 +68,10 @@ class EditarFechaBloc extends Bloc<EditarFechaEvent, EditarFechaState> {
       return;
     }
 
-    // RN-003: Validar duracion (1 o 2 horas)
-    if (event.duracionHoras != 1 && event.duracionHoras != 2) {
+    // Validar duracion (1-5 horas)
+    if (event.duracionHoras < 1.0 || event.duracionHoras > 5.0) {
       emit(const EditarFechaError(
-        message: 'La duracion debe ser 1 o 2 horas',
+        message: 'La duracion debe ser entre 1 y 5 horas',
         hint: 'duracion_invalida',
       ));
       return;
@@ -86,6 +86,24 @@ class EditarFechaBloc extends Bloc<EditarFechaEvent, EditarFechaState> {
       return;
     }
 
+    // Validar numero de equipos (2-4)
+    if (event.numEquipos < 2 || event.numEquipos > 4) {
+      emit(const EditarFechaError(
+        message: 'El numero de equipos debe ser entre 2 y 4',
+        hint: 'equipos_invalido',
+      ));
+      return;
+    }
+
+    // Validar costo (0-100)
+    if (event.costoPorJugador < 0 || event.costoPorJugador > 100) {
+      emit(const EditarFechaError(
+        message: 'El costo debe ser entre S/ 0.00 y S/ 100.00',
+        hint: 'costo_invalido',
+      ));
+      return;
+    }
+
     // Emitir estado de carga
     emit(const EditarFechaLoading());
 
@@ -95,6 +113,8 @@ class EditarFechaBloc extends Bloc<EditarFechaEvent, EditarFechaState> {
       fechaHoraInicio: event.fechaHoraInicio,
       duracionHoras: event.duracionHoras,
       lugar: event.lugar.trim(),
+      numEquipos: event.numEquipos,
+      costoPorJugador: event.costoPorJugador,
     );
 
     // Procesar resultado

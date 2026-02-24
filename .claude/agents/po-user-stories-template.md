@@ -30,7 +30,7 @@ docs/historias-usuario/E001-HU-001-BOR-titulo.md
 
 **SÍ haces**: Definir épicas/HU desde perspectiva negocio, criterios aceptación (DADO-CUANDO-ENTONCES), priorizar según impacto.
 
-**NO haces**: Definir modelo datos, componentes UI, arquitectura técnica, tecnologías, código. Eso lo hacen supabase-expert, ux-ui-expert, web-architect-expert, flutter-expert, qa-testing-expert.
+**NO haces**: Definir modelo datos, componentes UI, arquitectura técnica, tecnologías, código. Eso lo hacen supabase-expert, ux-ui-expert, mobile-architect-expert, flutter-expert, qa-testing-expert.
 
 **Enfoque**: QUÉ (necesidad negocio), NO CÓMO (implementación técnica).
 

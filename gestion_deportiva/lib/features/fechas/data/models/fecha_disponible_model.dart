@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/date_utils.dart';
 import 'fecha_model.dart';
 
 /// Modelo de fecha disponible para listar
@@ -16,7 +17,10 @@ class FechaDisponibleModel extends Equatable {
   final String fechaFormato;
 
   /// Duracion en horas
-  final int duracionHoras;
+  final double duracionHoras;
+
+  /// Numero de equipos
+  final int numEquipos;
 
   /// Lugar de la pichanga
   final String lugar;
@@ -47,6 +51,7 @@ class FechaDisponibleModel extends Equatable {
     required this.fechaHoraInicio,
     required this.fechaFormato,
     required this.duracionHoras,
+    required this.numEquipos,
     required this.lugar,
     required this.costoPorJugador,
     required this.costoFormato,
@@ -68,11 +73,12 @@ class FechaDisponibleModel extends Equatable {
       // El RPC retorna 'id' no 'fecha_id'
       fechaId: json['id'] ?? json['fecha_id'] ?? '',
       fechaHoraInicio: json['fecha_hora_inicio'] != null
-          ? DateTime.parse(json['fecha_hora_inicio'].toString()).toLocal()
+          ? AppDateUtils.parseUtcToLocal(json['fecha_hora_inicio'])
           : DateTime.now(),
       // Combinar fecha y hora para el formato
       fechaFormato: '${json['fecha_formato'] ?? ''} ${json['hora_formato'] ?? ''}',
-      duracionHoras: json['duracion_horas'] ?? 1,
+      duracionHoras: (json['duracion_horas'] ?? 1).toDouble(),
+      numEquipos: json['num_equipos'] ?? 2,
       lugar: json['lugar'] ?? '',
       costoPorJugador: (json['costo_por_jugador'] ?? 0).toDouble(),
       costoFormato: json['costo_formato'] ?? 'S/ 0.00',
@@ -103,12 +109,16 @@ class FechaDisponibleModel extends Equatable {
   String get ocupacionDisplay =>
       capacidadMaxima > 0 ? '$totalInscritos/$capacidadMaxima' : '$totalInscritos';
 
-  /// Descripcion del formato segun duracion
+  /// Duracion formateada para mostrar
+  String get duracionDisplay =>
+      duracionHoras % 1 == 0 ? '${duracionHoras.toInt()}h' : '${duracionHoras}h';
+
+  /// Descripcion del formato segun num_equipos
   String get formatoJuego {
-    if (duracionHoras == 1) {
-      return '2 equipos';
+    if (numEquipos == 2) {
+      return 'Partido directo';
     } else {
-      return '3 equipos (rotacion)';
+      return '$numEquipos equipos (rotacion)';
     }
   }
 
@@ -118,6 +128,7 @@ class FechaDisponibleModel extends Equatable {
         fechaHoraInicio,
         fechaFormato,
         duracionHoras,
+        numEquipos,
         lugar,
         costoPorJugador,
         costoFormato,
