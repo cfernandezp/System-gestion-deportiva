@@ -163,21 +163,30 @@ class _IniciarFechaDialogState extends State<IniciarFechaDialog> {
     return BlocListener<IniciarFechaBloc, IniciarFechaState>(
       listener: (context, state) {
         if (state is IniciarFechaSuccess) {
+          // Guardar referencias ANTES del pop() para evitar
+          // "Looking up a deactivated widget's ancestor is unsafe"
+          final message = state.message;
+          final scaffoldMessenger = ScaffoldMessenger.of(context);
+
           Navigator.of(context).pop();
           widget.onSuccess?.call();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.play_circle, color: Colors.white),
-                  const SizedBox(width: DesignTokens.spacingS),
-                  Expanded(child: Text(state.message)),
-                ],
+
+          // Mostrar SnackBar usando la referencia guardada
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.play_circle, color: Colors.white),
+                    const SizedBox(width: DesignTokens.spacingS),
+                    Expanded(child: Text(message)),
+                  ],
+                ),
+                backgroundColor: DesignTokens.successColor,
+                behavior: SnackBarBehavior.floating,
               ),
-              backgroundColor: DesignTokens.successColor,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+            );
+          });
         }
 
         if (state is IniciarFechaError) {

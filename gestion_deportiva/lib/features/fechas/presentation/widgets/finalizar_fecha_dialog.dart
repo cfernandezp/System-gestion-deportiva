@@ -134,14 +134,23 @@ class _FinalizarFechaDialogState extends State<FinalizarFechaDialog> {
     return BlocListener<FinalizarFechaBloc, FinalizarFechaState>(
       listener: (context, state) {
         if (state is FinalizarFechaSuccess) {
+          // Guardar referencias ANTES del pop() para evitar
+          // "Looking up a deactivated widget's ancestor is unsafe"
+          final message = state.message;
+          final scaffoldMessenger = ScaffoldMessenger.of(context);
+
           Navigator.of(context).pop();
           widget.onSuccess?.call();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: DesignTokens.successColor,
-            ),
-          );
+
+          // Mostrar SnackBar usando la referencia guardada
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Text(message),
+                backgroundColor: DesignTokens.successColor,
+              ),
+            );
+          });
         }
 
         if (state is FinalizarFechaError) {

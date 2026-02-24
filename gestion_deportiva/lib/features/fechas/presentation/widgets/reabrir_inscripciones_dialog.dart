@@ -83,26 +83,33 @@ class ReabrirInscripcionesDialog extends StatelessWidget {
     return BlocConsumer<CerrarInscripcionesBloc, CerrarInscripcionesState>(
       listener: (context, state) {
         if (state is ReabrirInscripcionesSuccess) {
+          // Guardar referencias ANTES del pop() para evitar
+          // "Looking up a deactivated widget's ancestor is unsafe"
+          final message = state.message;
+          final scaffoldMessenger = ScaffoldMessenger.of(context);
+
           // Cerrar el dialog
           Navigator.of(context).pop();
 
-          // Mostrar mensaje de exito
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: DesignTokens.spacingS),
-                  Expanded(child: Text(state.message)),
-                ],
-              ),
-              backgroundColor: DesignTokens.successColor,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-
           // Callback de exito
           onSuccess?.call();
+
+          // Mostrar mensaje de exito usando la referencia guardada
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: DesignTokens.spacingS),
+                    Expanded(child: Text(message)),
+                  ],
+                ),
+                backgroundColor: DesignTokens.successColor,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          });
         }
 
         if (state is ReabrirInscripcionesError) {

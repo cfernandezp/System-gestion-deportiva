@@ -390,26 +390,33 @@ class _EditarFechaDialogState extends State<EditarFechaDialog> {
     return BlocConsumer<EditarFechaBloc, EditarFechaState>(
       listener: (context, state) {
         if (state is EditarFechaSuccess) {
+          // Guardar referencias ANTES del pop() para evitar
+          // "Looking up a deactivated widget's ancestor is unsafe"
+          final message = state.message;
+          final scaffoldMessenger = ScaffoldMessenger.of(context);
+
           // Cerrar el dialog
           Navigator.of(context).pop();
 
-          // Mostrar mensaje de exito
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: DesignTokens.spacingS),
-                  Expanded(child: Text(state.message)),
-                ],
-              ),
-              backgroundColor: DesignTokens.successColor,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-
           // Callback de exito
           widget.onSuccess?.call();
+
+          // Mostrar mensaje de exito usando la referencia guardada
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: DesignTokens.spacingS),
+                    Expanded(child: Text(message)),
+                  ],
+                ),
+                backgroundColor: DesignTokens.successColor,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          });
         }
 
         if (state is EditarFechaError) {

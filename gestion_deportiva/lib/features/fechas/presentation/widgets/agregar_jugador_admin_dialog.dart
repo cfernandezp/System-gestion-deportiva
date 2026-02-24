@@ -70,26 +70,38 @@ class _AgregarJugadorAdminDialogState extends State<AgregarJugadorAdminDialog> {
       listener: (context, state) {
         // CA-004: Mensaje de exito al inscribir (individual)
         if (state is InscripcionAdminExitosa) {
+          // Guardar referencias ANTES del pop() para evitar
+          // "Looking up a deactivated widget's ancestor is unsafe"
+          final message = state.message;
+          final scaffoldMessenger = ScaffoldMessenger.of(context);
+
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: DesignTokens.spacingS),
-                  Expanded(child: Text(state.message)),
-                ],
-              ),
-              backgroundColor: DesignTokens.successColor,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
           widget.onSuccess?.call();
+
+          // Mostrar SnackBar usando la referencia guardada
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: DesignTokens.spacingS),
+                    Expanded(child: Text(message)),
+                  ],
+                ),
+                backgroundColor: DesignTokens.successColor,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          });
         }
 
         // Mensaje de exito al inscribir multiples
         if (state is InscripcionMultipleExitosa) {
-          Navigator.of(context).pop();
+          // Guardar referencias ANTES del pop() para evitar
+          // "Looking up a deactivated widget's ancestor is unsafe"
+          final message = state.message;
+          final scaffoldMessenger = ScaffoldMessenger.of(context);
 
           // Color segun resultado
           final color = state.todosExitosos
@@ -104,21 +116,26 @@ class _AgregarJugadorAdminDialogState extends State<AgregarJugadorAdminDialog> {
                   ? Icons.warning_amber_rounded
                   : Icons.error_outline);
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  Icon(icon, color: Colors.white),
-                  const SizedBox(width: DesignTokens.spacingS),
-                  Expanded(child: Text(state.message)),
-                ],
-              ),
-              backgroundColor: color,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 4),
-            ),
-          );
+          Navigator.of(context).pop();
           widget.onSuccess?.call();
+
+          // Mostrar SnackBar usando la referencia guardada
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(icon, color: Colors.white),
+                    const SizedBox(width: DesignTokens.spacingS),
+                    Expanded(child: Text(message)),
+                  ],
+                ),
+                backgroundColor: color,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          });
         }
 
         // Error

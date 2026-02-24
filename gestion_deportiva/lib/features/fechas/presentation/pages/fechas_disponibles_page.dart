@@ -1888,6 +1888,7 @@ class _DataTablePanel extends StatelessWidget {
           onSuccess: () {
             context.read<FechasPorRolBloc>().add(const RefrescarFechasEvent());
           },
+          rootContext: context,
         ),
       ),
     );
@@ -1907,6 +1908,7 @@ class _DataTablePanel extends StatelessWidget {
           onSuccess: () {
             context.read<FechasPorRolBloc>().add(const RefrescarFechasEvent());
           },
+          rootContext: context,
         ),
       ),
     );
@@ -1925,6 +1927,7 @@ class _DataTablePanel extends StatelessWidget {
           onSuccess: () {
             context.read<FechasPorRolBloc>().add(const RefrescarFechasEvent());
           },
+          rootContext: context,
         ),
       ),
     );
@@ -1967,6 +1970,7 @@ class _DataTablePanel extends StatelessWidget {
           onSuccess: () {
             context.read<FechasPorRolBloc>().add(const RefrescarFechasEvent());
           },
+          rootContext: context,
         ),
       ),
     );
@@ -2417,6 +2421,7 @@ class _FechaPorRolCard extends StatelessWidget {
         child: _EditarFechaLoaderDialogGeneric(
           fechaId: fecha.id,
           onSuccess: onRefresh,
+          rootContext: context,
         ),
       ),
     );
@@ -2432,6 +2437,7 @@ class _FechaPorRolCard extends StatelessWidget {
         child: _CerrarInscripcionesLoaderDialogGeneric(
           fechaId: fecha.id,
           onSuccess: onRefresh,
+          rootContext: context,
         ),
       ),
     );
@@ -2447,6 +2453,7 @@ class _FechaPorRolCard extends StatelessWidget {
         child: _ReabrirInscripcionesLoaderDialogGeneric(
           fechaId: fecha.id,
           onSuccess: onRefresh,
+          rootContext: context,
         ),
       ),
     );
@@ -2462,6 +2469,7 @@ class _FechaPorRolCard extends StatelessWidget {
         child: _FinalizarFechaLoaderDialogGeneric(
           fechaId: fecha.id,
           onSuccess: onRefresh,
+          rootContext: context,
         ),
       ),
     );
@@ -3313,10 +3321,12 @@ class _CrearFechaDialogState extends State<_CrearFechaDialog> {
 class _EditarFechaLoaderDialog extends StatelessWidget {
   final String fechaId;
   final VoidCallback onSuccess;
+  final BuildContext rootContext;
 
   const _EditarFechaLoaderDialog({
     required this.fechaId,
     required this.onSuccess,
+    required this.rootContext,
   });
 
   @override
@@ -3326,25 +3336,33 @@ class _EditarFechaLoaderDialog extends StatelessWidget {
     return BlocConsumer<InscripcionBloc, InscripcionState>(
       listener: (context, state) {
         if (state is InscripcionFechaDetalleCargado) {
+          final fechaDetalle = state.fechaDetalle;
           Navigator.of(context).pop();
-          EditarFechaDialog.show(
-            context,
-            fechaDetalle: state.fechaDetalle,
-            onSuccess: onSuccess,
-          );
+          // Usar rootContext que sigue activo despues del pop
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            EditarFechaDialog.show(
+              rootContext,
+              fechaDetalle: fechaDetalle,
+              onSuccess: onSuccess,
+            );
+          });
         }
 
         if (state is InscripcionError) {
+          final message = state.message;
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                state.message,
-                style: const TextStyle(color: Colors.white),
+          // Usar rootContext para el SnackBar
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ScaffoldMessenger.of(rootContext).showSnackBar(
+              SnackBar(
+                content: Text(
+                  message,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: DesignTokens.errorColor,
               ),
-              backgroundColor: DesignTokens.errorColor,
-            ),
-          );
+            );
+          });
         }
       },
       builder: (context, state) {
@@ -3374,10 +3392,12 @@ class _EditarFechaLoaderDialog extends StatelessWidget {
 class _CerrarInscripcionesLoaderDialog extends StatelessWidget {
   final String fechaId;
   final VoidCallback onSuccess;
+  final BuildContext rootContext;
 
   const _CerrarInscripcionesLoaderDialog({
     required this.fechaId,
     required this.onSuccess,
+    required this.rootContext,
   });
 
   @override
@@ -3387,25 +3407,33 @@ class _CerrarInscripcionesLoaderDialog extends StatelessWidget {
     return BlocConsumer<InscripcionBloc, InscripcionState>(
       listener: (context, state) {
         if (state is InscripcionFechaDetalleCargado) {
+          final fechaDetalle = state.fechaDetalle;
           Navigator.of(context).pop();
-          CerrarInscripcionesDialog.show(
-            context,
-            fechaDetalle: state.fechaDetalle,
-            onSuccess: onSuccess,
-          );
+          // Usar rootContext que sigue activo despues del pop
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            CerrarInscripcionesDialog.show(
+              rootContext,
+              fechaDetalle: fechaDetalle,
+              onSuccess: onSuccess,
+            );
+          });
         }
 
         if (state is InscripcionError) {
+          final message = state.message;
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                state.message,
-                style: const TextStyle(color: Colors.white),
+          // Usar rootContext para el SnackBar
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ScaffoldMessenger.of(rootContext).showSnackBar(
+              SnackBar(
+                content: Text(
+                  message,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: DesignTokens.errorColor,
               ),
-              backgroundColor: DesignTokens.errorColor,
-            ),
-          );
+            );
+          });
         }
       },
       builder: (context, state) {
@@ -3435,10 +3463,12 @@ class _CerrarInscripcionesLoaderDialog extends StatelessWidget {
 class _ReabrirInscripcionesLoaderDialog extends StatelessWidget {
   final String fechaId;
   final VoidCallback onSuccess;
+  final BuildContext rootContext;
 
   const _ReabrirInscripcionesLoaderDialog({
     required this.fechaId,
     required this.onSuccess,
+    required this.rootContext,
   });
 
   @override
@@ -3448,25 +3478,33 @@ class _ReabrirInscripcionesLoaderDialog extends StatelessWidget {
     return BlocConsumer<InscripcionBloc, InscripcionState>(
       listener: (context, state) {
         if (state is InscripcionFechaDetalleCargado) {
+          final fechaDetalle = state.fechaDetalle;
           Navigator.of(context).pop();
-          ReabrirInscripcionesDialog.show(
-            context,
-            fechaDetalle: state.fechaDetalle,
-            onSuccess: onSuccess,
-          );
+          // Usar rootContext que sigue activo despues del pop
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ReabrirInscripcionesDialog.show(
+              rootContext,
+              fechaDetalle: fechaDetalle,
+              onSuccess: onSuccess,
+            );
+          });
         }
 
         if (state is InscripcionError) {
+          final message = state.message;
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                state.message,
-                style: const TextStyle(color: Colors.white),
+          // Usar rootContext para el SnackBar
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ScaffoldMessenger.of(rootContext).showSnackBar(
+              SnackBar(
+                content: Text(
+                  message,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: DesignTokens.errorColor,
               ),
-              backgroundColor: DesignTokens.errorColor,
-            ),
-          );
+            );
+          });
         }
       },
       builder: (context, state) {
@@ -3496,10 +3534,12 @@ class _ReabrirInscripcionesLoaderDialog extends StatelessWidget {
 class _FinalizarFechaLoaderDialog extends StatelessWidget {
   final String fechaId;
   final VoidCallback onSuccess;
+  final BuildContext rootContext;
 
   const _FinalizarFechaLoaderDialog({
     required this.fechaId,
     required this.onSuccess,
+    required this.rootContext,
   });
 
   @override
@@ -3509,25 +3549,33 @@ class _FinalizarFechaLoaderDialog extends StatelessWidget {
     return BlocConsumer<InscripcionBloc, InscripcionState>(
       listener: (context, state) {
         if (state is InscripcionFechaDetalleCargado) {
+          final fechaDetalle = state.fechaDetalle;
           Navigator.of(context).pop();
-          FinalizarFechaDialog.show(
-            context,
-            fechaDetalle: state.fechaDetalle,
-            onSuccess: onSuccess,
-          );
+          // Usar rootContext que sigue activo despues del pop
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            FinalizarFechaDialog.show(
+              rootContext,
+              fechaDetalle: fechaDetalle,
+              onSuccess: onSuccess,
+            );
+          });
         }
 
         if (state is InscripcionError) {
+          final message = state.message;
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                state.message,
-                style: const TextStyle(color: Colors.white),
+          // Usar rootContext para el SnackBar
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ScaffoldMessenger.of(rootContext).showSnackBar(
+              SnackBar(
+                content: Text(
+                  message,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: DesignTokens.errorColor,
               ),
-              backgroundColor: DesignTokens.errorColor,
-            ),
-          );
+            );
+          });
         }
       },
       builder: (context, state) {
@@ -3560,10 +3608,12 @@ class _FinalizarFechaLoaderDialog extends StatelessWidget {
 class _EditarFechaLoaderDialogGeneric extends StatelessWidget {
   final String fechaId;
   final VoidCallback? onSuccess;
+  final BuildContext rootContext;
 
   const _EditarFechaLoaderDialogGeneric({
     required this.fechaId,
     this.onSuccess,
+    required this.rootContext,
   });
 
   @override
@@ -3573,25 +3623,33 @@ class _EditarFechaLoaderDialogGeneric extends StatelessWidget {
     return BlocConsumer<InscripcionBloc, InscripcionState>(
       listener: (context, state) {
         if (state is InscripcionFechaDetalleCargado) {
+          final fechaDetalle = state.fechaDetalle;
           Navigator.of(context).pop();
-          EditarFechaDialog.show(
-            context,
-            fechaDetalle: state.fechaDetalle,
-            onSuccess: onSuccess,
-          );
+          // Usar rootContext que sigue activo despues del pop
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            EditarFechaDialog.show(
+              rootContext,
+              fechaDetalle: fechaDetalle,
+              onSuccess: onSuccess,
+            );
+          });
         }
 
         if (state is InscripcionError) {
+          final message = state.message;
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                state.message,
-                style: const TextStyle(color: Colors.white),
+          // Usar rootContext para el SnackBar
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ScaffoldMessenger.of(rootContext).showSnackBar(
+              SnackBar(
+                content: Text(
+                  message,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: DesignTokens.errorColor,
               ),
-              backgroundColor: DesignTokens.errorColor,
-            ),
-          );
+            );
+          });
         }
       },
       builder: (context, state) {
@@ -3620,10 +3678,12 @@ class _EditarFechaLoaderDialogGeneric extends StatelessWidget {
 class _CerrarInscripcionesLoaderDialogGeneric extends StatelessWidget {
   final String fechaId;
   final VoidCallback? onSuccess;
+  final BuildContext rootContext;
 
   const _CerrarInscripcionesLoaderDialogGeneric({
     required this.fechaId,
     this.onSuccess,
+    required this.rootContext,
   });
 
   @override
@@ -3633,25 +3693,33 @@ class _CerrarInscripcionesLoaderDialogGeneric extends StatelessWidget {
     return BlocConsumer<InscripcionBloc, InscripcionState>(
       listener: (context, state) {
         if (state is InscripcionFechaDetalleCargado) {
+          final fechaDetalle = state.fechaDetalle;
           Navigator.of(context).pop();
-          CerrarInscripcionesDialog.show(
-            context,
-            fechaDetalle: state.fechaDetalle,
-            onSuccess: onSuccess,
-          );
+          // Usar rootContext que sigue activo despues del pop
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            CerrarInscripcionesDialog.show(
+              rootContext,
+              fechaDetalle: fechaDetalle,
+              onSuccess: onSuccess,
+            );
+          });
         }
 
         if (state is InscripcionError) {
+          final message = state.message;
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                state.message,
-                style: const TextStyle(color: Colors.white),
+          // Usar rootContext para el SnackBar
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ScaffoldMessenger.of(rootContext).showSnackBar(
+              SnackBar(
+                content: Text(
+                  message,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: DesignTokens.errorColor,
               ),
-              backgroundColor: DesignTokens.errorColor,
-            ),
-          );
+            );
+          });
         }
       },
       builder: (context, state) {
@@ -3680,10 +3748,12 @@ class _CerrarInscripcionesLoaderDialogGeneric extends StatelessWidget {
 class _ReabrirInscripcionesLoaderDialogGeneric extends StatelessWidget {
   final String fechaId;
   final VoidCallback? onSuccess;
+  final BuildContext rootContext;
 
   const _ReabrirInscripcionesLoaderDialogGeneric({
     required this.fechaId,
     this.onSuccess,
+    required this.rootContext,
   });
 
   @override
@@ -3693,25 +3763,33 @@ class _ReabrirInscripcionesLoaderDialogGeneric extends StatelessWidget {
     return BlocConsumer<InscripcionBloc, InscripcionState>(
       listener: (context, state) {
         if (state is InscripcionFechaDetalleCargado) {
+          final fechaDetalle = state.fechaDetalle;
           Navigator.of(context).pop();
-          ReabrirInscripcionesDialog.show(
-            context,
-            fechaDetalle: state.fechaDetalle,
-            onSuccess: onSuccess,
-          );
+          // Usar rootContext que sigue activo despues del pop
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ReabrirInscripcionesDialog.show(
+              rootContext,
+              fechaDetalle: fechaDetalle,
+              onSuccess: onSuccess,
+            );
+          });
         }
 
         if (state is InscripcionError) {
+          final message = state.message;
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                state.message,
-                style: const TextStyle(color: Colors.white),
+          // Usar rootContext para el SnackBar
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ScaffoldMessenger.of(rootContext).showSnackBar(
+              SnackBar(
+                content: Text(
+                  message,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: DesignTokens.errorColor,
               ),
-              backgroundColor: DesignTokens.errorColor,
-            ),
-          );
+            );
+          });
         }
       },
       builder: (context, state) {
@@ -3740,10 +3818,12 @@ class _ReabrirInscripcionesLoaderDialogGeneric extends StatelessWidget {
 class _FinalizarFechaLoaderDialogGeneric extends StatelessWidget {
   final String fechaId;
   final VoidCallback? onSuccess;
+  final BuildContext rootContext;
 
   const _FinalizarFechaLoaderDialogGeneric({
     required this.fechaId,
     this.onSuccess,
+    required this.rootContext,
   });
 
   @override
@@ -3753,25 +3833,33 @@ class _FinalizarFechaLoaderDialogGeneric extends StatelessWidget {
     return BlocConsumer<InscripcionBloc, InscripcionState>(
       listener: (context, state) {
         if (state is InscripcionFechaDetalleCargado) {
+          final fechaDetalle = state.fechaDetalle;
           Navigator.of(context).pop();
-          FinalizarFechaDialog.show(
-            context,
-            fechaDetalle: state.fechaDetalle,
-            onSuccess: onSuccess,
-          );
+          // Usar rootContext que sigue activo despues del pop
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            FinalizarFechaDialog.show(
+              rootContext,
+              fechaDetalle: fechaDetalle,
+              onSuccess: onSuccess,
+            );
+          });
         }
 
         if (state is InscripcionError) {
+          final message = state.message;
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                state.message,
-                style: const TextStyle(color: Colors.white),
+          // Usar rootContext para el SnackBar
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ScaffoldMessenger.of(rootContext).showSnackBar(
+              SnackBar(
+                content: Text(
+                  message,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: DesignTokens.errorColor,
               ),
-              backgroundColor: DesignTokens.errorColor,
-            ),
-          );
+            );
+          });
         }
       },
       builder: (context, state) {
